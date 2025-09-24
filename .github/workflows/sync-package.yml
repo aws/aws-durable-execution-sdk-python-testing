@@ -43,7 +43,7 @@ jobs:
           echo "tar_gz_name=$TAR_GZ_NAME" >> $GITHUB_OUTPUT
       - name: Copy tar gz build file to s3
         run: |
-          aws s3 cp ./dist/${{steps.tar-gz-name.outputs.}} \
+          aws s3 cp ./dist/${{steps.tar_gz_name.outputs.tar_gz_name}} \
             s3://${{ secrets.S3_BUCKET_NAME }}/
       - name: commit tar gz to Gitfarm
         run: |
