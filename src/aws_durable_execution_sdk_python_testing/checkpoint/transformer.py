@@ -4,33 +4,33 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     Operation,
     OperationType,
     OperationUpdate,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.callback import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.callback import (
     CallbackProcessor,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.context import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.context import (
     ContextProcessor,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.execution import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.execution import (
     ExecutionProcessor,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.step import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.step import (
     StepProcessor,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.wait import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.wait import (
     WaitProcessor,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
 
-    from aws_durable_functions_sdk_python_testing.checkpoint.processors.base import (
+    from aws_durable_execution_sdk_python_testing.checkpoint.processors.base import (
         OperationProcessor,
     )
 

@@ -6,11 +6,11 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from aws_durable_functions_sdk_python.execution import (
+from aws_durable_execution_sdk_python.execution import (
     DurableExecutionInvocationOutput,
     InvocationStatus,
 )
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     ExecutionDetails,
     Operation,
@@ -19,14 +19,14 @@ from aws_durable_functions_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-from aws_durable_functions_sdk_python_testing.exceptions import (
+from aws_durable_execution_sdk_python_testing.exceptions import (
     IllegalStateError,
     InvalidParameterError,
 )
-from aws_durable_functions_sdk_python_testing.token import CheckpointToken
+from aws_durable_execution_sdk_python_testing.token import CheckpointToken
 
 if TYPE_CHECKING:
-    from aws_durable_functions_sdk_python_testing.model import (
+    from aws_durable_execution_sdk_python_testing.model import (
         StartDurableExecutionInput,
     )
 

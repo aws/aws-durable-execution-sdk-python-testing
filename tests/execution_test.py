@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
-from aws_durable_functions_sdk_python.execution import InvocationStatus
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.execution import InvocationStatus
+from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     Operation,
     OperationStatus,
@@ -13,9 +13,9 @@ from aws_durable_functions_sdk_python.lambda_service import (
     StepDetails,
 )
 
-from aws_durable_functions_sdk_python_testing.exceptions import IllegalStateError
-from aws_durable_functions_sdk_python_testing.execution import Execution
-from aws_durable_functions_sdk_python_testing.model import StartDurableExecutionInput
+from aws_durable_execution_sdk_python_testing.exceptions import IllegalStateError
+from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
 
 
 def test_execution_init():
@@ -43,7 +43,7 @@ def test_execution_init():
     assert execution.consecutive_failed_invocation_attempts == 0
 
 
-@patch("aws_durable_functions_sdk_python_testing.execution.uuid4")
+@patch("aws_durable_execution_sdk_python_testing.execution.uuid4")
 def test_execution_new(mock_uuid4):
     """Test Execution.new static method."""
     mock_uuid = "test-uuid-123"
@@ -65,7 +65,7 @@ def test_execution_new(mock_uuid4):
     assert execution.operations == []
 
 
-@patch("aws_durable_functions_sdk_python_testing.execution.datetime")
+@patch("aws_durable_execution_sdk_python_testing.execution.datetime")
 def test_execution_start(mock_datetime):
     """Test Execution.start method."""
     mock_now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
@@ -452,7 +452,7 @@ def test_find_operation_not_exists():
         execution._find_operation("non-existent-id")  # noqa: SLF001
 
 
-@patch("aws_durable_functions_sdk_python_testing.execution.datetime")
+@patch("aws_durable_execution_sdk_python_testing.execution.datetime")
 def test_complete_wait_success(mock_datetime):
     """Test complete_wait method successful completion."""
     mock_now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)

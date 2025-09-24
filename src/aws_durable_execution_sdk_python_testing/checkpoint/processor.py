@@ -4,27 +4,27 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     CheckpointOutput,
     CheckpointUpdatedExecutionState,
     OperationUpdate,
     StateOutput,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.transformer import (
+from aws_durable_execution_sdk_python_testing.checkpoint.transformer import (
     OperationTransformer,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.checkpoint import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.checkpoint import (
     CheckpointValidator,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
-from aws_durable_functions_sdk_python_testing.observer import ExecutionNotifier
-from aws_durable_functions_sdk_python_testing.token import CheckpointToken
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
+from aws_durable_execution_sdk_python_testing.token import CheckpointToken
 
 if TYPE_CHECKING:
-    from aws_durable_functions_sdk_python_testing.execution import Execution
-    from aws_durable_functions_sdk_python_testing.scheduler import Scheduler
-    from aws_durable_functions_sdk_python_testing.store import ExecutionStore
+    from aws_durable_execution_sdk_python_testing.execution import Execution
+    from aws_durable_execution_sdk_python_testing.scheduler import Scheduler
+    from aws_durable_execution_sdk_python_testing.store import ExecutionStore
 
 
 class CheckpointProcessor:

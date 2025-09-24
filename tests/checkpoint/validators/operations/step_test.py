@@ -1,7 +1,7 @@
 """Unit tests for step operation validator."""
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     Operation,
     OperationAction,
@@ -11,10 +11,10 @@ from aws_durable_functions_sdk_python.lambda_service import (
     StepOptions,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.step import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.step import (
     StepOperationValidator,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 
 def test_validate_with_no_current_state():

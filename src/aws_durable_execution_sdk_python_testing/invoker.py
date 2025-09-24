@@ -5,23 +5,23 @@ import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 import boto3  # type: ignore
-from aws_durable_functions_sdk_python.execution import (
+from aws_durable_execution_sdk_python.execution import (
     DurableExecutionInvocationInput,
     DurableExecutionInvocationInputWithClient,
     DurableExecutionInvocationOutput,
     InitialExecutionState,
 )
-from aws_durable_functions_sdk_python.lambda_context import LambdaContext
+from aws_durable_execution_sdk_python.lambda_context import LambdaContext
 
-from aws_durable_functions_sdk_python_testing.exceptions import (
+from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from aws_durable_functions_sdk_python_testing.client import InMemoryServiceClient
-    from aws_durable_functions_sdk_python_testing.execution import Execution
+    from aws_durable_execution_sdk_python_testing.client import InMemoryServiceClient
+    from aws_durable_execution_sdk_python_testing.execution import Execution
 
 
 def create_test_lambda_context() -> LambdaContext:

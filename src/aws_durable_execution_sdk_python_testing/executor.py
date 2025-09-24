@@ -5,31 +5,31 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from aws_durable_functions_sdk_python.execution import (
+from aws_durable_execution_sdk_python.execution import (
     DurableExecutionInvocationInput,
     DurableExecutionInvocationOutput,
     InvocationStatus,
 )
-from aws_durable_functions_sdk_python.lambda_service import ErrorObject
+from aws_durable_execution_sdk_python.lambda_service import ErrorObject
 
-from aws_durable_functions_sdk_python_testing.exceptions import (
+from aws_durable_execution_sdk_python_testing.exceptions import (
     IllegalStateError,
     InvalidParameterError,
     ResourceNotFoundError,
 )
-from aws_durable_functions_sdk_python_testing.execution import Execution
-from aws_durable_functions_sdk_python_testing.model import (
+from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
     StartDurableExecutionOutput,
 )
-from aws_durable_functions_sdk_python_testing.observer import ExecutionObserver
+from aws_durable_execution_sdk_python_testing.observer import ExecutionObserver
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
-    from aws_durable_functions_sdk_python_testing.invoker import Invoker
-    from aws_durable_functions_sdk_python_testing.scheduler import Event, Scheduler
-    from aws_durable_functions_sdk_python_testing.store import ExecutionStore
+    from aws_durable_execution_sdk_python_testing.invoker import Invoker
+    from aws_durable_execution_sdk_python_testing.scheduler import Event, Scheduler
+    from aws_durable_execution_sdk_python_testing.store import ExecutionStore
 
 logger = logging.getLogger(__name__)
 

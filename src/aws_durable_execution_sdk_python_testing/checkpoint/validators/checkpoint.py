@@ -5,38 +5,38 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     OperationType,
     OperationUpdate,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.callback import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.callback import (
     CallbackOperationValidator,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.context import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.context import (
     ContextOperationValidator,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.execution import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.execution import (
     ExecutionOperationValidator,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.invoke import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.invoke import (
     InvokeOperationValidator,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.step import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.step import (
     StepOperationValidator,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.wait import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.wait import (
     WaitOperationValidator,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.transitions import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.transitions import (
     ValidActionsByOperationTypeValidator,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
 
-    from aws_durable_functions_sdk_python_testing.execution import Execution
+    from aws_durable_execution_sdk_python_testing.execution import Execution
 
 MAX_ERROR_PAYLOAD_SIZE_BYTES = 32768
 

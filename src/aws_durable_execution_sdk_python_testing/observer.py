@@ -4,7 +4,7 @@ import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 
-from aws_durable_functions_sdk_python.lambda_service import ErrorObject
+from aws_durable_execution_sdk_python.lambda_service import ErrorObject
 
 
 class ExecutionObserver(ABC):

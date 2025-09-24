@@ -1,7 +1,7 @@
 """Unit tests for invoke operation validator."""
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     Operation,
     OperationAction,
     OperationStatus,
@@ -9,10 +9,10 @@ from aws_durable_functions_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.invoke import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.invoke import (
     InvokeOperationValidator,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 
 def test_validate_start_action_with_no_current_state():

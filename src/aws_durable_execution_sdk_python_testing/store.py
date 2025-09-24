@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from aws_durable_functions_sdk_python_testing.execution import Execution
+    from aws_durable_execution_sdk_python_testing.execution import Execution
 
 
 class ExecutionStore(Protocol):

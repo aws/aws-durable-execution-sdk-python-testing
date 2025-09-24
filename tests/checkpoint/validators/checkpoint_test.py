@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     Operation,
     OperationAction,
@@ -12,13 +12,13 @@ from aws_durable_functions_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.checkpoint import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.checkpoint import (
     MAX_ERROR_PAYLOAD_SIZE_BYTES,
     CheckpointValidator,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
-from aws_durable_functions_sdk_python_testing.execution import Execution
-from aws_durable_functions_sdk_python_testing.model import StartDurableExecutionInput
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
 
 
 def _create_test_execution() -> Execution:

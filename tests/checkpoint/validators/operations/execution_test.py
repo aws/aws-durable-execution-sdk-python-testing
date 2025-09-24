@@ -1,17 +1,17 @@
 """Unit tests for execution operation validator."""
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     OperationAction,
     OperationType,
     OperationUpdate,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.execution import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.execution import (
     ExecutionOperationValidator,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 
 def test_validate_succeed_action():

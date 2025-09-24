@@ -1,7 +1,7 @@
 """Tests for context operation validator."""
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     Operation,
     OperationAction,
@@ -10,11 +10,11 @@ from aws_durable_functions_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.context import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.context import (
     VALID_ACTIONS_FOR_CONTEXT,
     ContextOperationValidator,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 
 def test_valid_actions_for_context():

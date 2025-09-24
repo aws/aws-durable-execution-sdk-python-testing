@@ -3,7 +3,7 @@
 import datetime
 from unittest.mock import Mock
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     CheckpointOutput,
     OperationAction,
     OperationType,
@@ -11,7 +11,7 @@ from aws_durable_functions_sdk_python.lambda_service import (
     StateOutput,
 )
 
-from aws_durable_functions_sdk_python_testing.client import InMemoryServiceClient
+from aws_durable_execution_sdk_python_testing.client import InMemoryServiceClient
 
 
 def test_init():
@@ -41,7 +41,12 @@ def test_checkpoint():
         )
     ]
 
-    result = client.checkpoint("token", updates, "client-token")
+    result = client.checkpoint(
+        "arn:aws:lambda:us-east-1:123456789012:function:test",
+        "token",
+        updates,
+        "client-token",
+    )
 
     assert result == expected_output
     processor.process_checkpoint.assert_called_once_with(
@@ -57,7 +62,9 @@ def test_get_execution_state():
 
     client = InMemoryServiceClient(processor)
 
-    result = client.get_execution_state("token", "marker", 500)
+    result = client.get_execution_state(
+        "arn:aws:lambda:us-east-1:123456789012:function:test", "token", "marker", 500
+    )
 
     assert result == expected_output
     processor.get_execution_state.assert_called_once_with("token", "marker", 500)
@@ -71,7 +78,9 @@ def test_get_execution_state_default_max_items():
 
     client = InMemoryServiceClient(processor)
 
-    result = client.get_execution_state("token", "marker")
+    result = client.get_execution_state(
+        "arn:aws:lambda:us-east-1:123456789012:function:test", "token", "marker"
+    )
 
     assert result == expected_output
     processor.get_execution_state.assert_called_once_with("token", "marker", 1000)

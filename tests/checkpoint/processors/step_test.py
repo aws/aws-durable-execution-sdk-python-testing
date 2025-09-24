@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from unittest.mock import Mock
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     Operation,
     OperationAction,
@@ -15,11 +15,11 @@ from aws_durable_functions_sdk_python.lambda_service import (
     StepOptions,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.step import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.step import (
     StepProcessor,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
-from aws_durable_functions_sdk_python_testing.observer import ExecutionNotifier
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 
 
 class MockNotifier(ExecutionNotifier):

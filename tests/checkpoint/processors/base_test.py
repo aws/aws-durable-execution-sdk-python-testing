@@ -5,7 +5,7 @@ from datetime import timedelta
 from unittest.mock import Mock
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     CallbackDetails,
     ContextDetails,
     ErrorObject,
@@ -22,7 +22,7 @@ from aws_durable_functions_sdk_python.lambda_service import (
     WaitOptions,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.base import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.base import (
     OperationProcessor,
 )
 

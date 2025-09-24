@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     Operation,
     OperationAction,
     OperationStatus,
@@ -13,13 +13,13 @@ from aws_durable_functions_sdk_python.lambda_service import (
     StepDetails,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.base import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.base import (
     OperationProcessor,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 if TYPE_CHECKING:
-    from aws_durable_functions_sdk_python_testing.observer import ExecutionNotifier
+    from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 
 
 class StepProcessor(OperationProcessor):
