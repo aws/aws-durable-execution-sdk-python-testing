@@ -39,7 +39,7 @@ jobs:
       - name: Get tar gz name 
         id: tar_gz_name
         run: |
-          TAR_GZ_NAME=ls dist/*.tar.gz
+          TAR_GZ_NAME=$(ls dist/*.tar.gz)
           echo "tar_gz_name=$TAR_GZ_NAME" >> $GITHUB_OUTPUT
       - name: Copy tar gz build file to s3
         run: |
