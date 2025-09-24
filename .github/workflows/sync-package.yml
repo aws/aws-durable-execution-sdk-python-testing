@@ -2,9 +2,8 @@ name: Sync package
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "sync-package" ]
 env:
-  BUCKET_NAME : "${{ secrets.S3_BUCKET_NAME }}"
   AWS_REGION : "us-west-2"
 
 # permission can be added at job level or workflow level
@@ -43,7 +42,7 @@ jobs:
       - name: Copy tar gz build file to s3
         run: |
           aws s3 cp ./dist/aws_durable_execution_sdk_python_testing-${{ steps.versioncheck.outputs.local_version }}.tar.gz \
-            s3://${{ env.BUCKET_NAME }}/
+            s3://${{ secrets.S3_BUCKET_NAME }}/
       - name: commit tar gz to Gitfarm
         run: |
           aws lambda invoke \
