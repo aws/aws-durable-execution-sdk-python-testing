@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aws-durable-execution-sdk-python-testing"
-dynamic = ["version"]
+version = "0.0.1"
 description = 'This the Python SDK for AWS Lambda Durable Execution.'
 readme = "README.md"
 requires-python = ">=3.13"
