@@ -24,3 +24,6 @@ __pycache__/
 .attach_*
 
 dist/
+
+.vscode/
+.kiro/

@@ -81,8 +81,8 @@ def function_under_test(event: Any, context: DurableContext) -> list[str]:
 ### Your test code
 
 ```python
-from aws_durable_functions_sdk_python.execution import InvocationStatus
-from aws_durable_functions_sdk_python_testing.runner import (
+from aws_durable_execution_sdk_python.execution import InvocationStatus
+from aws_durable_execution_sdk_python_testing.runner import (
     ContextOperation,
     DurableFunctionTestResult,
     DurableFunctionTestRunner,

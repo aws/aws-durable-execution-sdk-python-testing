@@ -6,7 +6,7 @@ import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     CallbackDetails,
     ContextDetails,
     ExecutionDetails,
@@ -20,7 +20,7 @@ from aws_durable_functions_sdk_python.lambda_service import (
 )
 
 if TYPE_CHECKING:
-    from aws_durable_functions_sdk_python_testing.observer import ExecutionNotifier
+    from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 
 
 class OperationProcessor:

@@ -4,22 +4,22 @@ import json
 from unittest.mock import Mock, patch
 
 import pytest
-from aws_durable_functions_sdk_python.execution import (
+from aws_durable_execution_sdk_python.execution import (
     DurableExecutionInvocationInput,
     DurableExecutionInvocationInputWithClient,
     DurableExecutionInvocationOutput,
     InitialExecutionState,
     InvocationStatus,
 )
-from aws_durable_functions_sdk_python.lambda_context import LambdaContext
+from aws_durable_execution_sdk_python.lambda_context import LambdaContext
 
-from aws_durable_functions_sdk_python_testing.execution import Execution
-from aws_durable_functions_sdk_python_testing.invoker import (
+from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.invoker import (
     InProcessInvoker,
     LambdaInvoker,
     create_test_lambda_context,
 )
-from aws_durable_functions_sdk_python_testing.model import StartDurableExecutionInput
+from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
 
 
 def test_create_test_lambda_context():
@@ -112,7 +112,7 @@ def test_lambda_invoker_init():
 
 def test_lambda_invoker_create():
     """Test creating LambdaInvoker with boto3 client."""
-    with patch("aws_durable_functions_sdk_python_testing.invoker.boto3") as mock_boto3:
+    with patch("aws_durable_execution_sdk_python_testing.invoker.boto3") as mock_boto3:
         mock_client = Mock()
         mock_boto3.client.return_value = mock_client
 

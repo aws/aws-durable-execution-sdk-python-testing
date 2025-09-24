@@ -2,7 +2,7 @@
 
 import pytest
 
-from aws_durable_functions_sdk_python_testing.model import (
+from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
     StartDurableExecutionOutput,
 )

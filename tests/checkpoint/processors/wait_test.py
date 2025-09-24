@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from unittest.mock import Mock
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     Operation,
     OperationAction,
     OperationStatus,
@@ -13,10 +13,10 @@ from aws_durable_functions_sdk_python.lambda_service import (
     WaitOptions,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.wait import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.wait import (
     WaitProcessor,
 )
-from aws_durable_functions_sdk_python_testing.observer import ExecutionNotifier
+from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 
 
 class MockNotifier(ExecutionNotifier):

@@ -4,8 +4,8 @@ import datetime
 from unittest.mock import Mock, patch
 
 import pytest
-from aws_durable_functions_sdk_python.execution import InvocationStatus
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.execution import InvocationStatus
+from aws_durable_execution_sdk_python.lambda_service import (
     CallbackDetails,
     ContextDetails,
     ExecutionDetails,
@@ -15,17 +15,17 @@ from aws_durable_functions_sdk_python.lambda_service import (
     StepDetails,
     WaitDetails,
 )
-from aws_durable_functions_sdk_python.lambda_service import Operation as SvcOperation
+from aws_durable_execution_sdk_python.lambda_service import Operation as SvcOperation
 
-from aws_durable_functions_sdk_python_testing.exceptions import (
+from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
 )
-from aws_durable_functions_sdk_python_testing.execution import Execution
-from aws_durable_functions_sdk_python_testing.model import (
+from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
     StartDurableExecutionOutput,
 )
-from aws_durable_functions_sdk_python_testing.runner import (
+from aws_durable_execution_sdk_python_testing.runner import (
     OPERATION_FACTORIES,
     CallbackOperation,
     ContextOperation,
@@ -657,12 +657,12 @@ def test_durable_function_test_result_get_execution():
     assert found_exec.name == "test-execution"
 
 
-@patch("aws_durable_functions_sdk_python_testing.runner.Scheduler")
-@patch("aws_durable_functions_sdk_python_testing.runner.InMemoryExecutionStore")
-@patch("aws_durable_functions_sdk_python_testing.runner.CheckpointProcessor")
-@patch("aws_durable_functions_sdk_python_testing.runner.InMemoryServiceClient")
-@patch("aws_durable_functions_sdk_python_testing.runner.InProcessInvoker")
-@patch("aws_durable_functions_sdk_python_testing.runner.Executor")
+@patch("aws_durable_execution_sdk_python_testing.runner.Scheduler")
+@patch("aws_durable_execution_sdk_python_testing.runner.InMemoryExecutionStore")
+@patch("aws_durable_execution_sdk_python_testing.runner.CheckpointProcessor")
+@patch("aws_durable_execution_sdk_python_testing.runner.InMemoryServiceClient")
+@patch("aws_durable_execution_sdk_python_testing.runner.InProcessInvoker")
+@patch("aws_durable_execution_sdk_python_testing.runner.Executor")
 def test_durable_function_test_runner_init(
     mock_executor, mock_invoker, mock_client, mock_processor, mock_store, mock_scheduler
 ):
@@ -700,7 +700,7 @@ def test_durable_function_test_runner_context_manager():
             mock_close.assert_called_once()
 
 
-@patch("aws_durable_functions_sdk_python_testing.runner.Scheduler")
+@patch("aws_durable_execution_sdk_python_testing.runner.Scheduler")
 def test_durable_function_test_runner_close(mock_scheduler):
     """Test DurableFunctionTestRunner close method."""
     handler = Mock()

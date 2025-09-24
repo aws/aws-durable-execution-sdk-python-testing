@@ -3,37 +3,37 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, TypeVar, cast
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     OperationStatus,
     OperationSubType,
     OperationType,
 )
-from aws_durable_functions_sdk_python.lambda_service import Operation as SvcOperation
+from aws_durable_execution_sdk_python.lambda_service import Operation as SvcOperation
 
-from aws_durable_functions_sdk_python_testing.checkpoint.processor import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processor import (
     CheckpointProcessor,
 )
-from aws_durable_functions_sdk_python_testing.client import InMemoryServiceClient
-from aws_durable_functions_sdk_python_testing.exceptions import (
+from aws_durable_execution_sdk_python_testing.client import InMemoryServiceClient
+from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
 )
-from aws_durable_functions_sdk_python_testing.executor import Executor
-from aws_durable_functions_sdk_python_testing.invoker import InProcessInvoker
-from aws_durable_functions_sdk_python_testing.model import (
+from aws_durable_execution_sdk_python_testing.executor import Executor
+from aws_durable_execution_sdk_python_testing.invoker import InProcessInvoker
+from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
     StartDurableExecutionOutput,
 )
-from aws_durable_functions_sdk_python_testing.scheduler import Scheduler
-from aws_durable_functions_sdk_python_testing.store import InMemoryExecutionStore
+from aws_durable_execution_sdk_python_testing.scheduler import Scheduler
+from aws_durable_execution_sdk_python_testing.store import InMemoryExecutionStore
 
 if TYPE_CHECKING:
     import datetime
     from collections.abc import Callable, MutableMapping
 
-    from aws_durable_functions_sdk_python.execution import InvocationStatus
+    from aws_durable_execution_sdk_python.execution import InvocationStatus
 
-    from aws_durable_functions_sdk_python_testing.execution import Execution
+    from aws_durable_execution_sdk_python_testing.execution import Execution
 
 
 @dataclass(frozen=True)

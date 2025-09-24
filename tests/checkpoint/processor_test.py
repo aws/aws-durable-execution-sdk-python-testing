@@ -3,7 +3,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     CheckpointOutput,
     CheckpointUpdatedExecutionState,
     OperationAction,
@@ -12,14 +12,14 @@ from aws_durable_functions_sdk_python.lambda_service import (
     StateOutput,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.processor import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processor import (
     CheckpointProcessor,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
-from aws_durable_functions_sdk_python_testing.execution import Execution
-from aws_durable_functions_sdk_python_testing.scheduler import Scheduler
-from aws_durable_functions_sdk_python_testing.store import ExecutionStore
-from aws_durable_functions_sdk_python_testing.token import CheckpointToken
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.scheduler import Scheduler
+from aws_durable_execution_sdk_python_testing.store import ExecutionStore
+from aws_durable_execution_sdk_python_testing.token import CheckpointToken
 
 
 def test_init():
@@ -49,7 +49,7 @@ def test_add_execution_observer():
 
 
 @patch(
-    "aws_durable_functions_sdk_python_testing.checkpoint.processor.CheckpointValidator"
+    "aws_durable_execution_sdk_python_testing.checkpoint.processor.CheckpointValidator"
 )
 def test_process_checkpoint_success(mock_validator):
     """Test successful checkpoint processing."""
@@ -107,7 +107,7 @@ def test_process_checkpoint_success(mock_validator):
 
 
 @patch(
-    "aws_durable_functions_sdk_python_testing.checkpoint.processor.CheckpointValidator"
+    "aws_durable_execution_sdk_python_testing.checkpoint.processor.CheckpointValidator"
 )
 def test_process_checkpoint_invalid_token_complete_execution(mock_validator):
     """Test checkpoint processing with complete execution."""
@@ -136,7 +136,7 @@ def test_process_checkpoint_invalid_token_complete_execution(mock_validator):
 
 
 @patch(
-    "aws_durable_functions_sdk_python_testing.checkpoint.processor.CheckpointValidator"
+    "aws_durable_execution_sdk_python_testing.checkpoint.processor.CheckpointValidator"
 )
 def test_process_checkpoint_invalid_token_sequence(mock_validator):
     """Test checkpoint processing with invalid token sequence."""
@@ -165,7 +165,7 @@ def test_process_checkpoint_invalid_token_sequence(mock_validator):
 
 
 @patch(
-    "aws_durable_functions_sdk_python_testing.checkpoint.processor.CheckpointValidator"
+    "aws_durable_execution_sdk_python_testing.checkpoint.processor.CheckpointValidator"
 )
 def test_process_checkpoint_updates_execution_state(mock_validator):
     """Test that checkpoint processing updates execution state correctly."""

@@ -2,17 +2,17 @@
 
 from unittest.mock import Mock
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     OperationAction,
     OperationType,
     OperationUpdate,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.execution import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.execution import (
     ExecutionProcessor,
 )
-from aws_durable_functions_sdk_python_testing.observer import ExecutionNotifier
+from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 
 
 class MockNotifier(ExecutionNotifier):

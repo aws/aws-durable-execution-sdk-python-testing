@@ -1,15 +1,15 @@
 """Unit tests for transitions validator."""
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     OperationAction,
     OperationType,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.transitions import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.transitions import (
     ValidActionsByOperationTypeValidator,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 
 def test_validate_step_valid_actions():

@@ -2,14 +2,14 @@
 
 import datetime
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     CheckpointOutput,
     DurableServiceClient,
     OperationUpdate,
     StateOutput,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.processor import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processor import (
     CheckpointProcessor,
 )
 
@@ -22,17 +22,24 @@ class InMemoryServiceClient(DurableServiceClient):
 
     def checkpoint(
         self,
+        durable_execution_arn: str,  # noqa: ARG002
         checkpoint_token: str,
         updates: list[OperationUpdate],
         client_token: str | None,
     ) -> CheckpointOutput:
+        # durable_execution_arn is not used in in-memory testing
         return self._checkpoint_processor.process_checkpoint(
             checkpoint_token, updates, client_token
         )
 
     def get_execution_state(
-        self, checkpoint_token: str, next_marker: str, max_items: int = 1000
+        self,
+        durable_execution_arn: str,  # noqa: ARG002
+        checkpoint_token: str,
+        next_marker: str,
+        max_items: int = 1000,
     ) -> StateOutput:
+        # durable_execution_arn is not used in in-memory testing
         return self._checkpoint_processor.get_execution_state(
             checkpoint_token, next_marker, max_items
         )

@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "aws-durable-functions-sdk-python-testing"
+name = "aws-durable-execution-sdk-python-testing"
 dynamic = ["version"]
-description = 'This the Python SDK for AWS Lambda Durable Functions.'
+description = 'This the Python SDK for AWS Lambda Durable Execution.'
 readme = "README.md"
 requires-python = ">=3.13"
 license = "Apache-2.0"
@@ -22,25 +22,25 @@ classifiers = [
 ]
 dependencies = [
   "boto3>=1.40.30",
-  "aws_durable_functions_sdk_python @ git+ssh://git@github.com/aws/aws-durable-functions-sdk-python.git"
+  "aws_durable_execution_sdk_python @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git"
 ]
 
 [project.urls]
-Documentation = "https://github.com/aws/aws-durable-functions-sdk-python-testing#readme"
-Issues = "https://github.com/aws/aws-durable-functions-sdk-python-testing/issues"
-Source = "https://github.com/aws/aws-durable-functions-sdk-python-testing"
+Documentation = "https://github.com/aws/aws-durable-execution-sdk-python-testing#readme"
+Issues = "https://github.com/aws/aws-durable-execution-sdk-python-testing/issues"
+Source = "https://github.com/aws/aws-durable-execution-sdk-python-testing"
 
 [tool.hatch.build.targets.sdist]
-packages = ["src/aws_durable_functions_sdk_python_testing"]
+packages = ["src/aws_durable_execution_sdk_python_testing"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/aws_durable_functions_sdk_python_testing"]
+packages = ["src/aws_durable_execution_sdk_python_testing"]
 
 [tool.hatch.metadata] 
 allow-direct-references = true
 
 [tool.hatch.version]
-path = "src/aws_durable_functions_sdk_python_testing/__about__.py"
+path = "src/aws_durable_execution_sdk_python_testing/__about__.py"
 
 # [tool.hatch.envs.default]
 # dependencies=["pytest"]
@@ -56,7 +56,7 @@ dependencies = [
 ]
 
 [tool.hatch.envs.test.scripts]
-cov="pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aws_durable_functions_sdk_python_testing --cov=tests --cov-fail-under=99"
+cov="pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aws_durable_execution_sdk_python_testing --cov=tests --cov-fail-under=99"
 
 [tool.hatch.envs.types]
 extra-dependencies = [
@@ -64,19 +64,19 @@ extra-dependencies = [
   "pytest"
 ]
 [tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/aws_durable_functions_sdk_python_testing tests}"
+check = "mypy --install-types --non-interactive {args:src/aws_durable_execution_sdk_python_testing tests}"
 
 [tool.coverage.run]
-source_pkgs = ["aws_durable_functions_sdk_python_testing", "tests"]
+source_pkgs = ["aws_durable_execution_sdk_python_testing", "tests"]
 branch = true
 parallel = true
 omit = [
-  "src/aws_durable_functions_sdk_python_testing/__about__.py",
+  "src/aws_durable_execution_sdk_python_testing/__about__.py",
 ]
 
 [tool.coverage.paths]
-aws_durable_functions_sdk_python_testing = ["src/aws_durable_functions_sdk_python_testing", "*/aws-durable-functions-sdk-python-testing/src/aws_durable_functions_sdk_python_testing"]
-tests = ["tests", "*/aws-durable-functions-sdk-python-testing/tests"]
+aws_durable_execution_sdk_python_testing = ["src/aws_durable_execution_sdk_python_testing", "*/aws-durable-execution-sdk-python-testing/src/aws_durable_execution_sdk_python_testing"]
+tests = ["tests", "*/aws-durable-execution-sdk-python-testing/tests"]
 
 [tool.coverage.report]
 exclude_lines = [

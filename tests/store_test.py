@@ -2,9 +2,9 @@
 
 import pytest
 
-from aws_durable_functions_sdk_python_testing.execution import Execution
-from aws_durable_functions_sdk_python_testing.model import StartDurableExecutionInput
-from aws_durable_functions_sdk_python_testing.store import InMemoryExecutionStore
+from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
+from aws_durable_execution_sdk_python_testing.store import InMemoryExecutionStore
 
 
 def test_in_memory_execution_store_save_and_load():

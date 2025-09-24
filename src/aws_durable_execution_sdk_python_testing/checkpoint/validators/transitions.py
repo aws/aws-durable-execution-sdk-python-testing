@@ -4,30 +4,30 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     OperationAction,
     OperationType,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.callback import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.callback import (
     VALID_ACTIONS_FOR_CALLBACK,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.context import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.context import (
     VALID_ACTIONS_FOR_CONTEXT,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.execution import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.execution import (
     VALID_ACTIONS_FOR_EXECUTION,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.invoke import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.invoke import (
     VALID_ACTIONS_FOR_INVOKE,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.step import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.step import (
     VALID_ACTIONS_FOR_STEP,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.validators.operations.wait import (
+from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.wait import (
     VALID_ACTIONS_FOR_WAIT,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 
 class ValidActionsByOperationTypeValidator:

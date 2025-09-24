@@ -4,20 +4,20 @@ import asyncio
 from unittest.mock import Mock, patch
 
 import pytest
-from aws_durable_functions_sdk_python.execution import (
+from aws_durable_execution_sdk_python.execution import (
     DurableExecutionInvocationOutput,
     InvocationStatus,
 )
-from aws_durable_functions_sdk_python.lambda_service import ErrorObject
+from aws_durable_execution_sdk_python.lambda_service import ErrorObject
 
-from aws_durable_functions_sdk_python_testing.exceptions import (
+from aws_durable_execution_sdk_python_testing.exceptions import (
     IllegalStateError,
     InvalidParameterError,
     ResourceNotFoundError,
 )
-from aws_durable_functions_sdk_python_testing.execution import Execution
-from aws_durable_functions_sdk_python_testing.executor import Executor
-from aws_durable_functions_sdk_python_testing.model import StartDurableExecutionInput
+from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.executor import Executor
+from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
 
 
 @pytest.fixture
@@ -71,7 +71,7 @@ def test_init(mock_store, mock_scheduler, mock_invoker):
     assert executor._completion_events == {}  # noqa: SLF001
 
 
-@patch("aws_durable_functions_sdk_python_testing.executor.Execution")
+@patch("aws_durable_execution_sdk_python_testing.executor.Execution")
 def test_start_execution(
     mock_execution_class, executor, start_input, mock_store, mock_scheduler
 ):

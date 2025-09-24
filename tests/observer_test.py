@@ -4,9 +4,9 @@ import threading
 from unittest.mock import Mock
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import ErrorObject
+from aws_durable_execution_sdk_python.lambda_service import ErrorObject
 
-from aws_durable_functions_sdk_python_testing.observer import (
+from aws_durable_execution_sdk_python_testing.observer import (
     ExecutionNotifier,
     ExecutionObserver,
 )

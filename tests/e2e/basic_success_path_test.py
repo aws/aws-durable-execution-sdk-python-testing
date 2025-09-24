@@ -2,15 +2,15 @@
 
 from typing import Any
 
-from aws_durable_functions_sdk_python.context import (
+from aws_durable_execution_sdk_python.context import (
     DurableContext,
     durable_step,
     durable_with_child_context,
 )
-from aws_durable_functions_sdk_python.execution import InvocationStatus, durable_handler
-from aws_durable_functions_sdk_python.types import StepContext
+from aws_durable_execution_sdk_python.execution import InvocationStatus, durable_handler
+from aws_durable_execution_sdk_python.types import StepContext
 
-from aws_durable_functions_sdk_python_testing.runner import (
+from aws_durable_execution_sdk_python_testing.runner import (
     ContextOperation,
     DurableFunctionTestResult,
     DurableFunctionTestRunner,

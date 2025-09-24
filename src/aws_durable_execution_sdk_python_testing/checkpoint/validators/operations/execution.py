@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     OperationAction,
     OperationUpdate,
 )
 
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 VALID_ACTIONS_FOR_EXECUTION = frozenset(
     [

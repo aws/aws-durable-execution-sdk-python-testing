@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from aws_durable_functions_sdk_python_testing.scheduler import Event, Scheduler
+from aws_durable_execution_sdk_python_testing.scheduler import Event, Scheduler
 
 
 def wait_for_condition(condition_func, timeout_iterations=100):
@@ -213,7 +213,7 @@ def test_scheduler_call_later_function_exception():
         raise ValueError(msg)
 
     with patch(
-        "aws_durable_functions_sdk_python_testing.scheduler.logger"
+        "aws_durable_execution_sdk_python_testing.scheduler.logger"
     ) as mock_logger:
         future = scheduler.call_later(failing_func, delay=0.01)
         wait_for_condition(lambda: future.done())
@@ -560,7 +560,7 @@ def test_task_result_with_exception():
 
     # Test that user function exceptions are propagated through the Future
     with patch(
-        "aws_durable_functions_sdk_python_testing.scheduler.logger"
+        "aws_durable_execution_sdk_python_testing.scheduler.logger"
     ) as mock_logger:
         future = scheduler.call_later(failing_func, delay=0.01)
         wait_for_condition(lambda: future.done())

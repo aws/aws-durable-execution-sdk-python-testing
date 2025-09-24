@@ -3,19 +3,19 @@
 from unittest.mock import Mock
 
 import pytest
-from aws_durable_functions_sdk_python.lambda_service import (
+from aws_durable_execution_sdk_python.lambda_service import (
     OperationAction,
     OperationType,
     OperationUpdate,
 )
 
-from aws_durable_functions_sdk_python_testing.checkpoint.processors.base import (
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.base import (
     OperationProcessor,
 )
-from aws_durable_functions_sdk_python_testing.checkpoint.transformer import (
+from aws_durable_execution_sdk_python_testing.checkpoint.transformer import (
     OperationTransformer,
 )
-from aws_durable_functions_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
 
 
 class MockProcessor(OperationProcessor):
