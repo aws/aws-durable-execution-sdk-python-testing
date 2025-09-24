@@ -36,15 +36,20 @@ jobs:
           role-to-assume: "${{ secrets.ACTIONS_SYNC_ROLE_NAME }}"
           role-session-name: gh-python
           aws-region: ${{ env.AWS_REGION }}
+      - name: Get tar gz name 
+        id: tar_gz_name
+        run: |
+          TAR_GZ_NAME=ls dist/*.tar.gz
+          echo "tar_gz_name=$TAR_GZ_NAME" >> $GITHUB_OUTPUT
       - name: Copy tar gz build file to s3
         run: |
-          aws s3 cp ./dist/aws_durable_execution_sdk_python_testing-0.0.1.tar.gz \
+          aws s3 cp ./dist/${{steps.tar-gz-name.outputs.}} \
             s3://${{ secrets.S3_BUCKET_NAME }}/
       - name: commit tar gz to Gitfarm
         run: |
           aws lambda invoke \
             --function-name ${{ secrets.SYNC_LAMBDA_ARN }} \
-            --payload '{"gitFarmRepo":"${{ secrets.GITFARM_LAN_SDK_REPO }}","gitFarmBranch":"${{ secrets.GITFARM_LAN_SDK_BRANCH }}","gitFarmFilepath":"aws_durable_execution_sdk_python_testing-${{ steps.versioncheck.outputs.local_version }}.tar.gz","s3Bucket":"${{ secrets.S3_BUCKET_NAME }}","s3FilePath":"aws_durable_execution_sdk_python_testing-0.0.1.tar.gz"}' \
+            --payload '{"gitFarmRepo":"${{ secrets.GITFARM_LAN_SDK_REPO }}","gitFarmBranch":"${{ secrets.GITFARM_LAN_SDK_BRANCH }}","gitFarmFilepath":"${{ steps.tar_gz_name.outputs.tar_gz_name }}","s3Bucket":"${{ secrets.S3_BUCKET_NAME }}","s3FilePath":"${{ steps.tar_gz_name.outputs.tar_gz_name }}"}' \
             --cli-binary-format raw-in-base64-out \
             output.txt
       - name: Check for error in lambda invoke
