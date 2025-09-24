@@ -27,6 +27,9 @@ jobs:
     - name: Install Hatch 
       run: |
         python -m pip install --upgrade hatch
+    - uses: webfactory/ssh-agent@v0.9.1
+      with:
+        ssh-private-key: ${{ secrets.SDK_KEY }}
     - name: static analysis
       run: hatch fmt --check
     - name: type checking
