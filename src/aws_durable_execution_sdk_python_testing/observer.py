@@ -1,10 +1,15 @@
 """Checkpoint processors can notify the Execution of notable event state changes. Observer pattern."""
 
+from __future__ import annotations
+
 import threading
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from aws_durable_execution_sdk_python.lambda_service import ErrorObject
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from aws_durable_execution_sdk_python.lambda_service import ErrorObject
 
 
 class ExecutionObserver(ABC):
@@ -34,7 +39,7 @@ class ExecutionObserver(ABC):
 class ExecutionNotifier:
     """Notifies observers about execution events. Thread-safe."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._observers: list[ExecutionObserver] = []
         self._lock = threading.RLock()
 

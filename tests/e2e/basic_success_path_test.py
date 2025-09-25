@@ -68,16 +68,16 @@ def test_basic_durable_function() -> None:
         result: DurableFunctionTestResult = runner.run(input="input str", timeout=10)
 
     assert result.status is InvocationStatus.SUCCEEDED
-    assert result.result == '["1 2", "3 4 4 3", "5 6"]'
+    assert result.result == ["1 2", "3 4 4 3", "5 6"]
 
     one_result: StepOperation = result.get_step("one")
-    assert one_result.result == '"1 2"'
+    assert one_result.result == "1 2"
 
     two_result: ContextOperation = result.get_context("two")
-    assert two_result.result == '"3 4 4 3"'
+    assert two_result.result == "3 4 4 3"
 
     three_result: StepOperation = result.get_step("three")
-    assert three_result.result == '"5 6"'
+    assert three_result.result == "5 6"
 
     # currently has the optimization where it's not saving child checkpoints after parent done
     # prob should unpick that for test

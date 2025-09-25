@@ -66,9 +66,9 @@ class MockProcessor(OperationProcessor):
         """Public method to access _create_context_details for testing."""
         return self._create_context_details(update)
 
-    def create_step_details(self, update):
+    def create_step_details(self, update, current_operation):
         """Public method to access _create_step_details for testing."""
-        return self._create_step_details(update)
+        return self._create_step_details(update, current_operation)
 
     def create_callback_details(self, update):
         """Public method to access _create_callback_details for testing."""
@@ -187,7 +187,11 @@ def test_create_step_details():
         error=error,
     )
 
-    result = processor.create_step_details(update)
+    current_op = Mock()
+    current_op.step_details = Mock()
+    current_op.step_details.attempt = Mock()
+
+    result = processor.create_step_details(update, current_op)
 
     assert isinstance(result, StepDetails)
     assert result.result == "test-payload"
@@ -203,9 +207,32 @@ def test_create_step_details_non_step_type():
         payload="test-payload",
     )
 
-    result = processor.create_step_details(update)
+    current_op = Mock()
+    current_op.step_details = Mock()
+    current_op.step_details.attempt = Mock()
+
+    result = processor.create_step_details(update, current_op)
 
     assert result is None
+
+
+def test_create_step_details_without_current_operation():
+    processor = MockProcessor()
+    error = ErrorObject.from_message("test error")
+    update = OperationUpdate(
+        operation_id="test-id",
+        operation_type=OperationType.STEP,
+        action=OperationAction.START,
+        payload="test-payload",
+        error=error,
+    )
+
+    result = processor.create_step_details(update, None)
+
+    assert isinstance(result, StepDetails)
+    assert result.result == "test-payload"
+    assert result.error == error
+    assert result.attempt == 0
 
 
 def test_create_callback_details():
@@ -244,11 +271,7 @@ def test_create_callback_details_non_callback_type():
 def test_create_invoke_details():
     processor = MockProcessor()
     error = ErrorObject.from_message("test error")
-    invoke_options = InvokeOptions(
-        function_name="test-function",
-        function_qualifier="test-qualifier",
-        durable_execution_name="test-execution",
-    )
+    invoke_options = InvokeOptions(function_name="test-function")
     update = OperationUpdate(
         operation_id="test-id",
         operation_type=OperationType.INVOKE,
@@ -262,8 +285,6 @@ def test_create_invoke_details():
 
     assert isinstance(result, InvokeDetails)
     assert "test-function" in result.durable_execution_arn
-    assert "test-execution" in result.durable_execution_arn
-    assert "test-qualifier" in result.durable_execution_arn
     assert result.result == "test-payload"
     assert result.error == error
 

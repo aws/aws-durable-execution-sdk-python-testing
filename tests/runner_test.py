@@ -1,6 +1,7 @@
 """Unit tests for runner module."""
 
 import datetime
+import json
 from unittest.mock import Mock, patch
 
 import pytest
@@ -29,6 +30,7 @@ from aws_durable_execution_sdk_python_testing.runner import (
     OPERATION_FACTORIES,
     CallbackOperation,
     ContextOperation,
+    DurableChildContextTestRunner,
     DurableFunctionTestResult,
     DurableFunctionTestRunner,
     ExecutionOperation,
@@ -94,7 +96,7 @@ def test_execution_operation_wrong_type():
 
 def test_context_operation_from_svc_operation():
     """Test ContextOperation creation from service operation."""
-    context_details = ContextDetails(result="test-result", error=None)
+    context_details = ContextDetails(result=json.dumps("test-result"), error=None)
     svc_op = SvcOperation(
         operation_id="ctx-id",
         operation_type=OperationType.CONTEXT,
@@ -116,7 +118,7 @@ def test_context_operation_with_children():
         operation_id="parent-id",
         operation_type=OperationType.CONTEXT,
         status=OperationStatus.SUCCEEDED,
-        context_details=ContextDetails(result="parent-result"),
+        context_details=ContextDetails(result=json.dumps("parent-result")),
     )
 
     child_op = SvcOperation(
@@ -125,7 +127,7 @@ def test_context_operation_with_children():
         status=OperationStatus.SUCCEEDED,
         parent_id="parent-id",
         name="child-step",
-        step_details=StepDetails(result="child-result"),
+        step_details=StepDetails(result=json.dumps("child-result")),
     )
 
     all_ops = [parent_op, child_op]
@@ -301,7 +303,7 @@ def test_context_operation_get_execution():
 
 def test_step_operation_from_svc_operation():
     """Test StepOperation creation from service operation."""
-    step_details = StepDetails(attempt=2, result="step-result", error=None)
+    step_details = StepDetails(attempt=2, result=json.dumps("step-result"), error=None)
     svc_op = SvcOperation(
         operation_id="step-id",
         operation_type=OperationType.STEP,
@@ -365,7 +367,9 @@ def test_wait_operation_wrong_type():
 
 def test_callback_operation_from_svc_operation():
     """Test CallbackOperation creation from service operation."""
-    callback_details = CallbackDetails(callback_id="cb-123", result="callback-result")
+    callback_details = CallbackDetails(
+        callback_id="cb-123", result=json.dumps("callback-result")
+    )
     svc_op = SvcOperation(
         operation_id="callback-id",
         operation_type=OperationType.CALLBACK,
@@ -399,7 +403,7 @@ def test_invoke_operation_from_svc_operation():
     """Test InvokeOperation creation from service operation."""
     invoke_details = InvokeDetails(
         durable_execution_arn="arn:aws:lambda:us-east-1:123456789012:function:test",
-        result="invoke-result",
+        result=json.dumps("invoke-result"),
     )
     svc_op = SvcOperation(
         operation_id="invoke-id",
@@ -453,7 +457,7 @@ def test_create_operation_step():
         operation_id="step-id",
         operation_type=OperationType.STEP,
         status=OperationStatus.SUCCEEDED,
-        step_details=StepDetails(result="test-result"),
+        step_details=StepDetails(result=json.dumps("test-result")),
     )
 
     operation = create_operation(svc_op)
@@ -490,14 +494,14 @@ def test_durable_function_test_result_create():
     step_op.operation_id = "step-id"
     step_op.status = OperationStatus.SUCCEEDED
     step_op.name = "test-step"
-    step_op.step_details = StepDetails(result="step-result")
+    step_op.step_details = StepDetails(result=json.dumps("step-result"))
 
     execution.operations = [exec_op, step_op]
 
     # Mock execution result
     execution.result = Mock()
     execution.result.status = InvocationStatus.SUCCEEDED
-    execution.result.result = "test-result"
+    execution.result.result = json.dumps("test-result")
     execution.result.error = None
 
     result = DurableFunctionTestResult.create(execution)
@@ -732,7 +736,7 @@ def test_durable_function_test_runner_run():
     mock_execution.operations = []
     mock_execution.result = Mock()
     mock_execution.result.status = InvocationStatus.SUCCEEDED
-    mock_execution.result.result = "test-result"
+    mock_execution.result.result = json.dumps("test-result")
     mock_execution.result.error = None
     mock_store.load.return_value = mock_execution
 
@@ -781,7 +785,7 @@ def test_durable_function_test_runner_run_with_custom_params():
     mock_execution.operations = []
     mock_execution.result = Mock()
     mock_execution.result.status = InvocationStatus.SUCCEEDED
-    mock_execution.result.result = "test-result"
+    mock_execution.result.result = json.dumps("test-result")
     mock_execution.result.error = None
     mock_store.load.return_value = mock_execution
 
@@ -854,7 +858,7 @@ def test_context_operation_with_child_operations_none():
         operation_id="ctx-id",
         operation_type=OperationType.CONTEXT,
         status=OperationStatus.SUCCEEDED,
-        context_details=ContextDetails(result="test-result"),
+        context_details=ContextDetails(result=json.dumps("test-result")),
     )
 
     ctx_op = ContextOperation.from_svc_operation(svc_op, None)
@@ -882,7 +886,7 @@ def test_step_operation_with_child_operations_none():
         operation_id="step-id",
         operation_type=OperationType.STEP,
         status=OperationStatus.SUCCEEDED,
-        step_details=StepDetails(result="step-result"),
+        step_details=StepDetails(result=json.dumps("step-result")),
     )
 
     step_op = StepOperation.from_svc_operation(svc_op, None)
@@ -906,14 +910,113 @@ def test_durable_function_test_result_create_with_parent_operations():
     root_op.operation_id = "root-id"
     root_op.status = OperationStatus.SUCCEEDED
     root_op.name = "root-step"
-    root_op.step_details = StepDetails(result="root-result")
+    root_op.step_details = StepDetails(result=json.dumps("root-result"))
 
     execution.operations = [child_op, root_op]
     execution.result = Mock()
     execution.result.status = InvocationStatus.SUCCEEDED
-    execution.result.result = "test-result"
+    execution.result.result = json.dumps("test-result")
     execution.result.error = None
 
     result = DurableFunctionTestResult.create(execution)
 
     assert len(result.operations) == 1  # Only root operation included
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.Scheduler")
+@patch("aws_durable_execution_sdk_python_testing.runner.InMemoryExecutionStore")
+@patch("aws_durable_execution_sdk_python_testing.runner.CheckpointProcessor")
+@patch("aws_durable_execution_sdk_python_testing.runner.InMemoryServiceClient")
+@patch("aws_durable_execution_sdk_python_testing.runner.InProcessInvoker")
+@patch("aws_durable_execution_sdk_python_testing.runner.Executor")
+@patch("aws_durable_execution_sdk_python_testing.runner.durable_handler")
+def test_durable_context_test_runner_init(
+    mock_durable_handler,
+    mock_executor,
+    mock_invoker,
+    mock_client,
+    mock_processor,
+    mock_store,
+    mock_scheduler,
+):
+    """Test DurableContextTestRunner initialization."""
+    handler = Mock()
+    decorated_handler = Mock()
+    mock_durable_handler.return_value = decorated_handler
+
+    DurableChildContextTestRunner(handler)  # type: ignore
+
+    # Verify all components are initialized
+    mock_scheduler.assert_called_once()
+    mock_scheduler.return_value.start.assert_called_once()
+    mock_store.assert_called_once()
+    mock_processor.assert_called_once()
+    mock_client.assert_called_once()
+    mock_invoker.assert_called_once_with(decorated_handler, mock_client.return_value)
+    mock_executor.assert_called_once()
+
+    # Verify observer pattern setup
+    mock_processor.return_value.add_execution_observer.assert_called_once_with(
+        mock_executor.return_value
+    )
+
+    # Verify durable_handler was called (with internal lambda function)
+    mock_durable_handler.assert_called_once()
+
+    # Verify the lambda function calls our handler
+    durable_handler_func = mock_durable_handler.call_args.args[0]
+    assert callable(durable_handler_func)
+
+    # verify handler is called when durable function is invoked
+    durable_handler_func(Mock(), Mock())
+    handler.assert_called_once()
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.Scheduler")
+@patch("aws_durable_execution_sdk_python_testing.runner.InMemoryExecutionStore")
+@patch("aws_durable_execution_sdk_python_testing.runner.CheckpointProcessor")
+@patch("aws_durable_execution_sdk_python_testing.runner.InMemoryServiceClient")
+@patch("aws_durable_execution_sdk_python_testing.runner.InProcessInvoker")
+@patch("aws_durable_execution_sdk_python_testing.runner.Executor")
+@patch("aws_durable_execution_sdk_python_testing.runner.durable_handler")
+def test_durable_child_context_test_runner_init_with_args(
+    mock_durable_handler,
+    mock_executor,
+    mock_invoker,
+    mock_client,
+    mock_processor,
+    mock_store,
+    mock_scheduler,
+):
+    """Test DurableChildContextTestRunner initialization with additional args."""
+    handler = Mock()
+    decorated_handler = Mock()
+    mock_durable_handler.return_value = decorated_handler
+
+    str_input = "a random string input"
+    num_input = 10
+    DurableChildContextTestRunner(handler, str_input, num=num_input)  # type: ignore
+
+    # Verify all components are initialized
+    mock_scheduler.assert_called_once()
+    mock_scheduler.return_value.start.assert_called_once()
+    mock_store.assert_called_once()
+    mock_processor.assert_called_once()
+    mock_client.assert_called_once()
+    mock_invoker.assert_called_once_with(decorated_handler, mock_client.return_value)
+    mock_executor.assert_called_once()
+
+    # Verify observer pattern setup
+    mock_processor.return_value.add_execution_observer.assert_called_once_with(
+        mock_executor.return_value
+    )
+
+    # Verify durable_handler was called (with internal lambda function)
+    mock_durable_handler.assert_called_once()
+    # Verify the lambda function calls our handler
+    durable_handler_func = mock_durable_handler.call_args.args[0]
+    assert callable(durable_handler_func)
+
+    # verify that handler is called with expected args when durable function is invoked
+    durable_handler_func(Mock(), Mock())
+    handler.assert_called_once_with(str_input, num=num_input)

@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, Protocol, TypeVar, cast
 
+from aws_durable_execution_sdk_python.execution import (
+    InvocationStatus,
+    durable_handler,
+)
 from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     OperationStatus,
@@ -31,6 +36,7 @@ if TYPE_CHECKING:
     import datetime
     from collections.abc import Callable, MutableMapping
 
+    from aws_durable_execution_sdk_python.context import DurableContext
     from aws_durable_execution_sdk_python.execution import InvocationStatus
 
     from aws_durable_execution_sdk_python_testing.execution import Execution
@@ -49,6 +55,7 @@ class Operation:
 
 
 T = TypeVar("T", bound=Operation)
+P = ParamSpec("P")
 
 
 class OperationFactory(Protocol):
@@ -90,7 +97,7 @@ class ExecutionOperation(Operation):
 @dataclass(frozen=True)
 class ContextOperation(Operation):
     child_operations: list[Operation]
-    result: str | None = None
+    result: Any = None
     error: ErrorObject | None = None
 
     @staticmethod
@@ -119,9 +126,11 @@ class ContextOperation(Operation):
             start_timestamp=operation.start_timestamp,
             end_timestamp=operation.end_timestamp,
             child_operations=child_operations,
-            result=operation.context_details.result
-            if operation.context_details
-            else None,
+            result=(
+                json.loads(operation.context_details.result)
+                if operation.context_details and operation.context_details.result
+                else None
+            ),
             error=operation.context_details.error
             if operation.context_details
             else None,
@@ -157,8 +166,7 @@ class ContextOperation(Operation):
 class StepOperation(ContextOperation):
     attempt: int = 0
     next_attempt_timestamp: str | None = None
-    # TODO: deserialize?
-    result: str | None = None
+    result: Any = None
     error: ErrorObject | None = None
 
     @staticmethod
@@ -193,7 +201,11 @@ class StepOperation(ContextOperation):
                 if operation.step_details
                 else None
             ),
-            result=operation.step_details.result if operation.step_details else None,
+            result=(
+                json.loads(operation.step_details.result)
+                if operation.step_details and operation.step_details.result
+                else None
+            ),
             error=operation.step_details.error if operation.step_details else None,
         )
 
@@ -230,7 +242,7 @@ class WaitOperation(Operation):
 @dataclass(frozen=True)
 class CallbackOperation(ContextOperation):
     callback_id: str | None = None
-    result: str | None = None
+    result: Any = None
     error: ErrorObject | None = None
 
     @staticmethod
@@ -264,9 +276,11 @@ class CallbackOperation(ContextOperation):
                 if operation.callback_details
                 else None
             ),
-            result=operation.callback_details.result
-            if operation.callback_details
-            else None,
+            result=(
+                json.loads(operation.callback_details.result)
+                if operation.callback_details and operation.callback_details.result
+                else None
+            ),
             error=operation.callback_details.error
             if operation.callback_details
             else None,
@@ -276,7 +290,7 @@ class CallbackOperation(ContextOperation):
 @dataclass(frozen=True)
 class InvokeOperation(Operation):
     durable_execution_arn: str | None = None
-    result: str | None = None
+    result: Any = None
     error: ErrorObject | None = None
 
     @staticmethod
@@ -301,9 +315,11 @@ class InvokeOperation(Operation):
                 if operation.invoke_details
                 else None
             ),
-            result=operation.invoke_details.result
-            if operation.invoke_details
-            else None,
+            result=(
+                json.loads(operation.invoke_details.result)
+                if operation.invoke_details and operation.invoke_details.result
+                else None
+            ),
             error=operation.invoke_details.error if operation.invoke_details else None,
         )
 
@@ -334,7 +350,7 @@ def create_operation(
 class DurableFunctionTestResult:
     status: InvocationStatus
     operations: list[Operation]
-    result: str | None = None
+    result: Any = None
     error: ErrorObject | None = None
 
     @classmethod
@@ -352,10 +368,14 @@ class DurableFunctionTestResult:
             msg: str = "Execution result must exist to create test result."
             raise DurableFunctionsTestError(msg)
 
+        deserialized_result = (
+            json.loads(execution.result.result) if execution.result.result else None
+        )
+
         return cls(
             status=execution.result.status,
             operations=operations,
-            result=execution.result.result,
+            result=deserialized_result,
             error=execution.result.error,
         )
 
@@ -413,7 +433,7 @@ class DurableFunctionTestRunner:
 
     def run(
         self,
-        input: str,  # noqa: A002
+        input: str | None = None,  # noqa: A002
         timeout: int = 900,
         function_name: str = "test-function",
         execution_name: str = "execution-name",
@@ -451,4 +471,19 @@ class DurableFunctionTestRunner:
         execution: Execution = self._store.load(output.execution_arn)
         return DurableFunctionTestResult.create(execution=execution)
 
-        # return execution
+
+class DurableChildContextTestRunner(DurableFunctionTestRunner):
+    """Test a durable block, annotated with @durable_with_child_context, in isolation."""
+
+    def __init__(
+        self,
+        context_function: Callable[Concatenate[DurableContext, P], Any],
+        *args,
+        **kwargs,
+    ):
+        # wrap the durable context around a durable handler as a convenience to run directly
+        @durable_handler
+        def handler(event: Any, context: DurableContext):  # noqa: ARG001
+            return context_function(*args, **kwargs)(context)
+
+        super().__init__(handler)

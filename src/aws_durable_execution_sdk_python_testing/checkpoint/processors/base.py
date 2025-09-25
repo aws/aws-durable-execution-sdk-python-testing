@@ -70,13 +70,27 @@ class OperationProcessor:
             else None
         )
 
-    def _create_step_details(self, update: OperationUpdate) -> StepDetails | None:
+    def _create_step_details(
+        self, update: OperationUpdate, current_operation: Operation | None = None
+    ) -> StepDetails | None:
         """Create StepDetails from OperationUpdate."""
-        return (
-            StepDetails(result=update.payload, error=update.error)
-            if update.operation_type == OperationType.STEP
-            else None
-        )
+        attempt: int = 0
+        next_attempt_timestamp: str | None = None
+
+        if update.operation_type is OperationType.STEP:
+            if current_operation and current_operation.step_details:
+                attempt = current_operation.step_details.attempt
+                next_attempt_timestamp = (
+                    current_operation.step_details.next_attempt_timestamp
+                )
+            return StepDetails(
+                attempt=attempt,
+                next_attempt_timestamp=next_attempt_timestamp,
+                result=update.payload,
+                error=update.error,
+            )
+
+        return None
 
     def _create_callback_details(
         self, update: OperationUpdate
@@ -93,12 +107,10 @@ class OperationProcessor:
     def _create_invoke_details(self, update: OperationUpdate) -> InvokeDetails | None:
         """Create InvokeDetails from OperationUpdate."""
         if update.operation_type == OperationType.INVOKE and update.invoke_options:
-            qualifier = (
-                update.invoke_options.function_qualifier
-                or update.invoke_options.function_name
-            )
+            # Create a basic ARN using the function name
+            # In a real implementation, this would need more context about the execution
             # TODO: To confirm how or if this works
-            arn = f"arn:aws:lambda:us-west-2:123456789012:durable-execution:{update.invoke_options.function_name}:{update.invoke_options.durable_execution_name}:{qualifier}"
+            arn = f"arn:aws:lambda:us-west-2:123456789012:durable-execution:{update.invoke_options.function_name}:execution-name"
             return InvokeDetails(
                 durable_execution_arn=arn, result=update.payload, error=update.error
             )
@@ -134,7 +146,7 @@ class OperationProcessor:
 
         execution_details = self._create_execution_details(update)
         context_details = self._create_context_details(update)
-        step_details = self._create_step_details(update)
+        step_details = self._create_step_details(update, current_operation)
         callback_details = self._create_callback_details(update)
         invoke_details = self._create_invoke_details(update)
         wait_details = self._create_wait_details(update, current_operation)
