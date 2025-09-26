@@ -53,9 +53,12 @@ dependencies = [
     "coverage[toml]",
     "pytest",
     "pytest-cov",
+    "aws_durable_execution_sdk_python @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git"
 ]
 
 [tool.hatch.envs.test.scripts]
+test = "pytest tests/ -v"
+examples = "pytest examples/test/ -v"
 cov="pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aws_durable_execution_sdk_python_testing --cov=tests --cov-fail-under=99"
 
 [tool.hatch.envs.types]
