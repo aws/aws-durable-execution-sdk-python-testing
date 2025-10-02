@@ -57,7 +57,7 @@ class StepProcessor(OperationProcessor):
                 )
                 new_step_details = StepDetails(
                     attempt=current_attempt + 1,
-                    next_attempt_timestamp=str(next_attempt_time),
+                    next_attempt_timestamp=next_attempt_time,
                     result=(
                         current_op.step_details.result
                         if current_op and current_op.step_details

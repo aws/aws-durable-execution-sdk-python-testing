@@ -75,7 +75,7 @@ class OperationProcessor:
     ) -> StepDetails | None:
         """Create StepDetails from OperationUpdate."""
         attempt: int = 0
-        next_attempt_timestamp: str | None = None
+        next_attempt_timestamp: datetime.datetime | None = None
 
         if update.operation_type is OperationType.STEP:
             if current_operation and current_operation.step_details:

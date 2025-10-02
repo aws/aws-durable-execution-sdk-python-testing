@@ -165,7 +165,7 @@ class ContextOperation(Operation):
 @dataclass(frozen=True)
 class StepOperation(ContextOperation):
     attempt: int = 0
-    next_attempt_timestamp: str | None = None
+    next_attempt_timestamp: datetime.datetime | None = None
     result: Any = None
     error: ErrorObject | None = None
 
