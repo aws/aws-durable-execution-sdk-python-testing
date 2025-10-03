@@ -14,7 +14,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.step import (
     StepOperationValidator,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 
 
 def test_validate_with_no_current_state():
@@ -56,7 +58,7 @@ def test_validate_start_action_with_invalid_state():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Invalid current STEP state to start"
+        InvalidParameterValueException, match="Invalid current STEP state to start"
     ):
         StepOperationValidator.validate(current_state, update)
 
@@ -109,7 +111,7 @@ def test_validate_fail_action_with_invalid_state():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Invalid current STEP state to close"
+        InvalidParameterValueException, match="Invalid current STEP state to close"
     ):
         StepOperationValidator.validate(current_state, update)
 
@@ -129,7 +131,7 @@ def test_validate_fail_action_with_payload():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Cannot provide a Payload for FAIL action"
+        InvalidParameterValueException, match="Cannot provide a Payload for FAIL action"
     ):
         StepOperationValidator.validate(current_state, update)
 
@@ -151,7 +153,8 @@ def test_validate_succeed_action_with_error():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Cannot provide an Error for SUCCEED action"
+        InvalidParameterValueException,
+        match="Cannot provide an Error for SUCCEED action",
     ):
         StepOperationValidator.validate(current_state, update)
 
@@ -203,7 +206,7 @@ def test_validate_retry_action_with_invalid_state():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Invalid current STEP state to re-attempt"
+        InvalidParameterValueException, match="Invalid current STEP state to re-attempt"
     ):
         StepOperationValidator.validate(current_state, update)
 
@@ -222,7 +225,7 @@ def test_validate_retry_action_without_step_options():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Invalid StepOptions for the given action"
+        InvalidParameterValueException, match="Invalid StepOptions for the given action"
     ):
         StepOperationValidator.validate(current_state, update)
 
@@ -246,7 +249,7 @@ def test_validate_retry_action_with_both_error_and_payload():
     )
 
     with pytest.raises(
-        InvalidParameterError,
+        InvalidParameterValueException,
         match="Cannot provide both error and payload to RETRY a STEP",
     ):
         StepOperationValidator.validate(current_state, update)
@@ -265,5 +268,5 @@ def test_validate_invalid_action():
         action=OperationAction.CANCEL,
     )
 
-    with pytest.raises(InvalidParameterError, match="Invalid STEP action"):
+    with pytest.raises(InvalidParameterValueException, match="Invalid STEP action"):
         StepOperationValidator.validate(current_state, update)

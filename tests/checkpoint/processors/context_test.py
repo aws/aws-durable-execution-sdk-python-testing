@@ -16,6 +16,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.context import (
     ContextProcessor,
 )
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 
 
@@ -208,7 +211,9 @@ def test_process_invalid_action():
         name="test-context",
     )
 
-    with pytest.raises(ValueError, match="Invalid action for CONTEXT operation"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid action for CONTEXT operation"
+    ):
         processor.process(update, None, notifier, execution_arn)
 
 
@@ -224,7 +229,9 @@ def test_process_cancel_action():
         name="test-context",
     )
 
-    with pytest.raises(ValueError, match="Invalid action for CONTEXT operation"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid action for CONTEXT operation"
+    ):
         processor.process(update, None, notifier, execution_arn)
 
 

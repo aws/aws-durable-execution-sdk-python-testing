@@ -14,6 +14,10 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.base import (
     OperationProcessor,
 )
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
+
 
 if TYPE_CHECKING:
     from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
@@ -42,4 +46,4 @@ class CallbackProcessor(OperationProcessor):
             case _:
                 msg: str = "Invalid action for CALLBACK operation."
 
-                raise ValueError(msg)
+                raise InvalidParameterValueException(msg)

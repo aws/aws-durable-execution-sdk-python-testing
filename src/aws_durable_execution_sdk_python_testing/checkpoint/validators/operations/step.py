@@ -9,7 +9,10 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
+
 
 VALID_ACTIONS_FOR_STEP = frozenset(
     [
@@ -58,7 +61,7 @@ class StepOperationValidator:
                 ):
                     msg_step_start: str = "Invalid current STEP state to start."
 
-                    raise InvalidParameterError(msg_step_start)
+                    raise InvalidParameterValueException(msg_step_start)
             case OperationAction.FAIL | OperationAction.SUCCEED:
                 if (
                     current_state.status
@@ -66,11 +69,11 @@ class StepOperationValidator:
                 ):
                     msg_step_close: str = "Invalid current STEP state to close."
 
-                    raise InvalidParameterError(msg_step_close)
+                    raise InvalidParameterValueException(msg_step_close)
                 if update.action == OperationAction.FAIL and update.payload is not None:
                     msg_fail_payload: str = "Cannot provide a Payload for FAIL action."
 
-                    raise InvalidParameterError(msg_fail_payload)
+                    raise InvalidParameterValueException(msg_fail_payload)
                 if (
                     update.action == OperationAction.SUCCEED
                     and update.error is not None
@@ -79,7 +82,7 @@ class StepOperationValidator:
                         "Cannot provide an Error for SUCCEED action."
                     )
 
-                    raise InvalidParameterError(msg_succeed_error)
+                    raise InvalidParameterValueException(msg_succeed_error)
             case OperationAction.RETRY:
                 if (
                     current_state.status
@@ -87,17 +90,17 @@ class StepOperationValidator:
                 ):
                     msg_step_retry: str = "Invalid current STEP state to re-attempt."
 
-                    raise InvalidParameterError(msg_step_retry)
+                    raise InvalidParameterValueException(msg_step_retry)
                 if update.step_options is None:
                     msg_step_options: str = "Invalid StepOptions for the given action."
 
-                    raise InvalidParameterError(msg_step_options)
+                    raise InvalidParameterValueException(msg_step_options)
                 if update.error is not None and update.payload is not None:
                     msg_retry_both: str = (
                         "Cannot provide both error and payload to RETRY a STEP."
                     )
-                    raise InvalidParameterError(msg_retry_both)
+                    raise InvalidParameterValueException(msg_retry_both)
             case _:
                 msg_step_invalid: str = "Invalid STEP action."
 
-                raise InvalidParameterError(msg_step_invalid)
+                raise InvalidParameterValueException(msg_step_invalid)

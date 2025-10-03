@@ -9,7 +9,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.validators.transitions import (
     ValidActionsByOperationTypeValidator,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 
 
 def test_validate_step_valid_actions():
@@ -78,7 +80,8 @@ def test_validate_execution_valid_actions():
 def test_validate_invalid_action_for_step():
     """Test invalid action for STEP operation."""
     with pytest.raises(
-        InvalidParameterError, match="Invalid action for the given operation type"
+        InvalidParameterValueException,
+        match="Invalid action for the given operation type",
     ):
         ValidActionsByOperationTypeValidator.validate(
             OperationType.STEP, OperationAction.CANCEL
@@ -88,7 +91,8 @@ def test_validate_invalid_action_for_step():
 def test_validate_invalid_action_for_context():
     """Test invalid action for CONTEXT operation."""
     with pytest.raises(
-        InvalidParameterError, match="Invalid action for the given operation type"
+        InvalidParameterValueException,
+        match="Invalid action for the given operation type",
     ):
         ValidActionsByOperationTypeValidator.validate(
             OperationType.CONTEXT, OperationAction.RETRY
@@ -98,7 +102,8 @@ def test_validate_invalid_action_for_context():
 def test_validate_invalid_action_for_wait():
     """Test invalid action for WAIT operation."""
     with pytest.raises(
-        InvalidParameterError, match="Invalid action for the given operation type"
+        InvalidParameterValueException,
+        match="Invalid action for the given operation type",
     ):
         ValidActionsByOperationTypeValidator.validate(
             OperationType.WAIT, OperationAction.SUCCEED
@@ -108,7 +113,8 @@ def test_validate_invalid_action_for_wait():
 def test_validate_invalid_action_for_callback():
     """Test invalid action for CALLBACK operation."""
     with pytest.raises(
-        InvalidParameterError, match="Invalid action for the given operation type"
+        InvalidParameterValueException,
+        match="Invalid action for the given operation type",
     ):
         ValidActionsByOperationTypeValidator.validate(
             OperationType.CALLBACK, OperationAction.FAIL
@@ -118,7 +124,8 @@ def test_validate_invalid_action_for_callback():
 def test_validate_invalid_action_for_invoke():
     """Test invalid action for INVOKE operation."""
     with pytest.raises(
-        InvalidParameterError, match="Invalid action for the given operation type"
+        InvalidParameterValueException,
+        match="Invalid action for the given operation type",
     ):
         ValidActionsByOperationTypeValidator.validate(
             OperationType.INVOKE, OperationAction.RETRY
@@ -128,7 +135,8 @@ def test_validate_invalid_action_for_invoke():
 def test_validate_invalid_action_for_execution():
     """Test invalid action for EXECUTION operation."""
     with pytest.raises(
-        InvalidParameterError, match="Invalid action for the given operation type"
+        InvalidParameterValueException,
+        match="Invalid action for the given operation type",
     ):
         ValidActionsByOperationTypeValidator.validate(
             OperationType.EXECUTION, OperationAction.START
@@ -137,5 +145,5 @@ def test_validate_invalid_action_for_execution():
 
 def test_validate_unknown_operation_type():
     """Test validation with unknown operation type."""
-    with pytest.raises(InvalidParameterError, match="Unknown operation type"):
+    with pytest.raises(InvalidParameterValueException, match="Unknown operation type"):
         ValidActionsByOperationTypeValidator.validate(None, OperationAction.START)

@@ -14,5 +14,5 @@ def test_hello_world():
     with DurableFunctionTestRunner(handler=hello_world.handler) as runner:
         result: DurableFunctionTestResult = runner.run(input="test", timeout=10)
 
-    assert result.status is InvocationStatus.SUCCEEDED  # noqa: S101
-    assert result.result == "Hello World!"  # noqa: S101
+    assert result.status is InvocationStatus.SUCCEEDED
+    assert result.result == "Hello World!"

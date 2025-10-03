@@ -1,9 +1,22 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, Protocol, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Concatenate,
+    ParamSpec,
+    Protocol,
+    Self,
+    TypeVar,
+    cast,
+)
 
+import aws_durable_execution_sdk_python
+import boto3  # type: ignore
 from aws_durable_execution_sdk_python.execution import (
     InvocationStatus,
     durable_handler,
@@ -21,16 +34,23 @@ from aws_durable_execution_sdk_python_testing.checkpoint.processor import (
 )
 from aws_durable_execution_sdk_python_testing.client import InMemoryServiceClient
 from aws_durable_execution_sdk_python_testing.exceptions import (
+    DurableFunctionsLocalRunnerError,
     DurableFunctionsTestError,
+    InvalidParameterValueException,
 )
 from aws_durable_execution_sdk_python_testing.executor import Executor
-from aws_durable_execution_sdk_python_testing.invoker import InProcessInvoker
+from aws_durable_execution_sdk_python_testing.invoker import (
+    InProcessInvoker,
+    LambdaInvoker,
+)
 from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
     StartDurableExecutionOutput,
 )
 from aws_durable_execution_sdk_python_testing.scheduler import Scheduler
 from aws_durable_execution_sdk_python_testing.store import InMemoryExecutionStore
+from aws_durable_execution_sdk_python_testing.web.server import WebServer
+
 
 if TYPE_CHECKING:
     import datetime
@@ -40,6 +60,28 @@ if TYPE_CHECKING:
     from aws_durable_execution_sdk_python.execution import InvocationStatus
 
     from aws_durable_execution_sdk_python_testing.execution import Execution
+    from aws_durable_execution_sdk_python_testing.web.server import WebServiceConfig
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class WebRunnerConfig:
+    """Configuration for the WebRunner using composition pattern.
+
+    This configuration class encapsulates all settings needed to run the web server
+    for durable functions testing, including HTTP server configuration and Lambda
+    service configuration.
+    """
+
+    # HTTP server configuration (existing WebServiceConfig)
+    web_service: WebServiceConfig
+
+    # Lambda service configuration (web runner specific)
+    lambda_endpoint: str = "http://127.0.0.1:3001"
+    local_runner_endpoint: str = "http://0.0.0.0:5000"
+    local_runner_region: str = "us-west-2"
+    local_runner_mode: str = "local"
 
 
 @dataclass(frozen=True)
@@ -76,7 +118,7 @@ class ExecutionOperation(Operation):
     ) -> ExecutionOperation:
         if operation.operation_type != OperationType.EXECUTION:
             msg: str = f"Expected EXECUTION operation, got {operation.operation_type}"
-            raise ValueError(msg)
+            raise InvalidParameterValueException(msg)
         return ExecutionOperation(
             operation_id=operation.operation_id,
             operation_type=operation.operation_type,
@@ -106,7 +148,7 @@ class ContextOperation(Operation):
     ) -> ContextOperation:
         if operation.operation_type != OperationType.CONTEXT:
             msg: str = f"Expected CONTEXT operation, got {operation.operation_type}"
-            raise ValueError(msg)
+            raise InvalidParameterValueException(msg)
 
         child_operations = []
         if all_operations:
@@ -175,7 +217,7 @@ class StepOperation(ContextOperation):
     ) -> StepOperation:
         if operation.operation_type != OperationType.STEP:
             msg: str = f"Expected STEP operation, got {operation.operation_type}"
-            raise ValueError(msg)
+            raise InvalidParameterValueException(msg)
 
         child_operations = []
         if all_operations:
@@ -221,7 +263,7 @@ class WaitOperation(Operation):
     ) -> WaitOperation:
         if operation.operation_type != OperationType.WAIT:
             msg: str = f"Expected WAIT operation, got {operation.operation_type}"
-            raise ValueError(msg)
+            raise InvalidParameterValueException(msg)
         return WaitOperation(
             operation_id=operation.operation_id,
             operation_type=operation.operation_type,
@@ -251,7 +293,7 @@ class CallbackOperation(ContextOperation):
     ) -> CallbackOperation:
         if operation.operation_type != OperationType.CALLBACK:
             msg: str = f"Expected CALLBACK operation, got {operation.operation_type}"
-            raise ValueError(msg)
+            raise InvalidParameterValueException(msg)
 
         child_operations = []
         if all_operations:
@@ -300,7 +342,7 @@ class InvokeOperation(Operation):
     ) -> InvokeOperation:
         if operation.operation_type != OperationType.INVOKE:
             msg: str = f"Expected INVOKE operation, got {operation.operation_type}"
-            raise ValueError(msg)
+            raise InvalidParameterValueException(msg)
         return InvokeOperation(
             operation_id=operation.operation_id,
             operation_type=operation.operation_type,
@@ -487,3 +529,140 @@ class DurableChildContextTestRunner(DurableFunctionTestRunner):
             return context_function(*args, **kwargs)(context)
 
         super().__init__(handler)
+
+
+class WebRunner:
+    """Web server runner for durable functions testing with HTTP API endpoints."""
+
+    def __init__(self, config: WebRunnerConfig) -> None:
+        """Initialize WebRunner with configuration.
+
+        Args:
+            config: WebRunnerConfig containing server and Lambda service settings
+        """
+        self._config = config
+        self._server: WebServer | None = None
+        self._scheduler: Scheduler | None = None
+        self._store: InMemoryExecutionStore | None = None
+        self._invoker: LambdaInvoker | None = None
+        self._executor: Executor | None = None
+
+    def __enter__(self) -> Self:
+        """Context manager entry point.
+
+        Returns:
+            WebRunner: Self for use in with statement
+        """
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Context manager exit point with cleanup.
+
+        Args:
+            exc_type: Exception type if an exception occurred
+            exc_val: Exception value if an exception occurred
+            exc_tb: Exception traceback if an exception occurred
+        """
+        self.stop()
+
+    def start(self) -> None:
+        """Start the server and initialize all dependencies.
+
+        Creates and configures all required components including scheduler,
+        store, invoker, executor, and web server. It does not however start
+        serving web requests, for that you need serve_forever.
+
+        Raises:
+            DurableFunctionsLocalRunnerError: If server is already started
+        """
+        if self._server is not None:
+            msg = "Server is already running"
+            raise DurableFunctionsLocalRunnerError(msg)
+
+        # Create dependencies and server
+        self._store = InMemoryExecutionStore()
+        self._scheduler = Scheduler()
+        self._invoker = LambdaInvoker(self._create_boto3_client())
+
+        # Create executor with all dependencies
+        self._executor = Executor(
+            store=self._store, scheduler=self._scheduler, invoker=self._invoker
+        )
+
+        # Start the scheduler
+        self._scheduler.start()
+
+        # Create web server with configuration and executor
+        self._server = WebServer(
+            config=self._config.web_service, executor=self._executor
+        )
+
+    def serve_forever(self) -> None:
+        """Start serving HTTP requests indefinitely.
+
+        Delegates to the underlying WebServer.serve_forever() method.
+        This method blocks until the server is stopped.
+
+        Raises:
+            DurableFunctionsLocalRunnerError: If server has not been started
+        """
+        if self._server is None:
+            msg = "Server not started"
+            raise DurableFunctionsLocalRunnerError(msg)
+
+        # This blocks until KeyboardInterrupt - let caller handle the exception
+        self._server.serve_forever()
+
+    def stop(self) -> None:
+        """Stop the web server and cleanup resources.
+
+        Gracefully shuts down the server, scheduler, and cleans up
+        all allocated resources. Safe to call multiple times.
+        Handles cleanup exceptions gracefully to ensure all resources
+        are cleaned up even if some fail.
+        """
+        if self._server is not None:
+            try:
+                self._server.server_close()
+            except Exception:
+                # Log the exception but continue cleanup
+                logger.exception("error closing web server")
+
+            self._server = None
+
+        if self._scheduler is not None:
+            try:
+                self._scheduler.stop()
+            except Exception:
+                logger.exception("error stopping scheduler")
+            self._scheduler = None
+
+        self._store = None
+        self._invoker = None
+        self._executor = None
+
+    def _create_boto3_client(self) -> Any:
+        """Create boto3 client for lambdainternal-local service.
+
+        Configures AWS data path and creates a boto3 client with the
+        local runner endpoint and region from configuration.
+
+        Returns:
+            Configured boto3 client for lambdainternal-local service
+
+        Raises:
+            Exception: If client creation fails - exceptions propagate naturally
+                      for CLI to handle as general Exception
+        """
+        # Set up AWS data path for boto models
+        package_path = os.path.dirname(aws_durable_execution_sdk_python.__file__)
+        data_path = f"{package_path}/botocore/data"
+        os.environ["AWS_DATA_PATH"] = data_path
+
+        # Create client with Lambda endpoint configuration
+        return boto3.client(
+            "lambdainternal-local",
+            endpoint_url=self._config.lambda_endpoint,
+            region_name=self._config.local_runner_region,
+        )

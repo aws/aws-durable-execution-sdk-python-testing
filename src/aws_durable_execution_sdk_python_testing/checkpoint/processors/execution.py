@@ -15,6 +15,7 @@ from aws_durable_execution_sdk_python_testing.checkpoint.processors.base import 
     OperationProcessor,
 )
 
+
 if TYPE_CHECKING:
     from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 

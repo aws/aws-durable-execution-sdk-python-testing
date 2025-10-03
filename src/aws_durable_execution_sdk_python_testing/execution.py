@@ -19,11 +19,13 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
+# Import AWS exceptions
 from aws_durable_execution_sdk_python_testing.exceptions import (
-    IllegalStateError,
-    InvalidParameterError,
+    IllegalStateException,
+    InvalidParameterValueException,
 )
 from aws_durable_execution_sdk_python_testing.token import CheckpointToken
+
 
 if TYPE_CHECKING:
     from aws_durable_execution_sdk_python_testing.model import (
@@ -65,7 +67,7 @@ class Execution:
         # not thread safe, prob should be
         if self.start_input.invocation_id is None:
             msg: str = "invocation_id is required"
-            raise InvalidParameterError(msg)
+            raise InvalidParameterValueException(msg)
         self.operations.append(
             Operation(
                 operation_id=self.start_input.invocation_id,
@@ -84,7 +86,7 @@ class Execution:
         if not self.operations:
             msg: str = "execution not started."
 
-            raise ValueError(msg)
+            raise IllegalStateException(msg)
 
         return self.operations[0]
 
@@ -136,27 +138,27 @@ class Execution:
         )
         self.is_complete = True
 
-    def _find_operation(self, operation_id: str) -> tuple[int, Operation]:
+    def find_operation(self, operation_id: str) -> tuple[int, Operation]:
         """Find operation by ID, return index and operation."""
         for i, operation in enumerate(self.operations):
             if operation.operation_id == operation_id:
                 return i, operation
         msg: str = f"Attempting to update state of an Operation [{operation_id}] that doesn't exist"
-        raise IllegalStateError(msg)
+        raise IllegalStateException(msg)
 
     def complete_wait(self, operation_id: str) -> Operation:
         """Complete WAIT operation when timer fires."""
-        index, operation = self._find_operation(operation_id)
+        index, operation = self.find_operation(operation_id)
 
         # Validate
         if operation.status != OperationStatus.STARTED:
             msg_wait_not_started: str = f"Attempting to transition a Wait Operation[{operation_id}] to SUCCEEDED when it's not STARTED"
-            raise IllegalStateError(msg_wait_not_started)
+            raise IllegalStateException(msg_wait_not_started)
         if operation.operation_type != OperationType.WAIT:
             msg_not_wait: str = (
                 f"Expected WAIT operation, got {operation.operation_type}"
             )
-            raise IllegalStateError(msg_not_wait)
+            raise IllegalStateException(msg_not_wait)
 
         # TODO: make thread-safe. Increment sequence
         self.token_sequence += 1
@@ -172,17 +174,17 @@ class Execution:
 
     def complete_retry(self, operation_id: str) -> Operation:
         """Complete STEP retry when timer fires."""
-        index, operation = self._find_operation(operation_id)
+        index, operation = self.find_operation(operation_id)
 
         # Validate
         if operation.status != OperationStatus.PENDING:
             msg_step_not_pending: str = f"Attempting to transition a Step Operation[{operation_id}] to READY when it's not PENDING"
-            raise IllegalStateError(msg_step_not_pending)
+            raise IllegalStateException(msg_step_not_pending)
         if operation.operation_type != OperationType.STEP:
             msg_not_step: str = (
                 f"Expected STEP operation, got {operation.operation_type}"
             )
-            raise IllegalStateError(msg_not_step)
+            raise IllegalStateException(msg_not_step)
 
         # TODO: make thread-safe. Increment sequence
         self.token_sequence += 1

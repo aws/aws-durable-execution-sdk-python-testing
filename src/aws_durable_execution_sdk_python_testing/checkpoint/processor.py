@@ -17,9 +17,12 @@ from aws_durable_execution_sdk_python_testing.checkpoint.transformer import (
 from aws_durable_execution_sdk_python_testing.checkpoint.validators.checkpoint import (
     CheckpointValidator,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 from aws_durable_execution_sdk_python_testing.token import CheckpointToken
+
 
 if TYPE_CHECKING:
     from aws_durable_execution_sdk_python_testing.execution import Execution
@@ -55,7 +58,7 @@ class CheckpointProcessor:
         if execution.is_complete or token.token_sequence != execution.token_sequence:
             msg: str = "Invalid checkpoint token"
 
-            raise InvalidParameterError(msg)
+            raise InvalidParameterValueException(msg)
 
         # 3. Validate all updates, state transitions are valid, sizes etc.
         CheckpointValidator.validate_input(updates, execution)

@@ -16,7 +16,9 @@ from aws_durable_execution_sdk_python_testing.checkpoint.validators.checkpoint i
     MAX_ERROR_PAYLOAD_SIZE_BYTES,
     CheckpointValidator,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
 
@@ -74,7 +76,8 @@ def test_validate_conflicting_execution_update_multiple():
     ]
 
     with pytest.raises(
-        InvalidParameterError, match="Cannot checkpoint multiple EXECUTION updates"
+        InvalidParameterValueException,
+        match="Cannot checkpoint multiple EXECUTION updates",
     ):
         CheckpointValidator.validate_input(updates, execution)
 
@@ -96,7 +99,8 @@ def test_validate_conflicting_execution_update_not_last():
     ]
 
     with pytest.raises(
-        InvalidParameterError, match="EXECUTION checkpoint must be the last update"
+        InvalidParameterValueException,
+        match="EXECUTION checkpoint must be the last update",
     ):
         CheckpointValidator.validate_input(updates, execution)
 
@@ -138,7 +142,7 @@ def test_validate_payload_sizes_error_too_large():
     ]
 
     with pytest.raises(
-        InvalidParameterError,
+        InvalidParameterValueException,
         match=f"Error object size must be less than {MAX_ERROR_PAYLOAD_SIZE_BYTES} bytes",
     ):
         CheckpointValidator.validate_input(updates, execution)
@@ -179,7 +183,7 @@ def test_validate_duplicate_operation_ids():
     ]
 
     with pytest.raises(
-        InvalidParameterError,
+        InvalidParameterValueException,
         match="Cannot update the same operation twice in a single request",
     ):
         CheckpointValidator.validate_input(updates, execution)
@@ -246,7 +250,9 @@ def test_validate_invalid_parent_id_wrong_type():
         )
     ]
 
-    with pytest.raises(InvalidParameterError, match="Invalid parent operation id"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid parent operation id"
+    ):
         CheckpointValidator.validate_input(updates, execution)
 
 
@@ -262,7 +268,9 @@ def test_validate_invalid_parent_id_not_found():
         )
     ]
 
-    with pytest.raises(InvalidParameterError, match="Invalid parent operation id"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid parent operation id"
+    ):
         CheckpointValidator.validate_input(updates, execution)
 
 

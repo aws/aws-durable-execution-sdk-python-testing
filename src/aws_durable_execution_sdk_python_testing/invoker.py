@@ -17,6 +17,7 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
 )
 
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -64,7 +65,7 @@ class Invoker(Protocol):
     def invoke(
         self,
         function_name: str,
-        input: DurableExecutionInvocationInput,  # noqa: A002
+        input: DurableExecutionInvocationInput,
     ) -> DurableExecutionInvocationOutput: ...  # pragma: no cover
 
 
@@ -91,7 +92,7 @@ class InProcessInvoker(Invoker):
     def invoke(
         self,
         function_name: str,  # noqa: ARG002
-        input: DurableExecutionInvocationInput,  # noqa: A002
+        input: DurableExecutionInvocationInput,
     ) -> DurableExecutionInvocationOutput:
         # TODO: reasses if function_name will be used in future
         input_with_client = DurableExecutionInvocationInputWithClient.from_durable_execution_invocation_input(
@@ -107,11 +108,13 @@ class LambdaInvoker(Invoker):
         self.lambda_client = lambda_client
 
     @staticmethod
-    # TODO: reasses if function_name will be used in future
-    def create(function_name: str) -> LambdaInvoker:  # noqa: ARG004
+    def create(endpoint_url: str, region_name: str) -> LambdaInvoker:
         """Create with the boto lambda client."""
-        # TODO: lambdainternal is temporary, it will be `lambda` for live
-        return LambdaInvoker(boto3.client("lambdainternal"))
+        return LambdaInvoker(
+            boto3.client(
+                "lambdainternal", endpoint_url=endpoint_url, region_name=region_name
+            )
+        )
 
     def create_invocation_input(
         self, execution: Execution
@@ -129,14 +132,14 @@ class LambdaInvoker(Invoker):
     def invoke(
         self,
         function_name: str,
-        input: DurableExecutionInvocationInput,  # noqa: A002
+        input: DurableExecutionInvocationInput,
     ) -> DurableExecutionInvocationOutput:
         # TODO: temporary method name pre-build - switch to `invoke` for final
         # TODO: wrap ResourceNotFoundException from lambda in ResourceNotFoundException from this lib
         response = self.lambda_client.invoke20150331(
             FunctionName=function_name,
             InvocationType="RequestResponse",  # Synchronous invocation
-            Payload=input.to_dict(),
+            Payload=json.dumps(input.to_dict(), default=str),
         )
 
         # very simplified placeholder lol

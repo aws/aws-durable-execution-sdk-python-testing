@@ -7,7 +7,10 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
+
 
 VALID_ACTIONS_FOR_EXECUTION = frozenset(
     [
@@ -30,15 +33,15 @@ class ExecutionOperationValidator:
                         "Cannot provide an Error for SUCCEED action."
                     )
 
-                    raise InvalidParameterError(msg_exec_succeed_error)
+                    raise InvalidParameterValueException(msg_exec_succeed_error)
             case OperationAction.FAIL:
                 if update.payload is not None:
                     msg_exec_fail_payload: str = (
                         "Cannot provide a Payload for FAIL action."
                     )
 
-                    raise InvalidParameterError(msg_exec_fail_payload)
+                    raise InvalidParameterValueException(msg_exec_fail_payload)
             case _:
                 msg_exec_invalid: str = "Invalid EXECUTION action."
 
-                raise InvalidParameterError(msg_exec_invalid)
+                raise InvalidParameterValueException(msg_exec_invalid)

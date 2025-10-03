@@ -9,7 +9,10 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
+
 
 VALID_ACTIONS_FOR_CONTEXT = frozenset(
     [
@@ -39,7 +42,7 @@ class ContextOperationValidator:
                         "Cannot start a CONTEXT that already exist."
                     )
 
-                    raise InvalidParameterError(msg_context_exists)
+                    raise InvalidParameterValueException(msg_context_exists)
             case OperationAction.FAIL | OperationAction.SUCCEED:
                 if (
                     current_state is not None
@@ -48,13 +51,13 @@ class ContextOperationValidator:
                 ):
                     msg_context_close: str = "Invalid current CONTEXT state to close."
 
-                    raise InvalidParameterError(msg_context_close)
+                    raise InvalidParameterValueException(msg_context_close)
                 if update.action == OperationAction.FAIL and update.payload is not None:
                     msg_context_fail_payload: str = (
                         "Cannot provide a Payload for FAIL action."
                     )
 
-                    raise InvalidParameterError(msg_context_fail_payload)
+                    raise InvalidParameterValueException(msg_context_fail_payload)
                 if (
                     update.action == OperationAction.SUCCEED
                     and update.error is not None
@@ -63,8 +66,8 @@ class ContextOperationValidator:
                         "Cannot provide an Error for SUCCEED action."
                     )
 
-                    raise InvalidParameterError(msg_context_succeed_error)
+                    raise InvalidParameterValueException(msg_context_succeed_error)
             case _:
                 msg_context_invalid: str = "Invalid CONTEXT action."
 
-                raise InvalidParameterError(msg_context_invalid)
+                raise InvalidParameterValueException(msg_context_invalid)

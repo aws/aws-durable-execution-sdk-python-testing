@@ -9,7 +9,10 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
+
 
 VALID_ACTIONS_FOR_INVOKE = frozenset(
     [
@@ -38,7 +41,7 @@ class InvokeOperationValidator:
                         "Cannot start an INVOKE that already exist."
                     )
 
-                    raise InvalidParameterError(msg_invoke_exists)
+                    raise InvalidParameterValueException(msg_invoke_exists)
             case OperationAction.CANCEL:
                 if (
                     current_state is None
@@ -46,8 +49,8 @@ class InvokeOperationValidator:
                     not in InvokeOperationValidator._ALLOWED_STATUS_TO_CANCEL
                 ):
                     msg_invoke_cancel: str = "Cannot cancel an INVOKE that does not exist or has already completed."
-                    raise InvalidParameterError(msg_invoke_cancel)
+                    raise InvalidParameterValueException(msg_invoke_cancel)
             case _:
                 msg_invoke_invalid: str = "Invalid INVOKE action."
 
-                raise InvalidParameterError(msg_invoke_invalid)
+                raise InvalidParameterValueException(msg_invoke_invalid)

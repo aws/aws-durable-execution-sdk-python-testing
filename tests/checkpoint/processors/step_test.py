@@ -18,7 +18,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.step import (
     StepProcessor,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 
 
@@ -301,7 +303,7 @@ def test_process_invalid_action():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Invalid action for STEP operation"
+        InvalidParameterValueException, match="Invalid action for STEP operation"
     ):
         processor.process(update, None, notifier, execution_arn)
 

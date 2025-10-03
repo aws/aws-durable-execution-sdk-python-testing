@@ -1,5 +1,6 @@
 """Tests for observer module."""
 
+import inspect
 import threading
 from unittest.mock import Mock
 
@@ -273,7 +274,6 @@ def test_execution_observer_abstract_method_coverage():
     """Test coverage of abstract methods in ExecutionObserver."""
     # This test ensures we cover the abstract method definitions
     # by checking they exist and have the correct signatures
-    import inspect
 
     methods = inspect.getmembers(ExecutionObserver, predicate=inspect.isfunction)
     method_names = [name for name, _ in methods]

@@ -9,7 +9,10 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
+
 
 VALID_ACTIONS_FOR_CALLBACK = frozenset(
     [
@@ -37,7 +40,7 @@ class CallbackOperationValidator:
                     msg_callback_exists: str = (
                         "Cannot start a CALLBACK that already exist."
                     )
-                    raise InvalidParameterError(msg_callback_exists)
+                    raise InvalidParameterValueException(msg_callback_exists)
             case OperationAction.CANCEL:
                 if (
                     current_state is None
@@ -45,7 +48,7 @@ class CallbackOperationValidator:
                     not in CallbackOperationValidator._ALLOWED_STATUS_TO_CANCEL
                 ):
                     msg_callback_cancel: str = "Cannot cancel a CALLBACK that does not exist or has already completed."
-                    raise InvalidParameterError(msg_callback_cancel)
+                    raise InvalidParameterValueException(msg_callback_cancel)
             case _:
                 msg_callback_invalid: str = "Invalid CALLBACK action."
-                raise InvalidParameterError(msg_callback_invalid)
+                raise InvalidParameterValueException(msg_callback_invalid)

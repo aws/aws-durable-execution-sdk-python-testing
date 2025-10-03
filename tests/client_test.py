@@ -14,14 +14,6 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.client import InMemoryServiceClient
 
 
-def test_init():
-    """Test initialization with checkpoint processor."""
-    processor = Mock()
-    client = InMemoryServiceClient(processor)
-
-    assert client._checkpoint_processor == processor  # noqa: SLF001
-
-
 def test_checkpoint():
     """Test checkpoint method delegates to processor."""
     processor = Mock()

@@ -8,6 +8,7 @@ import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from concurrent.futures import Future
@@ -32,7 +33,7 @@ class Event:
         self._exception = exception
         self._scheduler.set_event(self._asyncio_event)
 
-    def wait(self, timeout: float | None = None, clear_on_set: bool = True) -> bool:  # noqa: FBT001, FBT002
+    def wait(self, timeout: float | None = None, *, clear_on_set: bool = True) -> bool:
         """Wait until the event is set.
 
         Args:

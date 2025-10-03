@@ -9,7 +9,10 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
+
 
 VALID_ACTIONS_FOR_WAIT = frozenset(
     [
@@ -36,7 +39,7 @@ class WaitOperationValidator:
                 if current_state is not None:
                     msg_wait_exists: str = "Cannot start a WAIT that already exist."
 
-                    raise InvalidParameterError(msg_wait_exists)
+                    raise InvalidParameterValueException(msg_wait_exists)
             case OperationAction.CANCEL:
                 if (
                     current_state is None
@@ -44,8 +47,8 @@ class WaitOperationValidator:
                     not in WaitOperationValidator._ALLOWED_STATUS_TO_CANCEL
                 ):
                     msg_wait_cancel: str = "Cannot cancel a WAIT that does not exist or has already completed."
-                    raise InvalidParameterError(msg_wait_cancel)
+                    raise InvalidParameterValueException(msg_wait_cancel)
             case _:
                 msg_wait_invalid: str = "Invalid WAIT action."
 
-                raise InvalidParameterError(msg_wait_invalid)
+                raise InvalidParameterValueException(msg_wait_invalid)

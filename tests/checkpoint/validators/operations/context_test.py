@@ -14,7 +14,9 @@ from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.c
     VALID_ACTIONS_FOR_CONTEXT,
     ContextOperationValidator,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 
 
 def test_valid_actions_for_context():
@@ -53,7 +55,8 @@ def test_validate_start_action_with_existing_state():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Cannot start a CONTEXT that already exist."
+        InvalidParameterValueException,
+        match="Cannot start a CONTEXT that already exist.",
     ):
         ContextOperationValidator.validate(current_state, update)
 
@@ -123,7 +126,8 @@ def test_validate_succeed_action_with_invalid_status():
         )
 
         with pytest.raises(
-            InvalidParameterError, match="Invalid current CONTEXT state to close."
+            InvalidParameterValueException,
+            match="Invalid current CONTEXT state to close.",
         ):
             ContextOperationValidator.validate(current_state, update)
 
@@ -158,7 +162,8 @@ def test_validate_fail_action_with_invalid_status():
         )
 
         with pytest.raises(
-            InvalidParameterError, match="Invalid current CONTEXT state to close."
+            InvalidParameterValueException,
+            match="Invalid current CONTEXT state to close.",
         ):
             ContextOperationValidator.validate(current_state, update)
 
@@ -178,7 +183,8 @@ def test_validate_fail_action_with_payload():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Cannot provide a Payload for FAIL action."
+        InvalidParameterValueException,
+        match="Cannot provide a Payload for FAIL action.",
     ):
         ContextOperationValidator.validate(current_state, update)
 
@@ -201,7 +207,8 @@ def test_validate_succeed_action_with_error():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Cannot provide an Error for SUCCEED action."
+        InvalidParameterValueException,
+        match="Cannot provide an Error for SUCCEED action.",
     ):
         ContextOperationValidator.validate(current_state, update)
 
@@ -244,5 +251,7 @@ def test_validate_invalid_action():
             action=action,
         )
 
-        with pytest.raises(InvalidParameterError, match="Invalid CONTEXT action."):
+        with pytest.raises(
+            InvalidParameterValueException, match="Invalid CONTEXT action."
+        ):
             ContextOperationValidator.validate(None, update)

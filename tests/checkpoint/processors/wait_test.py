@@ -16,6 +16,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.wait import (
     WaitProcessor,
 )
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 
 
@@ -207,7 +210,9 @@ def test_process_invalid_action():
         name="test-wait",
     )
 
-    with pytest.raises(ValueError, match="Invalid action for WAIT operation"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid action for WAIT operation"
+    ):
         processor.process(update, None, notifier, execution_arn)
 
 
@@ -223,7 +228,9 @@ def test_process_fail_action():
         name="test-wait",
     )
 
-    with pytest.raises(ValueError, match="Invalid action for WAIT operation"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid action for WAIT operation"
+    ):
         processor.process(update, None, notifier, execution_arn)
 
 
@@ -239,7 +246,9 @@ def test_process_retry_action():
         name="test-wait",
     )
 
-    with pytest.raises(ValueError, match="Invalid action for WAIT operation"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid action for WAIT operation"
+    ):
         processor.process(update, None, notifier, execution_arn)
 
 

@@ -27,7 +27,9 @@ from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.s
 from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.wait import (
     VALID_ACTIONS_FOR_WAIT,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 
 
 class ValidActionsByOperationTypeValidator:
@@ -56,9 +58,9 @@ class ValidActionsByOperationTypeValidator:
         if valid_actions is None:
             msg_unknown_op: str = "Unknown operation type."
 
-            raise InvalidParameterError(msg_unknown_op)
+            raise InvalidParameterValueException(msg_unknown_op)
 
         if action not in valid_actions:
             msg_invalid_action: str = "Invalid action for the given operation type."
 
-            raise InvalidParameterError(msg_invalid_action)
+            raise InvalidParameterValueException(msg_invalid_action)

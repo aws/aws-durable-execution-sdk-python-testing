@@ -19,6 +19,7 @@ from aws_durable_execution_sdk_python.lambda_service import (
     WaitDetails,
 )
 
+
 if TYPE_CHECKING:
     from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 

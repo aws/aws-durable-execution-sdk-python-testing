@@ -25,7 +25,10 @@ from aws_durable_execution_sdk_python_testing.checkpoint.processors.step import 
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.wait import (
     WaitProcessor,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
+
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
@@ -96,6 +99,6 @@ class OperationTransformer:
                 msg: str = (
                     f"Checkpoint for {update.operation_type} is not implemented yet."
                 )
-                raise InvalidParameterError(msg)
+                raise InvalidParameterValueException(msg)
 
         return result_operations, updates

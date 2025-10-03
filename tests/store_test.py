@@ -1,5 +1,7 @@
 """Tests for store module."""
 
+from unittest.mock import Mock
+
 import pytest
 
 from aws_durable_execution_sdk_python_testing.execution import Execution
@@ -109,3 +111,38 @@ def test_in_memory_execution_store_multiple_executions():
 
     assert loaded_execution1 is execution1
     assert loaded_execution2 is execution2
+
+
+def test_in_memory_execution_store_list_all_empty():
+    """Test list_all method with empty store."""
+    store = InMemoryExecutionStore()
+
+    result = store.list_all()
+
+    assert result == []
+
+
+def test_in_memory_execution_store_list_all_with_executions():
+    """Test list_all method with multiple executions."""
+    store = InMemoryExecutionStore()
+
+    # Create test executions
+    execution1 = Mock()
+    execution1.durable_execution_arn = "arn1"
+    execution2 = Mock()
+    execution2.durable_execution_arn = "arn2"
+    execution3 = Mock()
+    execution3.durable_execution_arn = "arn3"
+
+    # Save executions
+    store.save(execution1)
+    store.save(execution2)
+    store.save(execution3)
+
+    # Test list_all
+    result = store.list_all()
+
+    assert len(result) == 3
+    assert execution1 in result
+    assert execution2 in result
+    assert execution3 in result

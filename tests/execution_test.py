@@ -13,7 +13,7 @@ from aws_durable_execution_sdk_python.lambda_service import (
     StepDetails,
 )
 
-from aws_durable_execution_sdk_python_testing.exceptions import IllegalStateError
+from aws_durable_execution_sdk_python_testing.exceptions import IllegalStateException
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
 
@@ -128,7 +128,7 @@ def test_get_operation_execution_started_not_started():
     )
     execution = Execution("test-arn", start_input, [])
 
-    with pytest.raises(ValueError, match="execution not started"):
+    with pytest.raises(IllegalStateException, match="execution not started"):
         execution.get_operation_execution_started()
 
 
@@ -409,7 +409,7 @@ def test_complete_fail():
 
 
 def test_find_operation_exists():
-    """Test _find_operation method when operation exists."""
+    """Test find_operation method when operation exists."""
     start_input = StartDurableExecutionInput(
         account_id="123456789012",
         function_name="test-function",
@@ -428,14 +428,14 @@ def test_find_operation_exists():
     )
     execution = Execution("test-arn", start_input, [operation])
 
-    index, found_operation = execution._find_operation("test-op-id")  # noqa: SLF001
+    index, found_operation = execution.find_operation("test-op-id")
 
     assert index == 0
     assert found_operation == operation
 
 
 def test_find_operation_not_exists():
-    """Test _find_operation method when operation doesn't exist."""
+    """Test find_operation method when operation doesn't exist."""
     start_input = StartDurableExecutionInput(
         account_id="123456789012",
         function_name="test-function",
@@ -447,9 +447,9 @@ def test_find_operation_not_exists():
     execution = Execution("test-arn", start_input, [])
 
     with pytest.raises(
-        IllegalStateError, match="Attempting to update state of an Operation"
+        IllegalStateException, match="Attempting to update state of an Operation"
     ):
-        execution._find_operation("non-existent-id")  # noqa: SLF001
+        execution.find_operation("non-existent-id")
 
 
 @patch("aws_durable_execution_sdk_python_testing.execution.datetime")
@@ -505,7 +505,7 @@ def test_complete_wait_wrong_status():
     execution = Execution("test-arn", start_input, [operation])
 
     with pytest.raises(
-        IllegalStateError, match="Attempting to transition a Wait Operation"
+        IllegalStateException, match="Attempting to transition a Wait Operation"
     ):
         execution.complete_wait("wait-op-id")
 
@@ -530,7 +530,7 @@ def test_complete_wait_wrong_type():
     )
     execution = Execution("test-arn", start_input, [operation])
 
-    with pytest.raises(IllegalStateError, match="Expected WAIT operation"):
+    with pytest.raises(IllegalStateException, match="Expected WAIT operation"):
         execution.complete_wait("step-op-id")
 
 
@@ -615,7 +615,7 @@ def test_complete_retry_wrong_status():
     execution = Execution("test-arn", start_input, [operation])
 
     with pytest.raises(
-        IllegalStateError, match="Attempting to transition a Step Operation"
+        IllegalStateException, match="Attempting to transition a Step Operation"
     ):
         execution.complete_retry("step-op-id")
 
@@ -640,5 +640,5 @@ def test_complete_retry_wrong_type():
     )
     execution = Execution("test-arn", start_input, [operation])
 
-    with pytest.raises(IllegalStateError, match="Expected STEP operation"):
+    with pytest.raises(IllegalStateException, match="Expected STEP operation"):
         execution.complete_retry("wait-op-id")

@@ -11,7 +11,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.execution import (
     ExecutionOperationValidator,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 
 
 def test_validate_succeed_action():
@@ -50,7 +52,8 @@ def test_validate_succeed_action_with_error():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Cannot provide an Error for SUCCEED action"
+        InvalidParameterValueException,
+        match="Cannot provide an Error for SUCCEED action",
     ):
         ExecutionOperationValidator.validate(update)
 
@@ -65,7 +68,7 @@ def test_validate_fail_action_with_payload():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Cannot provide a Payload for FAIL action"
+        InvalidParameterValueException, match="Cannot provide a Payload for FAIL action"
     ):
         ExecutionOperationValidator.validate(update)
 
@@ -78,7 +81,9 @@ def test_validate_invalid_action():
         action=OperationAction.START,
     )
 
-    with pytest.raises(InvalidParameterError, match="Invalid EXECUTION action"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid EXECUTION action"
+    ):
         ExecutionOperationValidator.validate(update)
 
 

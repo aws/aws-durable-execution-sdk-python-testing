@@ -12,7 +12,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.wait import (
     WaitOperationValidator,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 
 
 def test_validate_start_action_with_no_current_state():
@@ -39,7 +41,7 @@ def test_validate_start_action_with_existing_state():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Cannot start a WAIT that already exist"
+        InvalidParameterValueException, match="Cannot start a WAIT that already exist"
     ):
         WaitOperationValidator.validate(current_state, update)
 
@@ -68,7 +70,7 @@ def test_validate_cancel_action_with_no_current_state():
     )
 
     with pytest.raises(
-        InvalidParameterError,
+        InvalidParameterValueException,
         match="Cannot cancel a WAIT that does not exist or has already completed",
     ):
         WaitOperationValidator.validate(None, update)
@@ -88,7 +90,7 @@ def test_validate_cancel_action_with_completed_state():
     )
 
     with pytest.raises(
-        InvalidParameterError,
+        InvalidParameterValueException,
         match="Cannot cancel a WAIT that does not exist or has already completed",
     ):
         WaitOperationValidator.validate(current_state, update)
@@ -102,5 +104,5 @@ def test_validate_invalid_action():
         action=OperationAction.SUCCEED,
     )
 
-    with pytest.raises(InvalidParameterError, match="Invalid WAIT action"):
+    with pytest.raises(InvalidParameterValueException, match="Invalid WAIT action"):
         WaitOperationValidator.validate(None, update)

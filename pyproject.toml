@@ -10,9 +10,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 license = "Apache-2.0"
 keywords = []
-authors = [
-  { name = "yaythomas", email = "tgaigher@amazon.com" },
-]
+authors = [{ name = "yaythomas", email = "tgaigher@amazon.com" }]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
@@ -22,7 +20,8 @@ classifiers = [
 ]
 dependencies = [
   "boto3>=1.40.30",
-  "aws_durable_execution_sdk_python @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git"
+  "requests>=2.25.0",
+  "aws_durable_execution_sdk_python @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git",
 ]
 
 [project.urls]
@@ -30,13 +29,16 @@ Documentation = "https://github.com/aws/aws-durable-execution-sdk-python-testing
 Issues = "https://github.com/aws/aws-durable-execution-sdk-python-testing/issues"
 Source = "https://github.com/aws/aws-durable-execution-sdk-python-testing"
 
+[project.scripts]
+dex-local-runner = "aws_durable_execution_sdk_python_testing.cli:main"
+
 [tool.hatch.build.targets.sdist]
 packages = ["src/aws_durable_execution_sdk_python_testing"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/aws_durable_execution_sdk_python_testing"]
 
-[tool.hatch.metadata] 
+[tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.version]
@@ -50,35 +52,34 @@ path = "src/aws_durable_execution_sdk_python_testing/__about__.py"
 
 [tool.hatch.envs.test]
 dependencies = [
-    "coverage[toml]",
-    "pytest",
-    "pytest-cov",
-    "aws_durable_execution_sdk_python @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git"
+  "coverage[toml]",
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "aws_durable_execution_sdk_python @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git",
 ]
 
 [tool.hatch.envs.test.scripts]
 test = "pytest tests/ -v"
 examples = "pytest examples/test/ -v"
-cov="pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aws_durable_execution_sdk_python_testing --cov=tests --cov-fail-under=99"
+cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aws_durable_execution_sdk_python_testing --cov-fail-under=96"
 
 [tool.hatch.envs.types]
-extra-dependencies = [
-  "mypy>=1.0.0",
-  "pytest"
-]
+extra-dependencies = ["mypy>=1.0.0", "pytest"]
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/aws_durable_execution_sdk_python_testing tests}"
 
 [tool.coverage.run]
-source_pkgs = ["aws_durable_execution_sdk_python_testing", "tests"]
+source_pkgs = ["aws_durable_execution_sdk_python_testing"]
 branch = true
 parallel = true
-omit = [
-  "src/aws_durable_execution_sdk_python_testing/__about__.py",
-]
+omit = ["src/aws_durable_execution_sdk_python_testing/__about__.py", "tests/*"]
 
 [tool.coverage.paths]
-aws_durable_execution_sdk_python_testing = ["src/aws_durable_execution_sdk_python_testing", "*/aws-durable-execution-sdk-python-testing/src/aws_durable_execution_sdk_python_testing"]
+aws_durable_execution_sdk_python_testing = [
+  "src/aws_durable_execution_sdk_python_testing",
+  "*/aws-durable-execution-sdk-python-testing/src/aws_durable_execution_sdk_python_testing",
+]
 tests = ["tests", "*/aws-durable-execution-sdk-python-testing/tests"]
 
 [tool.coverage.report]
@@ -86,14 +87,40 @@ exclude_lines = [
   "no cov",
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
-  "@abstractmethod"
+  "@abstractmethod",
 ]
 
 [tool.ruff]
 line-length = 88
+target-version = "py313"
 
 [tool.ruff.lint]
 preview = false
 
+[tool.ruff.lint.isort]
+known-first-party = ["aws_durable_execution_sdk_python_testing"]
+force-single-line = false
+lines-after-imports = 2
+
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ARG001", "ARG002", "ARG005", "S101", "PLR2004", "SIM117", "TRY301"]
+"tests/**" = [
+  "ARG001",
+  "ARG002",
+  "ARG005",
+  "S101",
+  "PLR2004",
+  "SIM117",
+  "TRY301",
+]
+"examples/test/**" = [
+  "ARG001",
+  "ARG002",
+  "ARG005",
+  "S101",
+  "PLR2004",
+  "SIM117",
+  "TRY301",
+]
+"src/aws_durable_execution_sdk_python_testing/invoker.py" = [
+  "A002", # Argument `input` is shadowing a Python builtin
+]

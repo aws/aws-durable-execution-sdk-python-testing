@@ -116,11 +116,15 @@ def test_lambda_invoker_create():
         mock_client = Mock()
         mock_boto3.client.return_value = mock_client
 
-        invoker = LambdaInvoker.create("test-function")
+        invoker = LambdaInvoker.create("http://localhost:3001", "us-west-2")
 
         assert isinstance(invoker, LambdaInvoker)
         assert invoker.lambda_client is mock_client
-        mock_boto3.client.assert_called_once_with("lambdainternal")
+        mock_boto3.client.assert_called_once_with(
+            "lambdainternal",
+            endpoint_url="http://localhost:3001",
+            region_name="us-west-2",
+        )
 
 
 def test_lambda_invoker_create_invocation_input():
@@ -181,7 +185,7 @@ def test_lambda_invoker_invoke_success():
     lambda_client.invoke20150331.assert_called_once_with(
         FunctionName="test-function",
         InvocationType="RequestResponse",
-        Payload=input_data.to_dict(),
+        Payload=json.dumps(input_data.to_dict(), default=str),
     )
 
 

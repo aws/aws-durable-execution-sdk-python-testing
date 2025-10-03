@@ -31,7 +31,10 @@ from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.w
 from aws_durable_execution_sdk_python_testing.checkpoint.validators.transitions import (
     ValidActionsByOperationTypeValidator,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
+
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
@@ -68,12 +71,12 @@ class CheckpointValidator:
         if len(execution_updates) > 1:
             msg_multiple_exec: str = "Cannot checkpoint multiple EXECUTION updates."
 
-            raise InvalidParameterError(msg_multiple_exec)
+            raise InvalidParameterValueException(msg_multiple_exec)
 
         if execution_updates and updates[-1].operation_type != OperationType.EXECUTION:
             msg_exec_last: str = "EXECUTION checkpoint must be the last update."
 
-            raise InvalidParameterError(msg_exec_last)
+            raise InvalidParameterValueException(msg_exec_last)
 
     @staticmethod
     def _validate_operation_update(
@@ -93,7 +96,7 @@ class CheckpointValidator:
             payload = json.dumps(update.error.to_dict())
             if len(payload) > MAX_ERROR_PAYLOAD_SIZE_BYTES:
                 msg: str = f"Error object size must be less than {MAX_ERROR_PAYLOAD_SIZE_BYTES} bytes."
-                raise InvalidParameterError(msg)
+                raise InvalidParameterValueException(msg)
 
     @staticmethod
     def _validate_operation_status_transition(
@@ -122,7 +125,7 @@ class CheckpointValidator:
             case _:  # pragma: no cover
                 msg: str = "Invalid operation type."
 
-                raise InvalidParameterError(msg)
+                raise InvalidParameterValueException(msg)
 
     @staticmethod
     def _validate_parent_id_and_duplicate_id(
@@ -134,14 +137,14 @@ class CheckpointValidator:
         for update in updates:
             if update.operation_id in operations_seen:
                 msg: str = "Cannot update the same operation twice in a single request."
-                raise InvalidParameterError(msg)
+                raise InvalidParameterValueException(msg)
 
             if not CheckpointValidator._is_valid_parent_for_update(
                 execution, update, operations_seen
             ):
                 msg_invalid_parent: str = "Invalid parent operation id."
 
-                raise InvalidParameterError(msg_invalid_parent)
+                raise InvalidParameterValueException(msg_invalid_parent)
 
             operations_seen[update.operation_id] = update
 

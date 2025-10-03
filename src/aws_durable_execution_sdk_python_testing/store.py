@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
+
 if TYPE_CHECKING:
     from aws_durable_execution_sdk_python_testing.execution import Execution
 
@@ -13,6 +14,7 @@ class ExecutionStore(Protocol):
     def save(self, execution: Execution) -> None: ...  # pragma: no cover
     def load(self, execution_arn: str) -> Execution: ...  # pragma: no cover
     def update(self, execution: Execution) -> None: ...  # pragma: no cover
+    def list_all(self) -> list[Execution]: ...  # pragma: no cover
 
 
 class InMemoryExecutionStore(ExecutionStore):
@@ -28,6 +30,9 @@ class InMemoryExecutionStore(ExecutionStore):
 
     def update(self, execution: Execution) -> None:
         self._store[execution.durable_execution_arn] = execution
+
+    def list_all(self) -> list[Execution]:
+        return list(self._store.values())
 
 
 # class SQLiteExecutionStore(ExecutionStore):

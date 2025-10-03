@@ -10,6 +10,7 @@
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
+- [Documentation](#documentation)
 - [Developer Guide](#developers)
 - [License](#license)
 
@@ -167,6 +168,20 @@ The observer pattern enables loose coupling between checkpoint processing and ex
 4. **Executor** (as ExecutionObserver) receives notifications and updates **Execution** state
 5. **Execution** complete_* methods finalize the execution state
 
+
+## Documentation
+
+### Error Handling
+
+The testing framework implements AWS-compliant error responses that match the exact format expected by boto3 and AWS services. For detailed information about error response formats, exception types, and troubleshooting, see:
+
+- [Error Response Documentation](docs/error-responses.md)
+
+Key features:
+- **AWS-compliant JSON format**: Matches boto3 expectations exactly
+- **Smithy model compliance**: Field names follow AWS Smithy definitions  
+- **HTTP status code mapping**: Standard AWS service status codes
+- **Boto3 compatibility**: Seamless integration with boto3 error handling
 
 ## Developers
 Please see [CONTRIBUTING.md](CONTRIBUTING.md). It contains the testing guide, sample commands and instructions

@@ -14,6 +14,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.callback import (
     CallbackProcessor,
 )
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
 
 
@@ -101,7 +104,9 @@ def test_process_invalid_action():
         name="test-callback",
     )
 
-    with pytest.raises(ValueError, match="Invalid action for CALLBACK operation"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid action for CALLBACK operation"
+    ):
         processor.process(
             update,
             None,
@@ -121,7 +126,9 @@ def test_process_fail_action():
         name="test-callback",
     )
 
-    with pytest.raises(ValueError, match="Invalid action for CALLBACK operation"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid action for CALLBACK operation"
+    ):
         processor.process(
             update,
             None,
@@ -141,7 +148,9 @@ def test_process_cancel_action():
         name="test-callback",
     )
 
-    with pytest.raises(ValueError, match="Invalid action for CALLBACK operation"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid action for CALLBACK operation"
+    ):
         processor.process(
             update,
             None,
@@ -161,7 +170,9 @@ def test_process_retry_action():
         name="test-callback",
     )
 
-    with pytest.raises(ValueError, match="Invalid action for CALLBACK operation"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid action for CALLBACK operation"
+    ):
         processor.process(
             update,
             None,

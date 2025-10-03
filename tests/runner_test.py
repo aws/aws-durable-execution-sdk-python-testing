@@ -20,6 +20,7 @@ from aws_durable_execution_sdk_python.lambda_service import Operation as SvcOper
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
+    InvalidParameterValueException,
 )
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import (
@@ -89,7 +90,8 @@ def test_execution_operation_wrong_type():
     )
 
     with pytest.raises(
-        ValueError, match="Expected EXECUTION operation, got OperationType.STEP"
+        InvalidParameterValueException,
+        match="Expected EXECUTION operation, got OperationType.STEP",
     ):
         ExecutionOperation.from_svc_operation(svc_op)
 
@@ -328,7 +330,8 @@ def test_step_operation_wrong_type():
     )
 
     with pytest.raises(
-        ValueError, match="Expected STEP operation, got OperationType.CONTEXT"
+        InvalidParameterValueException,
+        match="Expected STEP operation, got OperationType.CONTEXT",
     ):
         StepOperation.from_svc_operation(svc_op)
 
@@ -360,7 +363,8 @@ def test_wait_operation_wrong_type():
     )
 
     with pytest.raises(
-        ValueError, match="Expected WAIT operation, got OperationType.STEP"
+        InvalidParameterValueException,
+        match="Expected WAIT operation, got OperationType.STEP",
     ):
         WaitOperation.from_svc_operation(svc_op)
 
@@ -394,7 +398,8 @@ def test_callback_operation_wrong_type():
     )
 
     with pytest.raises(
-        ValueError, match="Expected CALLBACK operation, got OperationType.STEP"
+        InvalidParameterValueException,
+        match="Expected CALLBACK operation, got OperationType.STEP",
     ):
         CallbackOperation.from_svc_operation(svc_op)
 
@@ -432,7 +437,8 @@ def test_invoke_operation_wrong_type():
     )
 
     with pytest.raises(
-        ValueError, match="Expected INVOKE operation, got OperationType.STEP"
+        InvalidParameterValueException,
+        match="Expected INVOKE operation, got OperationType.STEP",
     ):
         InvokeOperation.from_svc_operation(svc_op)
 
@@ -709,22 +715,28 @@ def test_durable_function_test_runner_close(mock_scheduler):
     """Test DurableFunctionTestRunner close method."""
     handler = Mock()
 
-    with patch.object(DurableFunctionTestRunner, "__init__", return_value=None):
-        runner = DurableFunctionTestRunner(handler)
-        runner._scheduler = mock_scheduler.return_value  # noqa: SLF001
+    # Let the constructor run normally with mocked dependencies
+    mock_scheduler_instance = Mock()
+    mock_scheduler.return_value = mock_scheduler_instance
 
-        runner.close()
+    runner = DurableFunctionTestRunner(handler)
+    runner.close()
 
-        mock_scheduler.return_value.stop.assert_called_once()
+    # Verify scheduler.stop() was called
+    mock_scheduler_instance.stop.assert_called_once()
 
 
-def test_durable_function_test_runner_run():
+@patch("aws_durable_execution_sdk_python_testing.runner.Executor")
+@patch("aws_durable_execution_sdk_python_testing.runner.InMemoryExecutionStore")
+def test_durable_function_test_runner_run(mock_store_class, mock_executor_class):
     """Test DurableFunctionTestRunner run method."""
     handler = Mock()
 
-    # Mock all dependencies
+    # Mock the class instances
     mock_executor = Mock()
     mock_store = Mock()
+    mock_executor_class.return_value = mock_executor
+    mock_store_class.return_value = mock_store
 
     # Mock execution output
     output = StartDurableExecutionOutput(execution_arn="test-arn")
@@ -740,40 +752,42 @@ def test_durable_function_test_runner_run():
     mock_execution.result.error = None
     mock_store.load.return_value = mock_execution
 
-    with patch.object(DurableFunctionTestRunner, "__init__", return_value=None):
-        runner = DurableFunctionTestRunner(handler)
-        runner._executor = mock_executor  # noqa: SLF001
-        runner._store = mock_store  # noqa: SLF001
+    runner = DurableFunctionTestRunner(handler)
+    result = runner.run("test-input")
 
-        result = runner.run("test-input")
+    # Verify start_execution was called with correct input
+    mock_executor.start_execution.assert_called_once()
+    start_input = mock_executor.start_execution.call_args[0][0]
+    assert isinstance(start_input, StartDurableExecutionInput)
+    assert start_input.input == "test-input"
+    assert start_input.function_name == "test-function"
+    assert start_input.execution_name == "execution-name"
+    assert start_input.account_id == "123456789012"
 
-        # Verify start_execution was called with correct input
-        mock_executor.start_execution.assert_called_once()
-        start_input = mock_executor.start_execution.call_args[0][0]
-        assert isinstance(start_input, StartDurableExecutionInput)
-        assert start_input.input == "test-input"
-        assert start_input.function_name == "test-function"
-        assert start_input.execution_name == "execution-name"
-        assert start_input.account_id == "123456789012"
+    # Verify wait_until_complete was called
+    mock_executor.wait_until_complete.assert_called_once_with("test-arn", 900)
 
-        # Verify wait_until_complete was called
-        mock_executor.wait_until_complete.assert_called_once_with("test-arn", 900)
+    # Verify store.load was called
+    mock_store.load.assert_called_once_with("test-arn")
 
-        # Verify store.load was called
-        mock_store.load.assert_called_once_with("test-arn")
-
-        # Verify result
-        assert isinstance(result, DurableFunctionTestResult)
-        assert result.status is InvocationStatus.SUCCEEDED
+    # Verify result
+    assert isinstance(result, DurableFunctionTestResult)
+    assert result.status is InvocationStatus.SUCCEEDED
 
 
-def test_durable_function_test_runner_run_with_custom_params():
+@patch("aws_durable_execution_sdk_python_testing.runner.Executor")
+@patch("aws_durable_execution_sdk_python_testing.runner.InMemoryExecutionStore")
+def test_durable_function_test_runner_run_with_custom_params(
+    mock_store_class, mock_executor_class
+):
     """Test DurableFunctionTestRunner run method with custom parameters."""
     handler = Mock()
 
-    # Mock all dependencies
+    # Mock the class instances
     mock_executor = Mock()
     mock_store = Mock()
+    mock_executor_class.return_value = mock_executor
+    mock_store_class.return_value = mock_store
 
     # Mock execution output
     output = StartDurableExecutionOutput(execution_arn="test-arn")
@@ -789,53 +803,47 @@ def test_durable_function_test_runner_run_with_custom_params():
     mock_execution.result.error = None
     mock_store.load.return_value = mock_execution
 
-    with patch.object(DurableFunctionTestRunner, "__init__", return_value=None):
-        runner = DurableFunctionTestRunner(handler)
-        runner._executor = mock_executor  # noqa: SLF001
-        runner._store = mock_store  # noqa: SLF001
+    runner = DurableFunctionTestRunner(handler)
+    result = runner.run(
+        input="custom-input",
+        timeout=1800,
+        function_name="custom-function",
+        execution_name="custom-execution",
+        account_id="987654321098",
+    )
 
-        result = runner.run(
-            input="custom-input",
-            timeout=1800,
-            function_name="custom-function",
-            execution_name="custom-execution",
-            account_id="987654321098",
-        )
+    # Verify start_execution was called with custom parameters
+    start_input = mock_executor.start_execution.call_args[0][0]
+    assert start_input.input == "custom-input"
+    assert start_input.function_name == "custom-function"
+    assert start_input.execution_name == "custom-execution"
+    assert start_input.account_id == "987654321098"
+    assert start_input.execution_timeout_seconds == 1800
 
-        # Verify start_execution was called with custom parameters
-        start_input = mock_executor.start_execution.call_args[0][0]
-        assert start_input.input == "custom-input"
-        assert start_input.function_name == "custom-function"
-        assert start_input.execution_name == "custom-execution"
-        assert start_input.account_id == "987654321098"
-        assert start_input.execution_timeout_seconds == 1800
+    # Verify wait_until_complete was called with custom timeout
+    mock_executor.wait_until_complete.assert_called_once_with("test-arn", 1800)
 
-        # Verify wait_until_complete was called with custom timeout
-        mock_executor.wait_until_complete.assert_called_once_with("test-arn", 1800)
-
-        assert result.status is InvocationStatus.SUCCEEDED
+    assert result.status is InvocationStatus.SUCCEEDED
 
 
-def test_durable_function_test_runner_run_timeout():
+@patch("aws_durable_execution_sdk_python_testing.runner.Executor")
+def test_durable_function_test_runner_run_timeout(mock_executor_class):
     """Test DurableFunctionTestRunner run method with timeout."""
     handler = Mock()
 
-    # Mock all dependencies
+    # Mock the class instance
     mock_executor = Mock()
+    mock_executor_class.return_value = mock_executor
 
     # Mock execution output
     output = StartDurableExecutionOutput(execution_arn="test-arn")
     mock_executor.start_execution.return_value = output
     mock_executor.wait_until_complete.return_value = False  # Timeout
 
-    with patch.object(DurableFunctionTestRunner, "__init__", return_value=None):
-        runner = DurableFunctionTestRunner(handler)
-        runner._executor = mock_executor  # noqa: SLF001
+    runner = DurableFunctionTestRunner(handler)
 
-        with pytest.raises(
-            TimeoutError, match="Execution did not complete within timeout"
-        ):
-            runner.run("test-input")
+    with pytest.raises(TimeoutError, match="Execution did not complete within timeout"):
+        runner.run("test-input")
 
 
 def test_context_operation_wrong_type():
@@ -847,7 +855,8 @@ def test_context_operation_wrong_type():
     )
 
     with pytest.raises(
-        ValueError, match="Expected CONTEXT operation, got OperationType.STEP"
+        InvalidParameterValueException,
+        match="Expected CONTEXT operation, got OperationType.STEP",
     ):
         ContextOperation.from_svc_operation(svc_op)
 

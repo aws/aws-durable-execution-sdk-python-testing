@@ -12,7 +12,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.callback import (
     CallbackOperationValidator,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 
 
 def test_validate_start_action_with_no_current_state():
@@ -39,7 +41,8 @@ def test_validate_start_action_with_existing_state():
     )
 
     with pytest.raises(
-        InvalidParameterError, match="Cannot start a CALLBACK that already exist"
+        InvalidParameterValueException,
+        match="Cannot start a CALLBACK that already exist",
     ):
         CallbackOperationValidator.validate(current_state, update)
 
@@ -68,7 +71,7 @@ def test_validate_cancel_action_with_no_current_state():
     )
 
     with pytest.raises(
-        InvalidParameterError,
+        InvalidParameterValueException,
         match="Cannot cancel a CALLBACK that does not exist or has already completed",
     ):
         CallbackOperationValidator.validate(None, update)
@@ -88,7 +91,7 @@ def test_validate_cancel_action_with_completed_state():
     )
 
     with pytest.raises(
-        InvalidParameterError,
+        InvalidParameterValueException,
         match="Cannot cancel a CALLBACK that does not exist or has already completed",
     ):
         CallbackOperationValidator.validate(current_state, update)
@@ -102,5 +105,5 @@ def test_validate_invalid_action():
         action=OperationAction.SUCCEED,
     )
 
-    with pytest.raises(InvalidParameterError, match="Invalid CALLBACK action"):
+    with pytest.raises(InvalidParameterValueException, match="Invalid CALLBACK action"):
         CallbackOperationValidator.validate(None, update)

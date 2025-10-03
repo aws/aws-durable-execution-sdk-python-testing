@@ -15,7 +15,9 @@ from aws_durable_execution_sdk_python_testing.checkpoint.processors.base import 
 from aws_durable_execution_sdk_python_testing.checkpoint.transformer import (
     OperationTransformer,
 )
-from aws_durable_execution_sdk_python_testing.exceptions import InvalidParameterError
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
 
 
 class MockProcessor(OperationProcessor):
@@ -61,7 +63,7 @@ def test_process_updates_empty_lists():
 
 
 def test_process_updates_processor_not_found_raises_error():
-    """Test that missing processor raises InvalidParameterError."""
+    """Test that missing processor raises InvalidParameterValueException."""
     transformer = OperationTransformer(processors={OperationType.STEP: MockProcessor()})
     update = OperationUpdate(
         operation_id="test-id",
@@ -71,7 +73,7 @@ def test_process_updates_processor_not_found_raises_error():
     notifier = Mock()
 
     with pytest.raises(
-        InvalidParameterError,
+        InvalidParameterValueException,
         match="Checkpoint for OperationType.WAIT is not implemented yet.",
     ):
         transformer.process_updates([update], [], notifier, "arn:test")
