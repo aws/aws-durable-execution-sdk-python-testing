@@ -64,8 +64,12 @@ class HTTPRequest:
         if query_params is None:
             query_params = {}
 
+        # Skip body parsing for GET requests
+        if method == "GET":
+            body_dict = {}
+            logger.debug("GET request, skipping body parsing")
         # Try AWS deserialization first if operation_name provided
-        if operation_name:
+        elif operation_name:
             try:
                 deserializer = AwsRestJsonDeserializer.create(operation_name)
                 body_dict = deserializer.from_bytes(body_bytes)
