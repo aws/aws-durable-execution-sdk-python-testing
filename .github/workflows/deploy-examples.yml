@@ -111,8 +111,11 @@ jobs:
         echo "Response:"
         cat /tmp/response.json
         
-        echo "Invoke Response Headers:"
+        echo "Full Invoke Response:"
         cat /tmp/invoke_response.json
+        
+        echo "All Response Headers:"
+        jq -r '.ResponseMetadata.HTTPHeaders' /tmp/invoke_response.json || echo "No HTTPHeaders found"
         
         # Extract invocation ID from response headers
         INVOCATION_ID=$(jq -r '.ResponseMetadata.HTTPHeaders["x-amzn-invocation-id"] // empty' /tmp/invoke_response.json)
@@ -157,13 +160,13 @@ jobs:
         echo "Execution History:"
         cat /tmp/history.json
 
-    - name: Cleanup Lambda function
-      if: always()
-      env:
-        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
-      run: |
-        echo "Deleting function: $FUNCTION_NAME"
-        aws lambda delete-function \
-          --function-name "$FUNCTION_NAME" \
-          --endpoint-url "$LAMBDA_ENDPOINT" \
-          --region "${{ env.AWS_REGION }}" || echo "Function already deleted or doesn't exist"
+    # - name: Cleanup Lambda function
+    #   if: always()
+    #   env:
+    #     LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+    #   run: |
+    #     echo "Deleting function: $FUNCTION_NAME"
+    #     aws lambda delete-function \
+    #       --function-name "$FUNCTION_NAME" \
+    #       --endpoint-url "$LAMBDA_ENDPOINT" \
+    #       --region "${{ env.AWS_REGION }}" || echo "Function already deleted or doesn't exist"
