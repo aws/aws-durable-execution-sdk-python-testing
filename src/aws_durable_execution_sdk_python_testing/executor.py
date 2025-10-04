@@ -648,11 +648,9 @@ class Executor(ExecutionObserver):
                     self._invoker.create_invocation_input(execution=execution)
                 )
 
-                logger.info("[%s] Invoking Lambda function: %s", execution_arn, execution.start_input.function_name)
                 response: DurableExecutionInvocationOutput = self._invoker.invoke(
                     execution.start_input.function_name, invocation_input
                 )
-                logger.info("[%s] Lambda invocation completed with status: %s", execution_arn, response.status)
 
                 # Reload execution after invocation in case it was completed via checkpoint
                 execution = self._store.load(execution_arn)

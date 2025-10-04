@@ -249,18 +249,14 @@ class StartExecutionHandler(EndpointHandler):
         """
         try:
             body_data: dict[str, Any] = self._parse_json_body(request)
-            logger.info(f"Parsed request body: {body_data}")
 
             start_input: StartDurableExecutionInput = (
                 StartDurableExecutionInput.from_dict(body_data)
             )
-            logger.info(f"Created start_input: {start_input}")
 
-            logger.info("Calling executor.start_execution...")
             start_output: StartDurableExecutionOutput = self.executor.start_execution(
                 start_input
             )
-            logger.info(f"Successfully started execution: {start_output}")
 
             response_data: dict[str, Any] = start_output.to_dict()
 
