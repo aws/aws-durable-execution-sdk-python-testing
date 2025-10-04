@@ -28,35 +28,17 @@ def create_deployment_package(example_name: str) -> Path:
     """Create deployment package for example."""
     print(f"Creating deployment package for {example_name}...")
 
-    # Create temp directory for package
-    temp_dir = Path(tempfile.mkdtemp())
-    package_dir = temp_dir / "package"
-    package_dir.mkdir()
+    # Use the build directory that already has SDK + examples
+    build_dir = Path(__file__).parent / "build"
+    if not build_dir.exists():
+        raise ValueError("Build directory not found. Run 'hatch run examples:build' first.")
 
-    # Install dependencies
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "-t",
-            str(package_dir),
-            "aws_durable_execution_sdk_python",
-        ],
-        check=True,
-    )
-
-    # Copy example source
-    src_file = Path(__file__).parent / "src" / f"{example_name}.py"
-    (package_dir / f"{example_name}.py").write_text(src_file.read_text())
-
-    # Create zip
+    # Create zip from build directory
     zip_path = Path(__file__).parent / f"{example_name}.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for file_path in package_dir.rglob("*"):
+        for file_path in build_dir.rglob("*"):
             if file_path.is_file():
-                zf.write(file_path, file_path.relative_to(package_dir))
+                zf.write(file_path, file_path.relative_to(build_dir))
 
     print(f"Package created: {zip_path}")
     return zip_path
