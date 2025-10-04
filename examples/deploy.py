@@ -2,9 +2,7 @@
 
 import json
 import os
-import subprocess
 import sys
-import tempfile
 import zipfile
 from pathlib import Path
 
@@ -31,7 +29,8 @@ def create_deployment_package(example_name: str) -> Path:
     # Use the build directory that already has SDK + examples
     build_dir = Path(__file__).parent / "build"
     if not build_dir.exists():
-        raise ValueError("Build directory not found. Run 'hatch run examples:build' first.")
+        msg = "Build directory not found. Run 'hatch run examples:build' first."
+        raise ValueError(msg)
 
     # Create zip from build directory
     zip_path = Path(__file__).parent / f"{example_name}.zip"

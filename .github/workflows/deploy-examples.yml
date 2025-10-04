@@ -1,12 +1,6 @@
 name: Deploy Python Examples
 
 on:
-  push:
-    branches: [ "main", "development" ]
-    paths:
-      - 'src/aws_durable_execution_sdk_python_testing/**'
-      - 'examples/**'
-      - '.github/workflows/deploy-examples.yml'
   pull_request:
     branches: [ "main", "development"]
     paths:
