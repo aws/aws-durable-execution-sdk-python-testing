@@ -67,23 +67,32 @@ jobs:
         # Read examples catalog and deploy each function
         FUNCTION_NAME_MAP="{}"
         
-        for example in $(jq -r '.examples[] | select(.integration == true) | .handler' examples/examples-catalog.json); do
-          EXAMPLE_NAME=$(echo $example | sed 's/\.handler$//')
+        for row in $(jq -r '.examples[] | select(.integration == true) | @base64' examples/examples-catalog.json); do
+          _jq() {
+            echo ${row} | base64 --decode | jq -r ${1}
+          }
+          
+          EXAMPLE_HANDLER=$(_jq '.handler')
+          EXAMPLE_NAME=$(_jq '.name')
+          EXAMPLE_NAME_CLEAN=$(echo "$EXAMPLE_NAME" | sed 's/ //g')
+          HANDLER_FILE=$(echo $EXAMPLE_HANDLER | sed 's/\.handler$//')
           
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            FUNCTION_NAME="${EXAMPLE_NAME}-Python-PR-$GITHUB_EVENT_NUMBER"
+            FUNCTION_NAME="${EXAMPLE_NAME_CLEAN}-Python-PR-$GITHUB_EVENT_NUMBER"
           else
-            FUNCTION_NAME="${EXAMPLE_NAME}-Python"
+            FUNCTION_NAME="${EXAMPLE_NAME_CLEAN}-Python"
           fi
           
-          echo "Deploying $EXAMPLE_NAME as $FUNCTION_NAME"
-          hatch run examples:deploy "$EXAMPLE_NAME" "$FUNCTION_NAME"
+          echo "Deploying $HANDLER_FILE as $FUNCTION_NAME"
+          hatch run examples:deploy "$HANDLER_FILE" "$FUNCTION_NAME"
           
           # Add to function name map
-          FUNCTION_NAME_MAP=$(echo $FUNCTION_NAME_MAP | jq --arg key "$EXAMPLE_NAME" --arg value "$FUNCTION_NAME" '. + {($key): $value}')
+          FUNCTION_NAME_MAP=$(echo $FUNCTION_NAME_MAP | jq --arg key "$HANDLER_FILE" --arg value "$FUNCTION_NAME" '. + {($key): $value}')
         done
         
-        echo "function-name-map=$FUNCTION_NAME_MAP" >> $GITHUB_OUTPUT
+        echo "function-name-map<<EOF" >> $GITHUB_OUTPUT
+        echo "$FUNCTION_NAME_MAP" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
         echo "Function name map: $FUNCTION_NAME_MAP"
 
   cleanup:
