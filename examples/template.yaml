@@ -1,0 +1,24 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Timeout: 60
+    MemorySize: 128
+    Environment:
+      Variables:
+        DEX_ENDPOINT: !Ref LambdaEndpoint
+
+Parameters:
+  LambdaEndpoint:
+    Type: String
+    Default: "https://lambda.us-west-2.amazonaws.com"
+
+Resources:
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: hello_world.handler
+      Description: A simple hello world example with no durable operations

@@ -1,0 +1,16 @@
+{
+  "packageName": "DurableExecutionsPythonExamples-1.0",
+  "examples": [
+    {
+      "name": "Hello World",
+      "description": "A simple hello world example with no durable operations",
+      "handler": "hello_world.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/hello_world.py"
+    }
+  ]
+}
