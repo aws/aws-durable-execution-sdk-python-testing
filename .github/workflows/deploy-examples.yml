@@ -95,10 +95,13 @@ jobs:
         echo "EOF" >> $GITHUB_OUTPUT
         echo "Function name map: $FUNCTION_NAME_MAP"
 
-  cleanup:
-    needs: [deploy]
+  test:
+    needs: deploy
     runs-on: ubuntu-latest
-    if: always()
+    strategy:
+      matrix:
+        example: ${{ fromJson(needs.deploy.outputs.function-name-map) }}
+      fail-fast: false
     
     steps:
     - uses: actions/checkout@v4
@@ -109,6 +112,83 @@ jobs:
         ssh-private-key: |
           ${{ secrets.LANGUAGE_SDK_SSH_PRIVATE_KEY }}
           ${{ secrets.TESTING_SSH_PRIVATE_KEY }}
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Configure AWS credentials
+      if: github.event_name != 'workflow_dispatch' || github.actor != 'nektos/act'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: "${{ secrets.ACTIONS_INTEGRATION_ROLE_NAME }}"
+        role-session-name: pythonTestingLibraryGitHubIntegrationTest
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Invoke Lambda function
+      env:
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+        FUNCTION_NAME: ${{ matrix.example }}
+      run: |
+        echo "Testing function: $FUNCTION_NAME"
+        aws lambda invoke \
+          --function-name "$FUNCTION_NAME" \
+          --cli-binary-format raw-in-base64-out \
+          --payload '{"name": "World"}' \
+          --region "${{ env.AWS_REGION }}" \
+          --endpoint-url "$LAMBDA_ENDPOINT" \
+          /tmp/response.json
+        echo "Response:"
+        cat /tmp/response.json
+
+    - name: Find Durable Execution
+      env:
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+        FUNCTION_NAME: ${{ matrix.example }}
+      run: |
+        echo "Listing durable executions for function: $FUNCTION_NAME"
+        aws lambda list-durable-executions \
+          --function-name "$FUNCTION_NAME" \
+          --region "${{ env.AWS_REGION }}" \
+          --endpoint-url "$LAMBDA_ENDPOINT" \
+          --cli-binary-format raw-in-base64-out \
+          --status-filter SUCCEEDED \
+          > /tmp/executions.json
+        echo "Durable Executions:"
+        cat /tmp/executions.json
+        
+        # Extract the first execution ARN for history retrieval
+        EXECUTION_ARN=$(jq -r '.DurableExecutions[0].DurableExecutionArn // empty' /tmp/executions.json)
+        echo "EXECUTION_ARN=$EXECUTION_ARN" >> $GITHUB_ENV
+
+    - name: Get Durable Execution History
+      if: env.EXECUTION_ARN != ''
+      env:
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+      run: |
+        echo "Getting execution history for: $EXECUTION_ARN"
+        aws lambda get-durable-execution-history \
+          --durable-execution-arn "$EXECUTION_ARN" \
+          --region "${{ env.AWS_REGION }}" \
+          --endpoint-url "$LAMBDA_ENDPOINT" \
+          --cli-binary-format raw-in-base64-out \
+          > /tmp/history.json
+        echo "Execution History:"
+        cat /tmp/history.json
+
+  cleanup:
+    needs: [deploy, test]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup SSH Agent
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SDK_KEY }}
     
     - name: Setup Python
       uses: actions/setup-python@v4
