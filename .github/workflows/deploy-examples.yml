@@ -1,0 +1,119 @@
+name: Deploy Python Examples
+
+on:
+  push:
+    branches: [ "main", "development" ]
+    paths:
+      - 'src/aws_durable_execution_sdk_python_testing/**'
+      - 'examples/**'
+      - '.github/workflows/deploy-examples.yml'
+  pull_request:
+    branches: [ "main", "development"]
+    paths:
+      - 'src/aws_durable_execution_sdk_python_testing/**'
+      - 'examples/**'
+      - '.github/workflows/deploy-examples.yml'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-west-2
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      function-name-map: ${{ steps.deploy-functions.outputs.function-name-map }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Configure AWS credentials
+      if: github.event_name != 'workflow_dispatch' || github.actor != 'nektos/act'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: "${{ secrets.ACTIONS_INTEGRATION_ROLE_NAME }}"
+        role-session-name: githubIntegrationTest
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Install Hatch
+      run: pip install hatch
+
+    - name: Build examples
+      run: hatch run examples:build
+
+    - name: Deploy functions
+      id: deploy-functions
+      env:
+        AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+        INVOKE_ACCOUNT_ID: ${{ secrets.INVOKE_ACCOUNT_ID }}
+        KMS_KEY_ARN: ${{ secrets.KMS_KEY_ARN }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+      run: |
+        # Read examples catalog and deploy each function
+        FUNCTION_NAME_MAP="{}"
+        
+        for example in $(jq -r '.examples[] | select(.integration == true) | .handler' examples/examples-catalog.json); do
+          EXAMPLE_NAME=$(echo $example | sed 's/\.handler$//')
+          
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            FUNCTION_NAME="${EXAMPLE_NAME}-Python-PR-$GITHUB_EVENT_NUMBER"
+          else
+            FUNCTION_NAME="${EXAMPLE_NAME}-Python"
+          fi
+          
+          echo "Deploying $EXAMPLE_NAME as $FUNCTION_NAME"
+          hatch run examples:deploy "$EXAMPLE_NAME" "$FUNCTION_NAME"
+          
+          # Add to function name map
+          FUNCTION_NAME_MAP=$(echo $FUNCTION_NAME_MAP | jq --arg key "$EXAMPLE_NAME" --arg value "$FUNCTION_NAME" '. + {($key): $value}')
+        done
+        
+        echo "function-name-map=$FUNCTION_NAME_MAP" >> $GITHUB_OUTPUT
+        echo "Function name map: $FUNCTION_NAME_MAP"
+
+  cleanup:
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Configure AWS credentials
+      if: github.event_name != 'workflow_dispatch' || github.actor != 'nektos/act'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: "${{ secrets.ACTIONS_INTEGRATION_ROLE_NAME }}"
+        role-session-name: githubIntegrationTest
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Install Hatch
+      run: pip install hatch
+
+    - name: Cleanup Lambda functions
+      env:
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+        FUNCTION_NAME_MAP: ${{ needs.deploy.outputs.function-name-map }}
+      run: |
+        # Delete deployed functions
+        echo "Cleaning up functions: $FUNCTION_NAME_MAP"
+        
+        for function_name in $(echo $FUNCTION_NAME_MAP | jq -r '.[]'); do
+          echo "Deleting function: $function_name"
+          aws lambda delete-function --function-name "$function_name" --endpoint-url "$LAMBDA_ENDPOINT" --region "$AWS_REGION" || true
+        done
