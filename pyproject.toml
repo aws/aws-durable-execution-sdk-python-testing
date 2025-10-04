@@ -21,7 +21,7 @@ classifiers = [
 dependencies = [
   "boto3>=1.40.30",
   "requests>=2.25.0",
-  "aws_durable_execution_sdk_python @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git",
+  "aws_durable_execution_sdk_python @ {env:AWS_DURABLE_SDK_URL:git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git}",
 ]
 
 [project.urls]
@@ -56,7 +56,7 @@ dependencies = [
   "pytest",
   "pytest-cov",
   "ruff",
-  "aws_durable_execution_sdk_python @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git",
+  "aws_durable_execution_sdk_python @ {env:AWS_DURABLE_SDK_URL:git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git}",
 ]
 
 [tool.hatch.envs.test.scripts]

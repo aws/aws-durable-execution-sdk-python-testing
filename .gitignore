@@ -28,3 +28,4 @@ dist/
 .vscode/
 .kiro/
 .idea
+.env

@@ -9,6 +9,28 @@ information to effectively respond to your bug report or contribution.
 ## Dependencies
 Install [hatch](https://hatch.pypa.io/dev/install/).
 
+## Local Development Setup
+
+### Using Local SDK Dependency
+For local development, you can use a local version of the AWS Durable Execution SDK instead of the remote repository:
+
+1. Set the environment variable to point to your local SDK:
+   ```bash
+   export AWS_DURABLE_SDK_URL="file:///path/to/your/local/aws-durable-execution-sdk-python"
+   ```
+
+2. Or create a `.env` file (already gitignored):
+   ```bash
+   echo 'AWS_DURABLE_SDK_URL=file:///path/to/your/local/aws-durable-execution-sdk-python' > .env
+   ```
+
+3. Create the hatch environment:
+   ```bash
+   hatch env create
+   ```
+
+Without the environment variable, the project defaults to using the SSH repository URL.
+
 ## Developer workflow
 These are all the checks you would typically do as you prepare a PR:
 ```
