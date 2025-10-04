@@ -112,7 +112,11 @@ class LambdaInvoker(Invoker):
         """Create with the boto lambda client."""
         return LambdaInvoker(
             boto3.client(
-                "lambdainternal", endpoint_url=endpoint_url, region_name=region_name
+                "lambdainternal", 
+                endpoint_url=endpoint_url, 
+                region_name=region_name,
+                aws_access_key_id="test",
+                aws_secret_access_key="test"
             )
         )
 

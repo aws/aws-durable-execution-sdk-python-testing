@@ -197,16 +197,23 @@ class Scheduler:
 
     def create_event(self) -> Event:
         """Create an event controlled by the Scheduler to signal between threads and coroutines."""
+        logger.info("Creating event - submitting to scheduler event loop")
         # create event inside the Scheduler event-loop
         future: Future[asyncio.Event] = asyncio.run_coroutine_threadsafe(
             self._create_event(), self._loop
         )
+        logger.info("Event creation future submitted, waiting for result...")
 
         # Add timeout to prevent surprising "hangs" if for whatever reason event fails to create.
         # result with block. Do NOT call anything in _create_event that calls back into scheduler
         # methods because it could create a circular depdendency which will deadlock.
-        event = future.result(timeout=5.0)
-        return Event(self, event)
+        try:
+            event = future.result(timeout=5.0)
+            logger.info("Event created successfully")
+            return Event(self, event)
+        except TimeoutError:
+            logger.error("Timeout waiting for event creation - scheduler event loop may be blocked")
+            raise
 
     def wait_for_event(
         self, event: asyncio.Event, timeout: float | None = None
