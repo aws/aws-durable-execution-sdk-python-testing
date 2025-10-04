@@ -111,9 +111,23 @@ jobs:
           --payload '{"name": "World"}' \
           --region "${{ env.AWS_REGION }}" \
           --endpoint-url "$LAMBDA_ENDPOINT" \
-          /tmp/response.json
+          /tmp/response.json \
+          > /tmp/invoke_response.json
+        
         echo "Response:"
         cat /tmp/response.json
+        
+        echo "Invoke Response Headers:"
+        cat /tmp/invoke_response.json
+        
+        # Extract invocation ID from response headers
+        INVOCATION_ID=$(jq -r '.ResponseMetadata.HTTPHeaders["x-amzn-invocation-id"] // empty' /tmp/invoke_response.json)
+        if [ -n "$INVOCATION_ID" ]; then
+          echo "INVOCATION_ID=$INVOCATION_ID" >> $GITHUB_ENV
+          echo "Captured Invocation ID: $INVOCATION_ID"
+        else
+          echo "Warning: Could not capture invocation ID from response"
+        fi
 
     - name: Find Durable Execution - ${{ matrix.example.name }}
       env:
