@@ -34,11 +34,18 @@ def create_deployment_package(example_name: str) -> Path:
     package_dir.mkdir()
 
     # Install dependencies
-    subprocess.run([
-        sys.executable, "-m", "pip", "install",
-        "-t", str(package_dir),
-        "aws_durable_execution_sdk_python"
-    ], check=True)
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "-t",
+            str(package_dir),
+            "aws_durable_execution_sdk_python",
+        ],
+        check=True,
+    )
 
     # Copy example source
     src_file = Path(__file__).parent / "src" / f"{example_name}.py"
@@ -46,8 +53,8 @@ def create_deployment_package(example_name: str) -> Path:
 
     # Create zip
     zip_path = Path(__file__).parent / f"{example_name}.zip"
-    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for file_path in package_dir.rglob('*'):
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file_path in package_dir.rglob("*"):
             if file_path.is_file():
                 zf.write(file_path, file_path.relative_to(package_dir))
 
@@ -82,9 +89,7 @@ def deploy_function(example_config: dict, function_name: str):
 
     # Use regular lambda client for now
     lambda_client = boto3.client(
-        "lambda",
-        endpoint_url=lambda_endpoint,
-        region_name=region
+        "lambda", endpoint_url=lambda_endpoint, region_name=region
     )
 
     role_arn = f"arn:aws:iam::{account_id}:role/DurableFunctionsIntegrationTestRole"
@@ -98,11 +103,7 @@ def deploy_function(example_config: dict, function_name: str):
         "Description": example_config["description"],
         "Timeout": 60,
         "MemorySize": 128,
-        "Environment": {
-            "Variables": {
-                "DEX_ENDPOINT": lambda_endpoint
-            }
-        }
+        "Environment": {"Variables": {"DEX_ENDPOINT": lambda_endpoint}},
         # TODO: Add DurableConfig support
         # "DurableConfig": example_config["durableConfig"]
     }
@@ -121,8 +122,7 @@ def deploy_function(example_config: dict, function_name: str):
 
         # Update code
         lambda_client.update_function_code(
-            FunctionName=function_name,
-            ZipFile=zip_content
+            FunctionName=function_name, ZipFile=zip_content
         )
 
         # Update configuration
@@ -132,10 +132,7 @@ def deploy_function(example_config: dict, function_name: str):
         print(f"Creating new function: {function_name}")
 
         # Create function
-        lambda_client.create_function(
-            **function_config,
-            Code={"ZipFile": zip_content}
-        )
+        lambda_client.create_function(**function_config, Code={"ZipFile": zip_content})
 
     # Add invoke permission
     try:
@@ -143,7 +140,7 @@ def deploy_function(example_config: dict, function_name: str):
             FunctionName=function_name,
             StatementId="dex-invoke-permission",
             Action="lambda:InvokeFunction",
-            Principal=invoke_account_id
+            Principal=invoke_account_id,
         )
         print("Added invoke permission")
     except lambda_client.exceptions.ResourceConflictException:

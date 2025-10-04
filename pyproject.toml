@@ -133,6 +133,10 @@ lines-after-imports = 2
   "SIM117",
   "TRY301",
 ]
+"examples/*.py" = [
+  "T201",  # Allow print statements in deployment scripts
+  "PLR2004",  # Allow magic values in deployment scripts
+]
 "src/aws_durable_execution_sdk_python_testing/invoker.py" = [
   "A002", # Argument `input` is shadowing a Python builtin
 ]
