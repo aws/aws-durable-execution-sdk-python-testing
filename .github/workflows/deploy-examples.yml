@@ -66,6 +66,10 @@ jobs:
         role-session-name: pythonTestingLibraryGitHubIntegrationTest
         aws-region: ${{ env.AWS_REGION }}
 
+    - name: Install custom Lambda model
+      run: |
+        aws configure add-model --service-model file://.github/model/lambda.json --service-name lambda
+
     - name: Install Hatch
       run: pip install hatch
 
