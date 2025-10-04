@@ -86,8 +86,7 @@ def deploy_function(example_config: dict, function_name: str):
         "Timeout": 60,
         "MemorySize": 128,
         "Environment": {"Variables": {"DEX_ENDPOINT": lambda_endpoint}},
-        # TODO: Add DurableConfig support
-        # "DurableConfig": example_config["durableConfig"]
+        "DurableConfig": example_config["durableConfig"],
     }
 
     if kms_key_arn:
