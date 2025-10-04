@@ -23,84 +23,26 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  setup:
     runs-on: ubuntu-latest
     outputs:
-      function-name-map: ${{ steps.deploy-functions.outputs.function-name-map }}
+      examples: ${{ steps.get-examples.outputs.examples }}
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup SSH Agent
-      uses: webfactory/ssh-agent@v0.9.1
-      with:
-        ssh-private-key: ${{ secrets.SDK_KEY }}
-    
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.13'
-
-    - name: Configure AWS credentials
-      if: github.event_name != 'workflow_dispatch' || github.actor != 'nektos/act'
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: "${{ secrets.ACTIONS_INTEGRATION_ROLE_NAME }}"
-        role-session-name: pythonTestingLibraryGitHubIntegrationTest
-        aws-region: ${{ env.AWS_REGION }}
-
-    - name: Install Hatch
-      run: pip install hatch
-
-    - name: Build examples
-      run: hatch run examples:build
-
-    - name: Deploy functions
-      id: deploy-functions
-      env:
-        AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
-        INVOKE_ACCOUNT_ID: ${{ secrets.INVOKE_ACCOUNT_ID }}
-        KMS_KEY_ARN: ${{ secrets.KMS_KEY_ARN }}
-        GITHUB_EVENT_NAME: ${{ github.event_name }}
-        GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+    - name: Get examples from catalog
+      id: get-examples
+      working-directory: ./examples
       run: |
-        # Read examples catalog and deploy each function
-        FUNCTION_NAME_MAP="{}"
-        
-        for row in $(jq -r '.examples[] | select(.integration == true) | @base64' examples/examples-catalog.json); do
-          _jq() {
-            echo ${row} | base64 --decode | jq -r ${1}
-          }
-          
-          EXAMPLE_HANDLER=$(_jq '.handler')
-          EXAMPLE_NAME=$(_jq '.name')
-          EXAMPLE_NAME_CLEAN=$(echo "$EXAMPLE_NAME" | sed 's/ //g')
-          HANDLER_FILE=$(echo $EXAMPLE_HANDLER | sed 's/\.handler$//')
-          
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            FUNCTION_NAME="${EXAMPLE_NAME_CLEAN}-Python-PR-$GITHUB_EVENT_NUMBER"
-          else
-            FUNCTION_NAME="${EXAMPLE_NAME_CLEAN}-Python"
-          fi
-          
-          echo "Deploying $HANDLER_FILE as $FUNCTION_NAME"
-          hatch run examples:deploy "$HANDLER_FILE" "$FUNCTION_NAME"
-          
-          # Add to function name map
-          FUNCTION_NAME_MAP=$(echo $FUNCTION_NAME_MAP | jq --arg key "$HANDLER_FILE" --arg value "$FUNCTION_NAME" '. + {($key): $value}')
-        done
-        
-        echo "function-name-map<<EOF" >> $GITHUB_OUTPUT
-        echo "$FUNCTION_NAME_MAP" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
-        echo "Function name map: $FUNCTION_NAME_MAP"
+        echo "examples=$(jq -c '.examples | map(select(.integration == true))' examples-catalog.json)" >> $GITHUB_OUTPUT
 
-  test:
-    needs: deploy
+  integration-test:
+    needs: setup
     runs-on: ubuntu-latest
+    name: ${{ matrix.example.name }}
     strategy:
       matrix:
-        example: ${{ fromJson(needs.deploy.outputs.function-name-map) }}
+        example: ${{ fromJson(needs.setup.outputs.examples) }}
       fail-fast: false
     
     steps:
@@ -126,10 +68,39 @@ jobs:
         role-session-name: pythonTestingLibraryGitHubIntegrationTest
         aws-region: ${{ env.AWS_REGION }}
 
-    - name: Invoke Lambda function
+    - name: Install Hatch
+      run: pip install hatch
+
+    - name: Build examples
+      run: hatch run examples:build
+
+    - name: Deploy Lambda function - ${{ matrix.example.name }}
+      env:
+        AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+        INVOKE_ACCOUNT_ID: ${{ secrets.INVOKE_ACCOUNT_ID }}
+        KMS_KEY_ARN: ${{ secrets.KMS_KEY_ARN }}
+      run: |
+        # Build function name
+        EXAMPLE_NAME_CLEAN=$(echo "${{ matrix.example.name }}" | sed 's/ //g')
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          FUNCTION_NAME="${EXAMPLE_NAME_CLEAN}-Python-PR-${{ github.event.number }}"
+        else
+          FUNCTION_NAME="${EXAMPLE_NAME_CLEAN}-Python"
+        fi
+        
+        # Extract handler file name
+        HANDLER_FILE=$(echo "${{ matrix.example.handler }}" | sed 's/\.handler$//')
+        
+        echo "Deploying $HANDLER_FILE as $FUNCTION_NAME"
+        hatch run examples:deploy "$HANDLER_FILE" "$FUNCTION_NAME"
+        
+        # Store function name for later steps
+        echo "FUNCTION_NAME=$FUNCTION_NAME" >> $GITHUB_ENV
+
+    - name: Invoke Lambda function - ${{ matrix.example.name }}
       env:
         LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
-        FUNCTION_NAME: ${{ matrix.example }}
       run: |
         echo "Testing function: $FUNCTION_NAME"
         aws lambda invoke \
@@ -142,10 +113,9 @@ jobs:
         echo "Response:"
         cat /tmp/response.json
 
-    - name: Find Durable Execution
+    - name: Find Durable Execution - ${{ matrix.example.name }}
       env:
         LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
-        FUNCTION_NAME: ${{ matrix.example }}
       run: |
         echo "Listing durable executions for function: $FUNCTION_NAME"
         aws lambda list-durable-executions \
@@ -162,7 +132,7 @@ jobs:
         EXECUTION_ARN=$(jq -r '.DurableExecutions[0].DurableExecutionArn // empty' /tmp/executions.json)
         echo "EXECUTION_ARN=$EXECUTION_ARN" >> $GITHUB_ENV
 
-    - name: Get Durable Execution History
+    - name: Get Durable Execution History - ${{ matrix.example.name }}
       if: env.EXECUTION_ARN != ''
       env:
         LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
@@ -177,44 +147,13 @@ jobs:
         echo "Execution History:"
         cat /tmp/history.json
 
-  cleanup:
-    needs: [deploy, test]
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup SSH Agent
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.SDK_KEY }}
-    
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.13'
-
-    - name: Configure AWS credentials
-      if: github.event_name != 'workflow_dispatch' || github.actor != 'nektos/act'
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: "${{ secrets.ACTIONS_INTEGRATION_ROLE_NAME }}"
-        role-session-name: pythonTestingLibraryGitHubIntegrationTest
-        aws-region: ${{ env.AWS_REGION }}
-
-    - name: Install Hatch
-      run: pip install hatch
-
-    - name: Cleanup Lambda functions
+    - name: Cleanup Lambda function
+      if: always()
       env:
         LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
-        FUNCTION_NAME_MAP: ${{ needs.deploy.outputs.function-name-map }}
       run: |
-        # Delete deployed functions
-        echo "Cleaning up functions: $FUNCTION_NAME_MAP"
-        
-        for function_name in $(echo $FUNCTION_NAME_MAP | jq -r '.[]'); do
-          echo "Deleting function: $function_name"
-          aws lambda delete-function --function-name "$function_name" --endpoint-url "$LAMBDA_ENDPOINT" --region "$AWS_REGION" || true
-        done
+        echo "Deleting function: $FUNCTION_NAME"
+        aws lambda delete-function \
+          --function-name "$FUNCTION_NAME" \
+          --endpoint-url "$LAMBDA_ENDPOINT" \
+          --region "${{ env.AWS_REGION }}" || echo "Function already deleted or doesn't exist"
