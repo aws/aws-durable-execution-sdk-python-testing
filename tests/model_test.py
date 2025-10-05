@@ -180,11 +180,11 @@ def test_get_durable_execution_response_serialization():
         "DurableExecutionName": "test-execution",
         "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
         "Status": "SUCCEEDED",
-        "StartDate": "2023-01-01T00:00:00Z",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
         "InputPayload": "test-input",
         "Result": "test-result",
         "Error": {"ErrorMessage": "test error"},
-        "StopDate": "2023-01-01T00:01:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
         "Version": "1.0",
     }
 
@@ -199,11 +199,11 @@ def test_get_durable_execution_response_serialization():
         == "arn:aws:lambda:us-east-1:123456789012:function:my-function"
     )
     assert response_obj.status == "SUCCEEDED"
-    assert response_obj.start_date == "2023-01-01T00:00:00Z"
+    assert response_obj.start_timestamp == "2023-01-01T00:00:00Z"
     assert response_obj.input_payload == "test-input"
     assert response_obj.result == "test-result"
     assert response_obj.error.message == "test error"
-    assert response_obj.stop_date == "2023-01-01T00:01:00Z"
+    assert response_obj.end_timestamp == "2023-01-01T00:01:00Z"
     assert response_obj.version == "1.0"
 
     result_data = response_obj.to_dict()
@@ -221,14 +221,14 @@ def test_get_durable_execution_response_minimal():
         "DurableExecutionName": "test-execution",
         "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
         "Status": "RUNNING",
-        "StartDate": "2023-01-01T00:00:00Z",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
     }
 
     response_obj = GetDurableExecutionResponse.from_dict(data)
     assert response_obj.input_payload is None
     assert response_obj.result is None
     assert response_obj.error is None
-    assert response_obj.stop_date is None
+    assert response_obj.end_timestamp is None
     assert response_obj.version is None
 
     result_data = response_obj.to_dict()
@@ -295,8 +295,8 @@ def test_durable_execution_summary_serialization():
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
         "DurableExecutionName": "test-execution",
         "Status": "SUCCEEDED",
-        "StartDate": "2023-01-01T00:00:00Z",
-        "StopDate": "2023-01-01T00:01:00Z",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
     }
 
     summary_obj = Execution.from_dict(data)
@@ -306,8 +306,8 @@ def test_durable_execution_summary_serialization():
     )
     assert summary_obj.durable_execution_name == "test-execution"
     assert summary_obj.status == "SUCCEEDED"
-    assert summary_obj.start_date == "2023-01-01T00:00:00Z"
-    assert summary_obj.stop_date == "2023-01-01T00:01:00Z"
+    assert summary_obj.start_timestamp == "2023-01-01T00:00:00Z"
+    assert summary_obj.end_timestamp == "2023-01-01T00:01:00Z"
 
     result_data = summary_obj.to_dict()
     assert result_data == data
@@ -323,11 +323,11 @@ def test_durable_execution_summary_no_stop_date():
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
         "DurableExecutionName": "test-execution",
         "Status": "RUNNING",
-        "StartDate": "2023-01-01T00:00:00Z",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
     }
 
     summary_obj = Execution.from_dict(data)
-    assert summary_obj.stop_date is None
+    assert summary_obj.end_timestamp is None
 
     result_data = summary_obj.to_dict()
     assert result_data == data
@@ -341,14 +341,14 @@ def test_list_durable_executions_response_serialization():
                 "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test1",
                 "DurableExecutionName": "test-execution-1",
                 "Status": "SUCCEEDED",
-                "StartDate": "2023-01-01T00:00:00Z",
-                "StopDate": "2023-01-01T00:01:00Z",
+                "StartTimestamp": "2023-01-01T00:00:00Z",
+                "EndTimestamp": "2023-01-01T00:01:00Z",
             },
             {
                 "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test2",
                 "DurableExecutionName": "test-execution-2",
                 "Status": "RUNNING",
-                "StartDate": "2023-01-01T00:02:00Z",
+                "StartTimestamp": "2023-01-01T00:02:00Z",
             },
         ],
         "NextMarker": "next-marker-123",
@@ -738,8 +738,8 @@ def test_list_durable_executions_by_function_response_serialization():
                 "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test1",
                 "DurableExecutionName": "test-execution-1",
                 "Status": "SUCCEEDED",
-                "StartDate": "2023-01-01T00:00:00Z",
-                "StopDate": "2023-01-01T00:01:00Z",
+                "StartTimestamp": "2023-01-01T00:00:00Z",
+                "EndTimestamp": "2023-01-01T00:01:00Z",
             }
         ],
         "NextMarker": "next-marker-123",
@@ -1183,8 +1183,8 @@ def test_execution_backward_compatibility_empty_function_arn():
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
         "DurableExecutionName": "test-execution",
         "Status": "SUCCEEDED",
-        "StartDate": "2023-01-01T00:00:00Z",
-        "StopDate": "2023-01-01T00:01:00Z",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
     }
 
     execution_obj = Execution.from_dict(data)
@@ -1198,8 +1198,8 @@ def test_execution_backward_compatibility_empty_function_arn():
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
         "DurableExecutionName": "test-execution",
         "Status": "SUCCEEDED",
-        "StartDate": "2023-01-01T00:00:00Z",
-        "StopDate": "2023-01-01T00:01:00Z",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
     }
     assert result_data == expected_data
 
@@ -1211,8 +1211,8 @@ def test_execution_with_function_arn():
         "DurableExecutionName": "test-execution",
         "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
         "Status": "SUCCEEDED",
-        "StartDate": "2023-01-01T00:00:00Z",
-        "StopDate": "2023-01-01T00:01:00Z",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
     }
 
     execution_obj = Execution.from_dict(data)

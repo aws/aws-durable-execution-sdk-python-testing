@@ -599,11 +599,11 @@ def test_get_durable_execution_handler_success():
         durable_execution_name="test-execution",
         function_arn="arn:aws:lambda:us-east-1:123456789012:function:test-function",
         status="SUCCEEDED",
-        start_date="2023-01-01T00:00:00Z",
+        start_timestamp="2023-01-01T00:00:00Z",
         input_payload="test-input",
         result="test-result",
         error=None,
-        stop_date="2023-01-01T00:01:00Z",
+        end_timestamp="2023-01-01T00:01:00Z",
         version="1.0",
     )
     executor.get_execution_details.return_value = mock_response
@@ -629,10 +629,10 @@ def test_get_durable_execution_handler_success():
         "DurableExecutionName": "test-execution",
         "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test-function",
         "Status": "SUCCEEDED",
-        "StartDate": "2023-01-01T00:00:00Z",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
         "InputPayload": "test-input",
         "Result": "test-result",
-        "StopDate": "2023-01-01T00:01:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
         "Version": "1.0",
     }
     assert response.body == expected_body
@@ -1235,16 +1235,16 @@ def test_list_durable_executions_handler_success():
             durable_execution_name="test-execution-1",
             function_arn="arn:aws:lambda:us-east-1:123456789012:function:test-function",
             status="SUCCEEDED",
-            start_date="2023-01-01T00:00:00Z",
-            stop_date="2023-01-01T00:01:00Z",
+            start_timestamp="2023-01-01T00:00:00Z",
+            end_timestamp="2023-01-01T00:01:00Z",
         ),
         ExecutionSummary(
             durable_execution_arn="arn:aws:lambda:us-east-1:123456789012:function:test-function:execution:test-2",
             durable_execution_name="test-execution-2",
             function_arn="arn:aws:lambda:us-east-1:123456789012:function:test-function",
             status="RUNNING",
-            start_date="2023-01-01T00:02:00Z",
-            stop_date=None,
+            start_timestamp="2023-01-01T00:02:00Z",
+            end_timestamp=None,
         ),
     ]
 
@@ -1277,15 +1277,15 @@ def test_list_durable_executions_handler_success():
                 "DurableExecutionName": "test-execution-1",
                 "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test-function",
                 "Status": "SUCCEEDED",
-                "StartDate": "2023-01-01T00:00:00Z",
-                "StopDate": "2023-01-01T00:01:00Z",
+                "StartTimestamp": "2023-01-01T00:00:00Z",
+                "EndTimestamp": "2023-01-01T00:01:00Z",
             },
             {
                 "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test-function:execution:test-2",
                 "DurableExecutionName": "test-execution-2",
                 "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test-function",
                 "Status": "RUNNING",
-                "StartDate": "2023-01-01T00:02:00Z",
+                "StartTimestamp": "2023-01-01T00:02:00Z",
             },
         ]
     }
@@ -1317,8 +1317,8 @@ def test_list_durable_executions_handler_with_filters():
             durable_execution_name="filtered-execution",
             function_arn="arn:aws:lambda:us-east-1:123456789012:function:test-function",
             status="SUCCEEDED",
-            start_date="2023-01-01T00:00:00Z",
-            stop_date="2023-01-01T00:01:00Z",
+            start_timestamp="2023-01-01T00:00:00Z",
+            end_timestamp="2023-01-01T00:01:00Z",
         ),
     ]
 
@@ -1362,8 +1362,8 @@ def test_list_durable_executions_handler_with_filters():
                 "DurableExecutionName": "filtered-execution",
                 "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test-function",
                 "Status": "SUCCEEDED",
-                "StartDate": "2023-01-01T00:00:00Z",
-                "StopDate": "2023-01-01T00:01:00Z",
+                "StartTimestamp": "2023-01-01T00:00:00Z",
+                "EndTimestamp": "2023-01-01T00:01:00Z",
             },
         ],
         "NextMarker": "next-page-token",
@@ -1396,8 +1396,8 @@ def test_list_durable_executions_handler_pagination():
             durable_execution_name=f"page-execution-{i}",
             function_arn="arn:aws:lambda:us-east-1:123456789012:function:test-function",
             status="SUCCEEDED",
-            start_date=f"2023-01-0{i}T00:00:00Z",
-            stop_date=f"2023-01-0{i}T00:01:00Z",
+            start_timestamp=f"2023-01-0{i}T00:00:00Z",
+            end_timestamp=f"2023-01-0{i}T00:01:00Z",
         )
         for i in range(1, 4)  # 3 executions
     ]
@@ -1492,8 +1492,8 @@ def test_list_durable_executions_handler_dataclass_serialization():
             durable_execution_name="test-execution",
             function_arn="test-function-arn",
             status="SUCCEEDED",
-            start_date="2023-01-01T00:00:00Z",
-            stop_date="2023-01-01T00:01:00Z",
+            start_timestamp="2023-01-01T00:00:00Z",
+            end_timestamp="2023-01-01T00:01:00Z",
         ),
     ]
 
@@ -1652,16 +1652,16 @@ def test_list_durable_executions_by_function_handler_success():
             durable_execution_name="function-execution-1",
             function_arn="arn:aws:lambda:us-east-1:123456789012:function:test-function",
             status="SUCCEEDED",
-            start_date="2023-01-01T00:00:00Z",
-            stop_date="2023-01-01T00:01:00Z",
+            start_timestamp="2023-01-01T00:00:00Z",
+            end_timestamp="2023-01-01T00:01:00Z",
         ),
         ExecutionSummary(
             durable_execution_arn="arn:aws:lambda:us-east-1:123456789012:function:test-function:execution:func-2",
             durable_execution_name="function-execution-2",
             function_arn="arn:aws:lambda:us-east-1:123456789012:function:test-function",
             status="RUNNING",
-            start_date="2023-01-01T00:02:00Z",
-            stop_date=None,
+            start_timestamp="2023-01-01T00:02:00Z",
+            end_timestamp=None,
         ),
     ]
 
@@ -1696,15 +1696,15 @@ def test_list_durable_executions_by_function_handler_success():
                 "DurableExecutionName": "function-execution-1",
                 "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test-function",
                 "Status": "SUCCEEDED",
-                "StartDate": "2023-01-01T00:00:00Z",
-                "StopDate": "2023-01-01T00:01:00Z",
+                "StartTimestamp": "2023-01-01T00:00:00Z",
+                "EndTimestamp": "2023-01-01T00:01:00Z",
             },
             {
                 "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test-function:execution:func-2",
                 "DurableExecutionName": "function-execution-2",
                 "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test-function",
                 "Status": "RUNNING",
-                "StartDate": "2023-01-01T00:02:00Z",
+                "StartTimestamp": "2023-01-01T00:02:00Z",
             },
         ]
     }
@@ -1737,8 +1737,8 @@ def test_list_durable_executions_by_function_handler_with_filters():
             durable_execution_name="filtered-execution",
             function_arn="arn:aws:lambda:us-east-1:123456789012:function:test-function",
             status="SUCCEEDED",
-            start_date="2023-01-01T00:00:00Z",
-            stop_date="2023-01-01T00:01:00Z",
+            start_timestamp="2023-01-01T00:00:00Z",
+            end_timestamp="2023-01-01T00:01:00Z",
         ),
     ]
 
@@ -1783,8 +1783,8 @@ def test_list_durable_executions_by_function_handler_with_filters():
                 "DurableExecutionName": "filtered-execution",
                 "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test-function",
                 "Status": "SUCCEEDED",
-                "StartDate": "2023-01-01T00:00:00Z",
-                "StopDate": "2023-01-01T00:01:00Z",
+                "StartTimestamp": "2023-01-01T00:00:00Z",
+                "EndTimestamp": "2023-01-01T00:01:00Z",
             },
         ],
         "NextMarker": "next-page-token",
@@ -1818,8 +1818,8 @@ def test_list_durable_executions_by_function_handler_dataclass_serialization():
             durable_execution_name="test-execution",
             function_arn="test-function-arn",
             status="SUCCEEDED",
-            start_date="2023-01-01T00:00:00Z",
-            stop_date="2023-01-01T00:01:00Z",
+            start_timestamp="2023-01-01T00:00:00Z",
+            end_timestamp="2023-01-01T00:01:00Z",
         ),
     ]
 

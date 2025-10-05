@@ -142,7 +142,7 @@ class Executor(ExecutionObserver):
             durable_execution_name=execution.start_input.execution_name,
             function_arn=f"arn:aws:lambda:us-east-1:123456789012:function:{execution.start_input.function_name}",
             status=status,
-            start_date=execution_op.start_timestamp.isoformat()
+            start_timestamp=execution_op.start_timestamp.isoformat()
             if execution_op.start_timestamp
             else datetime.now(UTC).isoformat(),
             input_payload=execution_op.execution_details.input_payload
@@ -150,7 +150,7 @@ class Executor(ExecutionObserver):
             else None,
             result=result,
             error=error,
-            stop_date=execution_op.end_timestamp.isoformat()
+            end_timestamp=execution_op.end_timestamp.isoformat()
             if execution_op.end_timestamp
             else None,
             version="1.0",
@@ -223,17 +223,17 @@ class Executor(ExecutionObserver):
                 durable_execution_name=execution.start_input.execution_name,
                 function_arn=f"arn:aws:lambda:us-east-1:123456789012:function:{execution.start_input.function_name}",
                 status=execution_status,
-                start_date=execution_op.start_timestamp.isoformat()
+                start_timestamp=execution_op.start_timestamp.isoformat()
                 if execution_op.start_timestamp
                 else datetime.now(UTC).isoformat(),
-                stop_date=execution_op.end_timestamp.isoformat()
+                end_timestamp=execution_op.end_timestamp.isoformat()
                 if execution_op.end_timestamp
                 else None,
             )
             filtered_executions.append(execution_summary)
 
         # Sort by start date
-        filtered_executions.sort(key=lambda e: e.start_date, reverse=reverse_order)
+        filtered_executions.sort(key=lambda e: e.start_timestamp, reverse=reverse_order)
 
         # Apply pagination
         if max_items is None:

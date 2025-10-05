@@ -131,11 +131,11 @@ class GetDurableExecutionResponse:
     durable_execution_name: str
     function_arn: str
     status: str
-    start_date: str
+    start_timestamp: str
     input_payload: str | None = None
     result: str | None = None
     error: ErrorObject | None = None
-    stop_date: str | None = None
+    end_timestamp: str | None = None
     version: str | None = None
 
     @classmethod
@@ -149,11 +149,11 @@ class GetDurableExecutionResponse:
             durable_execution_name=data["DurableExecutionName"],
             function_arn=data["FunctionArn"],
             status=data["Status"],
-            start_date=data["StartDate"],
+            start_timestamp=data["StartTimestamp"],
             input_payload=data.get("InputPayload"),
             result=data.get("Result"),
             error=error,
-            stop_date=data.get("StopDate"),
+            end_timestamp=data.get("EndTimestamp"),
             version=data.get("Version"),
         )
 
@@ -163,7 +163,7 @@ class GetDurableExecutionResponse:
             "DurableExecutionName": self.durable_execution_name,
             "FunctionArn": self.function_arn,
             "Status": self.status,
-            "StartDate": self.start_date,
+            "StartTimestamp": self.start_timestamp,
         }
         if self.input_payload is not None:
             result["InputPayload"] = self.input_payload
@@ -171,8 +171,10 @@ class GetDurableExecutionResponse:
             result["Result"] = self.result
         if self.error is not None:
             result["Error"] = self.error.to_dict()
-        if self.stop_date is not None:
-            result["StopDate"] = self.stop_date
+        if self.end_timestamp is not None:
+            result["EndTimestamp"] = self.end_timestamp
+        if self.end_timestamp is not None:
+            result["EndTimestamp"] = self.end_timestamp
         if self.version is not None:
             result["Version"] = self.version
         return result
@@ -186,8 +188,8 @@ class Execution:
     durable_execution_name: str
     function_arn: str
     status: str
-    start_date: str
-    stop_date: str | None = None
+    start_timestamp: str
+    end_timestamp: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> Execution:
@@ -198,8 +200,8 @@ class Execution:
                 "FunctionArn", ""
             ),  # Make optional for backward compatibility
             status=data["Status"],
-            start_date=data["StartDate"],
-            stop_date=data.get("StopDate"),
+            start_timestamp=data["StartTimestamp"],
+            end_timestamp=data.get("EndTimestamp"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -207,12 +209,12 @@ class Execution:
             "DurableExecutionArn": self.durable_execution_arn,
             "DurableExecutionName": self.durable_execution_name,
             "Status": self.status,
-            "StartDate": self.start_date,
+            "StartTimestamp": self.start_timestamp,
         }
         if self.function_arn:  # Only include if not empty
             result["FunctionArn"] = self.function_arn
-        if self.stop_date is not None:
-            result["StopDate"] = self.stop_date
+        if self.end_timestamp is not None:
+            result["EndTimestamp"] = self.end_timestamp
         return result
 
 
