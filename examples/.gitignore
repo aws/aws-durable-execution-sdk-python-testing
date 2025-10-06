@@ -1,4 +1,0 @@
-build/
-*.zip
-.env
-.aws-sam/

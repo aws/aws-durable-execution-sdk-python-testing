@@ -29,3 +29,6 @@ dist/
 .kiro/
 .idea
 .env
+
+examples/build/*
+examples/*.zip

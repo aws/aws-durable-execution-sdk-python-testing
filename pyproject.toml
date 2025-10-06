@@ -67,13 +67,20 @@ cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aw
 [tool.hatch.envs.examples]
 dependencies = [
   "boto3",
+  "PyYAML",
   "aws_durable_execution_sdk_python @ {env:AWS_DURABLE_SDK_URL:git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git}",
 ]
 [tool.hatch.envs.examples.scripts]
-build = "python examples/build.py"
-deploy = "cd examples && python deploy.py {args}"
-sam-build = "build && sam build --template examples/template.yaml"
-sam-invoke = "sam local invoke HelloWorldFunction --template examples/template.yaml"
+cli = "python examples/cli.py {args}"
+bootstrap = "python examples/cli.py bootstrap"
+generate-sam = "python examples/cli.py sam {args}"
+build = "python examples/cli.py build"
+deploy = "python examples/cli.py deploy {args}"
+invoke = "python examples/cli.py invoke {args}"
+get = "python examples/cli.py get {args}"
+history = "python examples/cli.py history {args}"
+policy = "python examples/cli.py policy {args}"
+list = "python examples/cli.py list"
 clean = "rm -rf examples/build examples/.aws-sam examples/*.zip"
 
 [tool.hatch.envs.types]
@@ -132,10 +139,6 @@ lines-after-imports = 2
   "PLR2004",
   "SIM117",
   "TRY301",
-]
-"examples/*.py" = [
-  "T201",  # Allow print statements in deployment scripts
-  "PLR2004",  # Allow magic values in deployment scripts
 ]
 "src/aws_durable_execution_sdk_python_testing/invoker.py" = [
   "A002", # Argument `input` is shadowing a Python builtin

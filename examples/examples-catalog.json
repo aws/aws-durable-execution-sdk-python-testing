@@ -11,6 +11,105 @@
         "ExecutionTimeout": 300
       },
       "path": "./src/hello_world.py"
+    },
+    {
+      "name": "Basic Step",
+      "description": "Basic usage of context.step() to checkpoint a simple operation",
+      "handler": "step.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/step.py"
+    },
+    {
+      "name": "Step with Name",
+      "description": "Step operation with explicit name parameter",
+      "handler": "step_with_name.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/step_with_name.py"
+    },
+    {
+      "name": "Step with Retry",
+      "description": "Usage of context.step() with retry configuration for fault tolerance",
+      "handler": "step_with_retry.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/step_with_retry.py"
+    },
+    {
+      "name": "Wait State",
+      "description": "Basic usage of context.wait() to pause execution",
+      "handler": "wait.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait.py"
+    },
+    {
+      "name": "Callback",
+      "description": "Basic usage of context.create_callback() to create a callback for external systems",
+      "handler": "callback.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/callback.py"
+    },
+    {
+      "name": "Wait for Callback",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback.py"
+    },
+    {
+      "name": "Run in Child Context",
+      "description": "Usage of context.run_in_child_context() to execute operations in isolated contexts",
+      "handler": "run_in_child_context.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/run_in_child_context.py"
+    },
+    {
+      "name": "Parallel Operations",
+      "description": "Executing multiple durable operations in parallel",
+      "handler": "parallel.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/parallel.py"
+    },
+    {
+      "name": "Map Operations",
+      "description": "Processing collections using map-like durable operations",
+      "handler": "map_operations.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/map_operations.py"
     }
   ]
 }
