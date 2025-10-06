@@ -3,11 +3,17 @@
 import argparse
 import contextlib
 import json
+import logging
 import os
 import shutil
 import sys
 import zipfile
 from pathlib import Path
+
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 try:
@@ -30,8 +36,11 @@ def build_examples():
     build_dir = Path(__file__).parent / "build"
     src_dir = Path(__file__).parent / "src"
 
+    logger.info("Building examples...")
+
     # Clean and create build directory
     if build_dir.exists():
+        logger.info("Cleaning existing build directory")
         shutil.rmtree(build_dir)
     build_dir.mkdir()
 
@@ -40,8 +49,10 @@ def build_examples():
         import aws_durable_execution_sdk_python
 
         sdk_path = Path(aws_durable_execution_sdk_python.__file__).parent
+        logger.info("Copying SDK from %s", sdk_path)
         shutil.copytree(sdk_path, build_dir / "aws_durable_execution_sdk_python")
     except (ImportError, OSError):
+        logger.exception("Failed to copy SDK")
         return False
 
     # Copy testing SDK source
@@ -50,11 +61,14 @@ def build_examples():
         / "src"
         / "aws_durable_execution_sdk_python_testing"
     )
+    logger.info("Copying testing SDK from %s", testing_src)
     shutil.copytree(testing_src, build_dir / "aws_durable_execution_sdk_python_testing")
 
     # Copy example functions
+    logger.info("Copying examples from %s", src_dir)
     shutil.copytree(src_dir, build_dir / "src")
 
+    logger.info("Build completed successfully")
     return True
 
 
@@ -259,9 +273,16 @@ def create_deployment_package(example_name: str) -> Path:
 
     zip_path = Path(__file__).parent / f"{example_name}.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Add SDK dependencies
         for file_path in build_dir.rglob("*"):
-            if file_path.is_file():
+            if file_path.is_file() and not file_path.is_relative_to(build_dir / "src"):
                 zf.write(file_path, file_path.relative_to(build_dir))
+
+        # Add example files at root level
+        src_dir = build_dir / "src"
+        for file_path in src_dir.rglob("*"):
+            if file_path.is_file():
+                zf.write(file_path, file_path.relative_to(src_dir))
 
     return zip_path
 
@@ -308,6 +329,7 @@ def deploy_function(example_name: str, function_name: str | None = None):
             break
 
     if not example_config:
+        logger.error("Example not found: '%s'", example_name)
         list_examples()
         return False
 
@@ -331,7 +353,7 @@ def deploy_function(example_name: str, function_name: str | None = None):
         "Description": example_config["description"],
         "Timeout": 60,
         "MemorySize": 128,
-        "Environment": {"Variables": {"DEX_ENDPOINT": config["lambda_endpoint"]}},
+        # "Environment": {"Variables": {"AWS_ENDPOINT_URL_LAMBDA": config["lambda_endpoint"]}},
         "DurableConfig": example_config["durableConfig"],
     }
 
@@ -351,8 +373,39 @@ def deploy_function(example_name: str, function_name: str | None = None):
     except lambda_client.exceptions.ResourceNotFoundException:
         lambda_client.create_function(**function_config, Code={"ZipFile": zip_content})
 
-    # Add invoke permission
-    with contextlib.suppress(lambda_client.exceptions.ResourceConflictException):
+    # Update invoke permission for worker account if needed
+    try:
+        policy_response = lambda_client.get_policy(FunctionName=function_name)
+        policy = json.loads(policy_response["Policy"])
+
+        # Check if permission exists with correct principal
+        needs_update = True
+        for statement in policy.get("Statement", []):
+            if (
+                statement.get("Sid") == "dex-invoke-permission"
+                and statement.get("Principal", {}).get("AWS")
+                == config["invoke_account_id"]
+            ):
+                needs_update = False
+                break
+
+        if needs_update:
+            with contextlib.suppress(
+                lambda_client.exceptions.ResourceNotFoundException
+            ):
+                lambda_client.remove_permission(
+                    FunctionName=function_name, StatementId="dex-invoke-permission"
+                )
+
+            lambda_client.add_permission(
+                FunctionName=function_name,
+                StatementId="dex-invoke-permission",
+                Action="lambda:InvokeFunction",
+                Principal=config["invoke_account_id"],
+            )
+
+    except lambda_client.exceptions.ResourceNotFoundException:
+        # No policy exists, add permission
         lambda_client.add_permission(
             FunctionName=function_name,
             StatementId="dex-invoke-permission",
@@ -360,6 +413,7 @@ def deploy_function(example_name: str, function_name: str | None = None):
             Principal=config["invoke_account_id"],
         )
 
+    logger.info("Function deployed successfully! %s", function_name)
     return True
 
 
@@ -419,8 +473,9 @@ def get_function_policy(function_name: str):
 def list_examples():
     """List available examples."""
     catalog = load_catalog()
-    for _example in catalog["examples"]:
-        pass
+    logger.info("Available examples:")
+    for example in catalog["examples"]:
+        logger.info("  - %s: %s", example["name"], example["description"])
 
 
 def main():
