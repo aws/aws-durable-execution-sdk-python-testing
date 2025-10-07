@@ -85,11 +85,8 @@ jobs:
           FUNCTION_NAME="${EXAMPLE_NAME_CLEAN}-Python"
         fi
         
-        # Extract handler file name
-        HANDLER_FILE=$(echo "${{ matrix.example.handler }}" | sed 's/\.handler$//')
-        
-        echo "Deploying $HANDLER_FILE as $FUNCTION_NAME"
-        hatch run examples:deploy "$HANDLER_FILE" "$FUNCTION_NAME"
+        echo "Deploying ${{ matrix.example.name }} as $FUNCTION_NAME"
+        hatch run examples:deploy "${{ matrix.example.name }}" --function-name "$FUNCTION_NAME"
         
         # Store function name for later steps
         echo "FUNCTION_NAME=$FUNCTION_NAME" >> $GITHUB_ENV
