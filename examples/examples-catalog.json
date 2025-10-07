@@ -71,7 +71,7 @@
       "name": "Wait for Callback",
       "description": "Usage of context.wait_for_callback() to wait for external system responses",
       "handler": "wait_for_callback.handler",
-      "integration": true,
+      "integration": false,
       "durableConfig": {
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
