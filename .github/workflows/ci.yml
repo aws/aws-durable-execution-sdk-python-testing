@@ -7,7 +7,7 @@ permissions:
 
 on:
   push:
-
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -32,6 +32,16 @@ jobs:
     - uses: webfactory/ssh-agent@v0.9.1
       with:
         ssh-private-key: ${{ secrets.SDK_KEY }}
+    - name: Check for Python Language SDK branch override in PR
+      if: github.event_name == 'pull_request'
+      run: |
+        OVERRIDE=$(echo "${{ github.event.pull_request.body }}" | grep -o 'PYTHON_LANGUAGE_SDK_BRANCH: [^[:space:]]*' | cut -d' ' -f2 || true)
+        if [ ! -z "$OVERRIDE" ]; then
+          echo "AWS_DURABLE_SDK_URL=git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git@$OVERRIDE" >> $GITHUB_ENV
+          echo "Using Python Language SDK branch override: $OVERRIDE"
+        else
+          echo "Using default Python Language SDK (main branch)"
+        fi
     - name: static analysis
       run: hatch fmt --check
     - name: type checking

@@ -127,7 +127,7 @@ class OperationProcessor:
             else:
                 scheduled_timestamp = datetime.datetime.now(
                     tz=datetime.UTC
-                ) + timedelta(seconds=update.wait_options.seconds)
+                ) + timedelta(seconds=update.wait_options.wait_seconds)
             return WaitDetails(scheduled_timestamp=scheduled_timestamp)
         return None
 

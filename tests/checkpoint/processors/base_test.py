@@ -323,7 +323,7 @@ def test_create_wait_details_with_current_operation():
     current_op = Mock()
     current_op.wait_details = WaitDetails(scheduled_timestamp=scheduled_time)
 
-    wait_options = WaitOptions(seconds=30)
+    wait_options = WaitOptions(wait_seconds=30)
     update = OperationUpdate(
         operation_id="test-id",
         operation_type=OperationType.WAIT,
@@ -339,7 +339,7 @@ def test_create_wait_details_with_current_operation():
 
 def test_create_wait_details_without_current_operation():
     processor = MockProcessor()
-    wait_options = WaitOptions(seconds=30)
+    wait_options = WaitOptions(wait_seconds=30)
     update = OperationUpdate(
         operation_id="test-id",
         operation_type=OperationType.WAIT,

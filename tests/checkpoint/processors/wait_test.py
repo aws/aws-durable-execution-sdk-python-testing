@@ -50,7 +50,7 @@ def test_process_start_action():
     notifier = MockNotifier()
     execution_arn = "arn:aws:states:us-east-1:123456789012:execution:test"
 
-    wait_options = WaitOptions(seconds=30)
+    wait_options = WaitOptions(wait_seconds=30)
     update = OperationUpdate(
         operation_id="wait-123",
         operation_type=OperationType.WAIT,
@@ -99,7 +99,7 @@ def test_process_start_action_with_zero_seconds():
     notifier = MockNotifier()
     execution_arn = "arn:aws:states:us-east-1:123456789012:execution:test"
 
-    wait_options = WaitOptions(seconds=0)
+    wait_options = WaitOptions(wait_seconds=0)
     update = OperationUpdate(
         operation_id="wait-123",
         operation_type=OperationType.WAIT,
@@ -122,7 +122,7 @@ def test_process_start_action_with_parent_id():
     notifier = MockNotifier()
     execution_arn = "arn:aws:states:us-east-1:123456789012:execution:test"
 
-    wait_options = WaitOptions(seconds=15)
+    wait_options = WaitOptions(wait_seconds=15)
     update = OperationUpdate(
         operation_id="wait-123",
         operation_type=OperationType.WAIT,
@@ -142,7 +142,7 @@ def test_process_start_action_with_sub_type():
     notifier = MockNotifier()
     execution_arn = "arn:aws:states:us-east-1:123456789012:execution:test"
 
-    wait_options = WaitOptions(seconds=15)
+    wait_options = WaitOptions(wait_seconds=15)
     update = OperationUpdate(
         operation_id="wait-123",
         operation_type=OperationType.WAIT,
@@ -257,7 +257,7 @@ def test_wait_details_created_correctly():
     notifier = MockNotifier()
     execution_arn = "arn:aws:states:us-east-1:123456789012:execution:test"
 
-    wait_options = WaitOptions(seconds=60)
+    wait_options = WaitOptions(wait_seconds=60)
     update = OperationUpdate(
         operation_id="wait-123",
         operation_type=OperationType.WAIT,
@@ -277,7 +277,7 @@ def test_no_completed_or_failed_calls():
     notifier = MockNotifier()
     execution_arn = "arn:aws:states:us-east-1:123456789012:execution:test"
 
-    wait_options = WaitOptions(seconds=30)
+    wait_options = WaitOptions(wait_seconds=30)
     update = OperationUpdate(
         operation_id="wait-123",
         operation_type=OperationType.WAIT,

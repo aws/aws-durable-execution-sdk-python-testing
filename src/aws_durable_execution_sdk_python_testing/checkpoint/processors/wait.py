@@ -38,7 +38,9 @@ class WaitProcessor(OperationProcessor):
         """Process WAIT operation update with scheduler integration for timers."""
         match update.action:
             case OperationAction.START:
-                wait_seconds = update.wait_options.seconds if update.wait_options else 0
+                wait_seconds = (
+                    update.wait_options.wait_seconds if update.wait_options else 0
+                )
                 scheduled_timestamp = datetime.now(UTC) + timedelta(
                     seconds=wait_seconds
                 )
