@@ -562,6 +562,36 @@ class HealthRoute(Route):
 
 
 @dataclass(frozen=True)
+class UpdateLambdaEndpointRoute(Route):
+    """Route: PUT /lambda-endpoint"""
+
+    @classmethod
+    def is_match(cls, route: Route, method: str) -> bool:
+        """Check if the route and HTTP method match this route type.
+
+        Args:
+            route: Route to check
+            method: HTTP method to check
+
+        Returns:
+            True if the route and method match
+        """
+        return route.raw_path == "/lambda-endpoint" and method == "PUT"
+
+    @classmethod
+    def from_route(cls, route: Route) -> UpdateLambdaEndpointRoute:
+        """Create UpdateLambdaEndpointRoute from base route.
+
+        Args:
+            route: Base route to convert
+
+        Returns:
+            UpdateLambdaEndpointRoute instance
+        """
+        return cls(raw_path=route.raw_path, segments=route.segments)
+
+
+@dataclass(frozen=True)
 class MetricsRoute(Route):
     """Route: GET /metrics"""
 
@@ -607,6 +637,7 @@ DEFAULT_ROUTE_TYPES: list[type[Route]] = [
     CallbackFailureRoute,
     CallbackHeartbeatRoute,
     HealthRoute,
+    UpdateLambdaEndpointRoute,
     MetricsRoute,
 ]
 

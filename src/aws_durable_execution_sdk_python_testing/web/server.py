@@ -35,6 +35,7 @@ from aws_durable_execution_sdk_python_testing.web.handlers import (
     SendDurableExecutionCallbackSuccessHandler,
     StartExecutionHandler,
     StopDurableExecutionHandler,
+    UpdateLambdaEndpointHandler,
 )
 from aws_durable_execution_sdk_python_testing.web.models import (
     HTTPRequest,
@@ -56,6 +57,7 @@ from aws_durable_execution_sdk_python_testing.web.routes import (
     Router,
     StartExecutionRoute,
     StopDurableExecutionRoute,
+    UpdateLambdaEndpointRoute,
 )
 
 
@@ -90,6 +92,10 @@ class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         """Handle POST requests."""
         self._handle_request("POST")
+
+    def do_PUT(self) -> None:  # noqa: N802
+        """Handle PUT requests."""
+        self._handle_request("PUT")
 
     def _handle_request(self, method: str) -> None:
         """Handle HTTP request with strongly-typed routing."""
@@ -212,6 +218,7 @@ class WebServer(ThreadingHTTPServer):
                 self.executor
             ),
             HealthRoute: HealthHandler(self.executor),
+            UpdateLambdaEndpointRoute: UpdateLambdaEndpointHandler(self.executor),
             MetricsRoute: MetricsHandler(self.executor),
         }
 

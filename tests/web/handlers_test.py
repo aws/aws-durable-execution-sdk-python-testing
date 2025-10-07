@@ -2048,6 +2048,104 @@ def test_send_durable_execution_callback_failure_handler():
     assert call_args[1]["error"].message == "Test error"
 
 
+def test_update_lambda_endpoint_handler_success():
+    """Test UpdateLambdaEndpointHandler with valid request."""
+    from aws_durable_execution_sdk_python_testing.invoker import LambdaInvoker
+    from aws_durable_execution_sdk_python_testing.web.handlers import (
+        UpdateLambdaEndpointHandler,
+    )
+    from aws_durable_execution_sdk_python_testing.web.routes import (
+        UpdateLambdaEndpointRoute,
+    )
+
+    executor = Mock()
+    lambda_invoker = Mock(spec=LambdaInvoker)
+    executor._invoker = lambda_invoker  # noqa: SLF001
+    handler = UpdateLambdaEndpointHandler(executor)
+
+    base_route = Route.from_string("/lambda-endpoint")
+    update_route = UpdateLambdaEndpointRoute.from_route(base_route)
+
+    request = HTTPRequest(
+        method="PUT",
+        path=update_route,
+        headers={"Content-Type": "application/json"},
+        query_params={},
+        body={"EndpointUrl": "http://localhost:8080", "RegionName": "us-west-2"},
+    )
+
+    response = handler.handle(update_route, request)
+
+    assert response.status_code == 200
+    assert response.body == {"message": "Lambda endpoint updated successfully"}
+    lambda_invoker.update_endpoint.assert_called_once_with(
+        "http://localhost:8080", "us-west-2"
+    )
+
+
+def test_update_lambda_endpoint_handler_missing_endpoint_url():
+    """Test UpdateLambdaEndpointHandler with missing EndpointUrl."""
+    from aws_durable_execution_sdk_python_testing.web.handlers import (
+        UpdateLambdaEndpointHandler,
+    )
+    from aws_durable_execution_sdk_python_testing.web.routes import (
+        UpdateLambdaEndpointRoute,
+    )
+
+    executor = Mock()
+    handler = UpdateLambdaEndpointHandler(executor)
+
+    base_route = Route.from_string("/lambda-endpoint")
+    update_route = UpdateLambdaEndpointRoute.from_route(base_route)
+
+    request = HTTPRequest(
+        method="PUT",
+        path=update_route,
+        headers={"Content-Type": "application/json"},
+        query_params={},
+        body={"RegionName": "us-west-2"},
+    )
+
+    response = handler.handle(update_route, request)
+
+    assert response.status_code == 400
+    assert response.body == {"error": "EndpointUrl is required"}
+
+
+def test_update_lambda_endpoint_handler_default_region():
+    """Test UpdateLambdaEndpointHandler uses default region when not specified."""
+    from aws_durable_execution_sdk_python_testing.invoker import LambdaInvoker
+    from aws_durable_execution_sdk_python_testing.web.handlers import (
+        UpdateLambdaEndpointHandler,
+    )
+    from aws_durable_execution_sdk_python_testing.web.routes import (
+        UpdateLambdaEndpointRoute,
+    )
+
+    executor = Mock()
+    lambda_invoker = Mock(spec=LambdaInvoker)
+    executor._invoker = lambda_invoker  # noqa: SLF001
+    handler = UpdateLambdaEndpointHandler(executor)
+
+    base_route = Route.from_string("/lambda-endpoint")
+    update_route = UpdateLambdaEndpointRoute.from_route(base_route)
+
+    request = HTTPRequest(
+        method="PUT",
+        path=update_route,
+        headers={"Content-Type": "application/json"},
+        query_params={},
+        body={"EndpointUrl": "http://localhost:8080"},
+    )
+
+    response = handler.handle(update_route, request)
+
+    assert response.status_code == 200
+    lambda_invoker.update_endpoint.assert_called_once_with(
+        "http://localhost:8080", "us-east-1"
+    )
+
+
 def test_send_durable_execution_callback_failure_handler_empty_body():
     """Test SendDurableExecutionCallbackFailureHandler with empty body."""
     executor = Mock()

@@ -68,6 +68,10 @@ class Invoker(Protocol):
         input: DurableExecutionInvocationInput,
     ) -> DurableExecutionInvocationOutput: ...  # pragma: no cover
 
+    def update_endpoint(
+        self, endpoint_url: str, region_name: str
+    ) -> None: ...  # pragma: no cover
+
 
 class InProcessInvoker(Invoker):
     def __init__(self, handler: Callable, service_client: InMemoryServiceClient):
@@ -102,6 +106,9 @@ class InProcessInvoker(Invoker):
         response_dict = self.handler(input_with_client, context)
         return DurableExecutionInvocationOutput.from_dict(response_dict)
 
+    def update_endpoint(self, endpoint_url: str, region_name: str) -> None:
+        """No-op for in-process invoker."""
+
 
 class LambdaInvoker(Invoker):
     def __init__(self, lambda_client: Any) -> None:
@@ -114,6 +121,12 @@ class LambdaInvoker(Invoker):
             boto3.client(
                 "lambdainternal", endpoint_url=endpoint_url, region_name=region_name
             )
+        )
+
+    def update_endpoint(self, endpoint_url: str, region_name: str) -> None:
+        """Update the Lambda client endpoint."""
+        self.lambda_client = boto3.client(
+            "lambdainternal", endpoint_url=endpoint_url, region_name=region_name
         )
 
     def create_invocation_input(

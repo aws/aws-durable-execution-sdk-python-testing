@@ -769,3 +769,40 @@ class MetricsHandler(EndpointHandler):
         """
         # TODO: Implement metrics collection logic
         return self._success_response({"metrics": {}})
+
+
+class UpdateLambdaEndpointHandler(EndpointHandler):
+    """Handler for PUT /lambda-endpoint."""
+
+    def handle(self, parsed_route: Route, request: HTTPRequest) -> HTTPResponse:  # noqa: ARG002
+        """Handle update Lambda endpoint request.
+
+        Args:
+            parsed_route: The strongly-typed route object
+            request: The HTTP request data
+
+        Returns:
+            HTTPResponse: The HTTP response to send to the client
+        """
+        try:
+            body = self._parse_json_body(request)
+            endpoint_url = body.get("EndpointUrl")
+            region_name = body.get("RegionName", "us-east-1")
+
+            if not endpoint_url:
+                return HTTPResponse.create_json(
+                    400, {"error": "EndpointUrl is required"}
+                )
+
+            # Update the invoker's Lambda endpoint
+            invoker = self.executor._invoker  # noqa: SLF001
+            logger.info("Updating lambda endpoint to %s", endpoint_url)
+            invoker.update_endpoint(endpoint_url, region_name)
+            return self._success_response(
+                {"message": "Lambda endpoint updated successfully"}
+            )
+
+        except (AttributeError, TypeError) as e:
+            return HTTPResponse.create_json(
+                500, {"error": f"Failed to update Lambda endpoint: {e!s}"}
+            )
