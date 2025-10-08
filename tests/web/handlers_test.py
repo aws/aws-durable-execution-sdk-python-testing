@@ -2109,7 +2109,8 @@ def test_update_lambda_endpoint_handler_missing_endpoint_url():
     response = handler.handle(update_route, request)
 
     assert response.status_code == 400
-    assert response.body == {"error": "EndpointUrl is required"}
+    assert response.body["Type"] == "InvalidParameterValueException"
+    assert response.body["message"] == "EndpointUrl is required"
 
 
 def test_update_lambda_endpoint_handler_default_region():

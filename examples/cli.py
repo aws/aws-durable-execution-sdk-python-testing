@@ -226,7 +226,7 @@ def generate_sam_template():
                 "Timeout": 60,
                 "MemorySize": 128,
                 "Environment": {
-                    "Variables": {"DEX_ENDPOINT": {"Ref": "LambdaEndpoint"}}
+                    "Variables": {"AWS_ENDPOINT_URL_LAMBDA": {"Ref": "LambdaEndpoint"}}
                 },
             }
         },
@@ -353,7 +353,9 @@ def deploy_function(example_name: str, function_name: str | None = None):
         "Description": example_config["description"],
         "Timeout": 60,
         "MemorySize": 128,
-        # "Environment": {"Variables": {"AWS_ENDPOINT_URL_LAMBDA": config["lambda_endpoint"]}},
+        "Environment": {
+            "Variables": {"AWS_ENDPOINT_URL_LAMBDA": config["lambda_endpoint"]}
+        },
         "DurableConfig": example_config["durableConfig"],
     }
 
