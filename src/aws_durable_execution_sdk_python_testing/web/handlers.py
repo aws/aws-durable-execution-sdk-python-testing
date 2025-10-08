@@ -790,8 +790,8 @@ class UpdateLambdaEndpointHandler(EndpointHandler):
             region_name = body.get("RegionName", "us-east-1")
 
             if not endpoint_url:
-                return HTTPResponse.create_json(
-                    400, {"error": "EndpointUrl is required"}
+                return self._handle_aws_exception(
+                    InvalidParameterValueException("EndpointUrl is required")
                 )
 
             # Update the invoker's Lambda endpoint
@@ -802,7 +802,5 @@ class UpdateLambdaEndpointHandler(EndpointHandler):
                 {"message": "Lambda endpoint updated successfully"}
             )
 
-        except (AttributeError, TypeError) as e:
-            return HTTPResponse.create_json(
-                500, {"error": f"Failed to update Lambda endpoint: {e!s}"}
-            )
+        except Exception as e:  # noqa: BLE001
+            return self._handle_framework_exception(e)
