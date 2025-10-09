@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
     from aws_durable_execution_sdk_python_testing.invoker import Invoker
     from aws_durable_execution_sdk_python_testing.scheduler import Event, Scheduler
-    from aws_durable_execution_sdk_python_testing.store import ExecutionStore
+    from aws_durable_execution_sdk_python_testing.stores import ExecutionStore
 
 logger = logging.getLogger(__name__)
 
@@ -142,15 +142,15 @@ class Executor(ExecutionObserver):
             durable_execution_name=execution.start_input.execution_name,
             function_arn=f"arn:aws:lambda:us-east-1:123456789012:function:{execution.start_input.function_name}",
             status=status,
-            start_timestamp=execution_op.start_timestamp.isoformat()
+            start_timestamp=execution_op.start_timestamp.timestamp()
             if execution_op.start_timestamp
-            else datetime.now(UTC).isoformat(),
+            else datetime.now(UTC).timestamp(),
             input_payload=execution_op.execution_details.input_payload
             if execution_op.execution_details
             else None,
             result=result,
             error=error,
-            end_timestamp=execution_op.end_timestamp.isoformat()
+            end_timestamp=execution_op.end_timestamp.timestamp()
             if execution_op.end_timestamp
             else None,
             version="1.0",
@@ -223,10 +223,10 @@ class Executor(ExecutionObserver):
                 durable_execution_name=execution.start_input.execution_name,
                 function_arn=f"arn:aws:lambda:us-east-1:123456789012:function:{execution.start_input.function_name}",
                 status=execution_status,
-                start_timestamp=execution_op.start_timestamp.isoformat()
+                start_timestamp=execution_op.start_timestamp.timestamp()
                 if execution_op.start_timestamp
-                else datetime.now(UTC).isoformat(),
-                end_timestamp=execution_op.end_timestamp.isoformat()
+                else datetime.now(UTC).timestamp(),
+                end_timestamp=execution_op.end_timestamp.timestamp()
                 if execution_op.end_timestamp
                 else None,
             )
@@ -333,7 +333,7 @@ class Executor(ExecutionObserver):
         # Stop the execution
         self.fail_execution(execution_arn, stop_error)
 
-        return StopDurableExecutionResponse(stop_date=datetime.now(UTC).isoformat())
+        return StopDurableExecutionResponse(stop_date=datetime.now(UTC).timestamp())
 
     def get_execution_state(
         self,

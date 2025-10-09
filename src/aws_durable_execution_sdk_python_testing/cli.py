@@ -31,6 +31,7 @@ from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
 )
 from aws_durable_execution_sdk_python_testing.runner import WebRunner, WebRunnerConfig
+from aws_durable_execution_sdk_python_testing.stores import StoreType
 from aws_durable_execution_sdk_python_testing.web.server import WebServiceConfig
 
 
@@ -49,6 +50,10 @@ class CliConfig:
     local_runner_endpoint: str = "http://0.0.0.0:5000"
     local_runner_region: str = "us-west-2"
     local_runner_mode: str = "local"
+
+    # Store configuration
+    store_type: str = "memory"
+    store_path: str | None = None
 
     @classmethod
     def from_environment(cls) -> CliConfig:
@@ -69,6 +74,8 @@ class CliConfig:
             ),
             local_runner_region=os.getenv("AWS_DEX_LOCAL_RUNNER_REGION", "us-west-2"),
             local_runner_mode=os.getenv("AWS_DEX_LOCAL_RUNNER_MODE", "local"),
+            store_type=os.getenv("AWS_DEX_STORE_TYPE", "memory"),
+            store_path=os.getenv("AWS_DEX_STORE_PATH"),
         )
 
 
@@ -188,6 +195,17 @@ class CliApp:
             default=self.config.local_runner_mode,
             help=f"Local Runner mode (default: {self.config.local_runner_mode}, env: AWS_DEX_LOCAL_RUNNER_MODE)",
         )
+        start_server_parser.add_argument(
+            "--store-type",
+            choices=[store_type.value for store_type in StoreType],
+            default=self.config.store_type,
+            help=f"Store type for execution persistence (default: {self.config.store_type}, env: AWS_DEX_STORE_TYPE)",
+        )
+        start_server_parser.add_argument(
+            "--store-path",
+            default=self.config.store_path,
+            help=f"Path for filesystem store (default: {self.config.store_path or '.durable_executions'}, env: AWS_DEX_STORE_PATH)",
+        )
         start_server_parser.set_defaults(func=self.start_server_command)
 
     def _create_invoke_parser(self, subparsers) -> None:
@@ -258,6 +276,8 @@ class CliApp:
                 local_runner_endpoint=args.local_runner_endpoint,
                 local_runner_region=args.local_runner_region,
                 local_runner_mode=args.local_runner_mode,
+                store_type=args.store_type,
+                store_path=args.store_path,
             )
 
             logger.info(
@@ -273,6 +293,10 @@ class CliApp:
             logger.info("  Local Runner Endpoint: %s", args.local_runner_endpoint)
             logger.info("  Local Runner Region: %s", args.local_runner_region)
             logger.info("  Local Runner Mode: %s", args.local_runner_mode)
+            logger.info("  Store Type: %s", args.store_type)
+            if args.store_type == "filesystem":
+                store_path = args.store_path or ".durable_executions"
+                logger.info("  Store Path: %s", store_path)
 
             # Use runner as context manager for proper lifecycle
             with WebRunner(runner_config) as runner:

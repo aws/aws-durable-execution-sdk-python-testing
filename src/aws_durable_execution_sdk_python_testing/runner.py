@@ -48,7 +48,11 @@ from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionOutput,
 )
 from aws_durable_execution_sdk_python_testing.scheduler import Scheduler
-from aws_durable_execution_sdk_python_testing.store import InMemoryExecutionStore
+from aws_durable_execution_sdk_python_testing.stores import (
+    ExecutionStore,
+    FileSystemExecutionStore,
+    InMemoryExecutionStore,
+)
 from aws_durable_execution_sdk_python_testing.web.server import WebServer
 
 
@@ -82,6 +86,10 @@ class WebRunnerConfig:
     local_runner_endpoint: str = "http://0.0.0.0:5000"
     local_runner_region: str = "us-west-2"
     local_runner_mode: str = "local"
+
+    # Store configuration
+    store_type: str = "memory"  # "memory" or "filesystem"
+    store_path: str | None = None  # Path for filesystem store
 
 
 @dataclass(frozen=True)
@@ -543,7 +551,7 @@ class WebRunner:
         self._config = config
         self._server: WebServer | None = None
         self._scheduler: Scheduler | None = None
-        self._store: InMemoryExecutionStore | None = None
+        self._store: ExecutionStore | None = None
         self._invoker: LambdaInvoker | None = None
         self._executor: Executor | None = None
 
@@ -581,7 +589,11 @@ class WebRunner:
             raise DurableFunctionsLocalRunnerError(msg)
 
         # Create dependencies and server
-        self._store = InMemoryExecutionStore()
+        if self._config.store_type == "filesystem":
+            store_path = self._config.store_path or ".durable_executions"
+            self._store = FileSystemExecutionStore.create(store_path)
+        else:
+            self._store = InMemoryExecutionStore()
         self._scheduler = Scheduler()
         self._invoker = LambdaInvoker(self._create_boto3_client())
 

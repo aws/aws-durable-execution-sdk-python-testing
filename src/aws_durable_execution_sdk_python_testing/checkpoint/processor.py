@@ -27,7 +27,7 @@ from aws_durable_execution_sdk_python_testing.token import CheckpointToken
 if TYPE_CHECKING:
     from aws_durable_execution_sdk_python_testing.execution import Execution
     from aws_durable_execution_sdk_python_testing.scheduler import Scheduler
-    from aws_durable_execution_sdk_python_testing.store import ExecutionStore
+    from aws_durable_execution_sdk_python_testing.stores import ExecutionStore
 
 
 class CheckpointProcessor:
