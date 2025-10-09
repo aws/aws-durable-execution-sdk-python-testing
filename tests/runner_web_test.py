@@ -705,7 +705,7 @@ def test_should_pass_correct_configuration_to_web_server():
     """Test that WebServer receives correct configuration from WebRunnerConfig."""
     # Arrange
     web_config = WebServiceConfig(
-        host="custom-host", port=9999, log_level=30, max_request_size=2048
+        host="custom-host", port=9999, log_level="WARNING", max_request_size=2048
     )
     runner_config = WebRunnerConfig(web_service=web_config)
     runner = WebRunner(runner_config)
@@ -734,7 +734,7 @@ def test_should_pass_correct_configuration_to_web_server():
         assert passed_config == web_config
         assert passed_config.host == "custom-host"
         assert passed_config.port == 9999
-        assert passed_config.log_level == 30
+        assert passed_config.log_level == "WARNING"
         assert passed_config.max_request_size == 2048
 
         # Cleanup
@@ -1284,7 +1284,7 @@ def test_should_integrate_with_cli_start_server_command():
                 "--port",
                 "7777",
                 "--log-level",
-                "30",
+                "WARNING",
                 "--lambda-endpoint",
                 "http://integration-lambda:4000",
                 "--local-runner-endpoint",
@@ -1306,7 +1306,7 @@ def test_should_integrate_with_cli_start_server_command():
         # Verify web service configuration
         assert config.web_service.host == "integration-host"
         assert config.web_service.port == 7777
-        assert config.web_service.log_level == 30
+        assert config.web_service.log_level == "WARNING"
 
         # Verify Lambda service configuration
         assert config.lambda_endpoint == "http://integration-lambda:4000"
@@ -1430,7 +1430,7 @@ def test_should_preserve_cli_configuration_through_web_runner():
                 "--port",
                 "9999",
                 "--log-level",
-                "40",  # ERROR level
+                "ERROR",  # ERROR level
                 "--lambda-endpoint",
                 "http://config-lambda:5000",
                 "--local-runner-endpoint",
@@ -1452,7 +1452,7 @@ def test_should_preserve_cli_configuration_through_web_runner():
         # Verify web service configuration
         assert config.web_service.host == "config-test-host"
         assert config.web_service.port == 9999
-        assert config.web_service.log_level == 40
+        assert config.web_service.log_level == "ERROR"
 
         # Verify Lambda service configuration
         assert config.lambda_endpoint == "http://config-lambda:5000"
@@ -1472,7 +1472,7 @@ def test_should_handle_environment_variable_integration():
     env_vars = {
         "AWS_DEX_HOST": "env-host",
         "AWS_DEX_PORT": "8888",
-        "AWS_DEX_LOG_LEVEL": "50",  # CRITICAL level
+        "AWS_DEX_LOG_LEVEL": "CRITICAL",  # CRITICAL level
         "AWS_DEX_LAMBDA_ENDPOINT": "http://env-lambda:6000",
         "AWS_DEX_LOCAL_RUNNER_ENDPOINT": "http://env-runner:7000",
         "AWS_DEX_LOCAL_RUNNER_REGION": "sa-east-1",
@@ -1505,7 +1505,7 @@ def test_should_handle_environment_variable_integration():
             # Verify environment variables were used
             assert config.web_service.host == "env-host"
             assert config.web_service.port == 8888
-            assert config.web_service.log_level == 50
+            assert config.web_service.log_level == "CRITICAL"
             assert config.lambda_endpoint == "http://env-lambda:6000"
             assert config.local_runner_endpoint == "http://env-runner:7000"
             assert config.local_runner_region == "sa-east-1"

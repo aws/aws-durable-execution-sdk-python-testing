@@ -44,7 +44,7 @@ class CliConfig:
     # Server configuration
     host: str = "0.0.0.0"  # noqa:S104
     port: int = 5000
-    log_level: int = 20  # INFO level
+    log_level: int = logging.INFO
     lambda_endpoint: str = "http://127.0.0.1:3001"
     local_runner_endpoint: str = "http://0.0.0.0:5000"
     local_runner_region: str = "us-west-2"
@@ -53,10 +53,14 @@ class CliConfig:
     @classmethod
     def from_environment(cls) -> CliConfig:
         """Create configuration from environment variables with defaults."""
+        # Convert log level string to integer if provided
+        log_level_str = os.getenv("AWS_DEX_LOG_LEVEL", "INFO")
+        log_level = logging.getLevelNamesMapping().get(log_level_str, logging.INFO)
+
         return cls(
             host=os.getenv("AWS_DEX_HOST", "0.0.0.0"),  # noqa:S104
             port=int(os.getenv("AWS_DEX_PORT", "5000")),
-            log_level=int(os.getenv("AWS_DEX_LOG_LEVEL", "20")),
+            log_level=log_level,
             lambda_endpoint=os.getenv(
                 "AWS_DEX_LAMBDA_ENDPOINT", "http://127.0.0.1:3001"
             ),
@@ -89,10 +93,18 @@ class CliApp:
             parsed_args = parser.parse_args(args)
 
             # Configure logging based on log level
+            if hasattr(parsed_args, "log_level") and isinstance(
+                parsed_args.log_level, str
+            ):
+                level = logging.getLevelNamesMapping().get(
+                    parsed_args.log_level, logging.INFO
+                )
+            else:
+                # config.log_level is always an integer
+                level = self.config.log_level
+
             logging.basicConfig(
-                level=parsed_args.log_level
-                if hasattr(parsed_args, "log_level")
-                else self.config.log_level,
+                level=level,
                 format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             )
 
@@ -151,9 +163,10 @@ class CliApp:
         )
         start_server_parser.add_argument(
             "--log-level",
-            type=int,
-            default=self.config.log_level,
-            help=f"Logging level as integer (default: {self.config.log_level}, env: AWS_DEX_LOG_LEVEL)",
+            type=str,
+            choices=list(logging.getLevelNamesMapping().keys()),
+            default=logging.getLevelName(self.config.log_level),
+            help=f"Logging level (default: {logging.getLevelName(self.config.log_level)}, env: AWS_DEX_LOG_LEVEL)",
         )
         start_server_parser.add_argument(
             "--lambda-endpoint",

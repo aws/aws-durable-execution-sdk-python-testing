@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
 from io import StringIO
@@ -24,7 +25,7 @@ def test_cli_config_has_correct_default_values() -> None:
 
     assert config.host == "0.0.0.0"  # noqa: S104
     assert config.port == 5000
-    assert config.log_level == 20
+    assert config.log_level == logging.INFO
     assert config.lambda_endpoint == "http://127.0.0.1:3001"
     assert config.local_runner_endpoint == "http://0.0.0.0:5000"
     assert config.local_runner_region == "us-west-2"
@@ -38,7 +39,7 @@ def test_cli_config_from_environment_uses_defaults_when_no_env_vars() -> None:
 
         assert config.host == "0.0.0.0"  # noqa: S104
         assert config.port == 5000
-        assert config.log_level == 20
+        assert config.log_level == logging.INFO
         assert config.lambda_endpoint == "http://127.0.0.1:3001"
         assert config.local_runner_endpoint == "http://0.0.0.0:5000"
         assert config.local_runner_region == "us-west-2"
@@ -50,7 +51,7 @@ def test_cli_config_from_environment_uses_all_env_vars_when_set() -> None:
     env_vars = {
         "AWS_DEX_HOST": "127.0.0.1",
         "AWS_DEX_PORT": "8080",
-        "AWS_DEX_LOG_LEVEL": "10",
+        "AWS_DEX_LOG_LEVEL": "DEBUG",
         "AWS_DEX_LAMBDA_ENDPOINT": "http://localhost:4000",
         "AWS_DEX_LOCAL_RUNNER_ENDPOINT": "http://localhost:8080",
         "AWS_DEX_LOCAL_RUNNER_REGION": "us-east-1",
@@ -62,7 +63,7 @@ def test_cli_config_from_environment_uses_all_env_vars_when_set() -> None:
 
         assert config.host == "127.0.0.1"
         assert config.port == 8080
-        assert config.log_level == 10
+        assert config.log_level == logging.DEBUG
         assert config.lambda_endpoint == "http://localhost:4000"
         assert config.local_runner_endpoint == "http://localhost:8080"
         assert config.local_runner_region == "us-east-1"
@@ -82,7 +83,7 @@ def test_cli_config_from_environment_uses_partial_env_vars_with_defaults() -> No
         assert config.host == "192.168.1.1"
         assert config.port == 9000
         # Other values should be defaults
-        assert config.log_level == 20
+        assert config.log_level == logging.INFO
         assert config.lambda_endpoint == "http://127.0.0.1:3001"
 
 
@@ -173,7 +174,7 @@ def test_start_server_command_parses_arguments_correctly() -> None:
                 "--port",
                 "8080",
                 "--log-level",
-                "10",
+                "DEBUG",
                 "--lambda-endpoint",
                 "http://localhost:4000",
                 "--local-runner-endpoint",
@@ -303,7 +304,7 @@ def test_logging_configuration_uses_specified_log_level() -> None:
     with patch("logging.basicConfig") as mock_basic_config:
         with patch("sys.stdout", new_callable=StringIO):
             with patch.object(app, "start_server_command", return_value=0):
-                app.run(["start-server", "--log-level", "10"])
+                app.run(["start-server", "--log-level", "DEBUG"])
 
                 mock_basic_config.assert_called_once()
                 call_args = mock_basic_config.call_args
@@ -348,7 +349,7 @@ def test_start_server_command_works_with_mocked_dependencies() -> None:
                 "--port",
                 "8080",
                 "--log-level",
-                "10",
+                "DEBUG",
             ]
         )
 
@@ -359,7 +360,7 @@ def test_start_server_command_works_with_mocked_dependencies() -> None:
         call_args = mock_web_runner.call_args[0][0]  # First positional argument
         assert call_args.web_service.host == "127.0.0.1"
         assert call_args.web_service.port == 8080
-        assert call_args.web_service.log_level == 10
+        assert call_args.web_service.log_level == "DEBUG"
 
 
 def test_start_server_command_handles_server_startup_errors() -> None:
@@ -398,7 +399,7 @@ def test_start_server_command_creates_correct_web_runner_config() -> None:
                 "--port",
                 "9000",
                 "--log-level",
-                "30",
+                "WARNING",
                 "--lambda-endpoint",
                 "http://custom-lambda:4000",
                 "--local-runner-endpoint",
@@ -419,7 +420,7 @@ def test_start_server_command_creates_correct_web_runner_config() -> None:
         # Verify web service configuration
         assert config.web_service.host == "192.168.1.100"
         assert config.web_service.port == 9000
-        assert config.web_service.log_level == 30
+        assert config.web_service.log_level == "WARNING"
 
         # Verify Lambda service configuration
         assert config.lambda_endpoint == "http://custom-lambda:4000"
