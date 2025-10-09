@@ -128,12 +128,12 @@ jobs:
         LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
       run: |
         echo "Listing durable executions for function: $FUNCTION_NAME"
-        aws lambda list-durable-executions \
+        aws lambda list-durable-executions-by-function \
           --function-name "$FUNCTION_NAME" \
+          --statuses SUCCEEDED \
           --region "${{ env.AWS_REGION }}" \
           --endpoint-url "$LAMBDA_ENDPOINT" \
           --cli-binary-format raw-in-base64-out \
-          --status-filter SUCCEEDED \
           > /tmp/executions.json
         echo "Durable Executions:"
         cat /tmp/executions.json
