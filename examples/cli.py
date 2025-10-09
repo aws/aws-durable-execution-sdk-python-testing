@@ -213,7 +213,7 @@ def bootstrap_account():
     return True
 
 
-def generate_sam_template():
+def generate_sam_template(*, skip_durable_config=False):
     """Generate SAM template for all examples."""
     catalog = load_catalog()
 
@@ -240,24 +240,27 @@ def generate_sam_template():
     }
 
     for example in catalog["examples"]:
-        function_name = example["handler"].replace("_", "").title() + "Function"
+        # Convert handler name to PascalCase (e.g., hello_world -> HelloWorld)
+        handler_base = example["handler"].replace(".handler", "")
+        function_name = "".join(word.capitalize() for word in handler_base.split("_"))
         template["Resources"][function_name] = {
             "Type": "AWS::Serverless::Function",
             "Properties": {
                 "CodeUri": "build/",
-                "Handler": f"{example['handler']}.handler",
+                "Handler": example["handler"],
                 "Description": example["description"],
             },
         }
 
-        if "durableConfig" in example:
+        if not skip_durable_config and "durableConfig" in example:
             template["Resources"][function_name]["Properties"]["DurableConfig"] = (
                 example["durableConfig"]
             )
 
     import yaml
 
-    with open("template.yaml", "w") as f:
+    template_path = Path(__file__).parent / "template.yaml"
+    with open(template_path, "w") as f:
         yaml.dump(template, f, default_flow_style=False, sort_keys=False)
 
     return True
@@ -495,7 +498,14 @@ def main():
     subparsers.add_parser("list", help="List available examples")
 
     # SAM template command
-    subparsers.add_parser("sam", help="Generate SAM template for all examples")
+    sam_parser = subparsers.add_parser(
+        "sam", help="Generate SAM template for all examples"
+    )
+    sam_parser.add_argument(
+        "--skip-durable-config",
+        action="store_true",
+        help="Skip adding DurableConfig properties to functions",
+    )
 
     # Deploy command
     deploy_parser = subparsers.add_parser("deploy", help="Deploy an example")
@@ -533,7 +543,7 @@ def main():
         elif args.command == "list":
             list_examples()
         elif args.command == "sam":
-            generate_sam_template()
+            generate_sam_template(skip_durable_config=args.skip_durable_config)
         elif args.command == "deploy":
             deploy_function(args.example_name, args.function_name)
         elif args.command == "invoke":

@@ -7,102 +7,102 @@ Globals:
     MemorySize: 128
     Environment:
       Variables:
-        DEX_ENDPOINT:
+        AWS_ENDPOINT_URL_LAMBDA:
           Ref: LambdaEndpoint
 Parameters:
   LambdaEndpoint:
     Type: String
     Default: https://lambda.us-west-2.amazonaws.com
 Resources:
-  Helloworld.HandlerFunction:
+  HelloWorld:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
-      Handler: hello_world.handler.handler
+      Handler: hello_world.handler
       Description: A simple hello world example with no durable operations
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  Step.HandlerFunction:
+  Step:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
-      Handler: step.handler.handler
+      Handler: step.handler
       Description: Basic usage of context.step() to checkpoint a simple operation
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  Stepwithname.HandlerFunction:
+  StepWithName:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
-      Handler: step_with_name.handler.handler
+      Handler: step_with_name.handler
       Description: Step operation with explicit name parameter
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  Stepwithretry.HandlerFunction:
+  StepWithRetry:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
-      Handler: step_with_retry.handler.handler
+      Handler: step_with_retry.handler
       Description: Usage of context.step() with retry configuration for fault tolerance
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  Wait.HandlerFunction:
+  Wait:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
-      Handler: wait.handler.handler
+      Handler: wait.handler
       Description: Basic usage of context.wait() to pause execution
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  Callback.HandlerFunction:
+  Callback:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
-      Handler: callback.handler.handler
+      Handler: callback.handler
       Description: Basic usage of context.create_callback() to create a callback for
         external systems
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  Waitforcallback.HandlerFunction:
+  WaitForCallback:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
-      Handler: wait_for_callback.handler.handler
+      Handler: wait_for_callback.handler
       Description: Usage of context.wait_for_callback() to wait for external system
         responses
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  Runinchildcontext.HandlerFunction:
+  RunInChildContext:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
-      Handler: run_in_child_context.handler.handler
+      Handler: run_in_child_context.handler
       Description: Usage of context.run_in_child_context() to execute operations in
         isolated contexts
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  Parallel.HandlerFunction:
+  Parallel:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
-      Handler: parallel.handler.handler
+      Handler: parallel.handler
       Description: Executing multiple durable operations in parallel
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  Mapoperations.HandlerFunction:
+  MapOperations:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
-      Handler: map_operations.handler.handler
+      Handler: map_operations.handler
       Description: Processing collections using map-like durable operations
       DurableConfig:
         RetentionPeriodInDays: 7
