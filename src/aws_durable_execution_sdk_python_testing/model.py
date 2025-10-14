@@ -131,11 +131,11 @@ class GetDurableExecutionResponse:
     durable_execution_name: str
     function_arn: str
     status: str
-    start_timestamp: str
+    start_timestamp: float
     input_payload: str | None = None
     result: str | None = None
     error: ErrorObject | None = None
-    end_timestamp: str | None = None
+    end_timestamp: float | None = None
     version: str | None = None
 
     @classmethod
@@ -188,8 +188,8 @@ class Execution:
     durable_execution_name: str
     function_arn: str
     status: str
-    start_timestamp: str
-    end_timestamp: str | None = None
+    start_timestamp: float
+    end_timestamp: float | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> Execution:
@@ -325,7 +325,7 @@ class StopDurableExecutionRequest:
 class StopDurableExecutionResponse:
     """Response from stopping a durable execution."""
 
-    stop_date: str
+    stop_date: float
 
     @classmethod
     def from_dict(cls, data: dict) -> StopDurableExecutionResponse:

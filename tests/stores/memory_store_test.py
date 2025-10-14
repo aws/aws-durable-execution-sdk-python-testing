@@ -1,4 +1,4 @@
-"""Tests for store module."""
+"""Tests for InMemoryExecutionStore."""
 
 from unittest.mock import Mock
 
@@ -6,7 +6,9 @@ import pytest
 
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
-from aws_durable_execution_sdk_python_testing.store import InMemoryExecutionStore
+from aws_durable_execution_sdk_python_testing.stores.memory import (
+    InMemoryExecutionStore,
+)
 
 
 def test_in_memory_execution_store_save_and_load():

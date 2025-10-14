@@ -1,0 +1,28 @@
+"""In-memory execution store implementation."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from aws_durable_execution_sdk_python_testing.execution import Execution
+
+
+class InMemoryExecutionStore:
+    """Dict-based storage for testing."""
+
+    def __init__(self) -> None:
+        self._store: dict[str, Execution] = {}
+
+    def save(self, execution: Execution) -> None:
+        self._store[execution.durable_execution_arn] = execution
+
+    def load(self, execution_arn: str) -> Execution:
+        return self._store[execution_arn]
+
+    def update(self, execution: Execution) -> None:
+        self._store[execution.durable_execution_arn] = execution
+
+    def list_all(self) -> list[Execution]:
+        return list(self._store.values())
