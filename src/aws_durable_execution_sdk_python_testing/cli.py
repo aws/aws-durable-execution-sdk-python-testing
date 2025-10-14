@@ -31,7 +31,7 @@ from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
 )
 from aws_durable_execution_sdk_python_testing.runner import WebRunner, WebRunnerConfig
-from aws_durable_execution_sdk_python_testing.stores import StoreType
+from aws_durable_execution_sdk_python_testing.stores.base import StoreType
 from aws_durable_execution_sdk_python_testing.web.server import WebServiceConfig
 
 
@@ -52,7 +52,7 @@ class CliConfig:
     local_runner_mode: str = "local"
 
     # Store configuration
-    store_type: str = "memory"
+    store_type: StoreType = StoreType.MEMORY
     store_path: str | None = None
 
     @classmethod
@@ -74,7 +74,7 @@ class CliConfig:
             ),
             local_runner_region=os.getenv("AWS_DEX_LOCAL_RUNNER_REGION", "us-west-2"),
             local_runner_mode=os.getenv("AWS_DEX_LOCAL_RUNNER_MODE", "local"),
-            store_type=os.getenv("AWS_DEX_STORE_TYPE", "memory"),
+            store_type=StoreType(os.getenv("AWS_DEX_STORE_TYPE", "memory")),
             store_path=os.getenv("AWS_DEX_STORE_PATH"),
         )
 
@@ -198,8 +198,8 @@ class CliApp:
         start_server_parser.add_argument(
             "--store-type",
             choices=[store_type.value for store_type in StoreType],
-            default=self.config.store_type,
-            help=f"Store type for execution persistence (default: {self.config.store_type}, env: AWS_DEX_STORE_TYPE)",
+            default=self.config.store_type.value,
+            help=f"Store type for execution persistence (default: {self.config.store_type.value}, env: AWS_DEX_STORE_TYPE)",
         )
         start_server_parser.add_argument(
             "--store-path",
@@ -276,7 +276,7 @@ class CliApp:
                 local_runner_endpoint=args.local_runner_endpoint,
                 local_runner_region=args.local_runner_region,
                 local_runner_mode=args.local_runner_mode,
-                store_type=args.store_type,
+                store_type=StoreType(args.store_type),
                 store_path=args.store_path,
             )
 
@@ -294,7 +294,7 @@ class CliApp:
             logger.info("  Local Runner Region: %s", args.local_runner_region)
             logger.info("  Local Runner Mode: %s", args.local_runner_mode)
             logger.info("  Store Type: %s", args.store_type)
-            if args.store_type == "filesystem":
+            if StoreType(args.store_type) == StoreType.FILESYSTEM:
                 store_path = args.store_path or ".durable_executions"
                 logger.info("  Store Path: %s", store_path)
 

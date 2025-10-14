@@ -48,9 +48,14 @@ from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionOutput,
 )
 from aws_durable_execution_sdk_python_testing.scheduler import Scheduler
-from aws_durable_execution_sdk_python_testing.stores import (
+from aws_durable_execution_sdk_python_testing.stores.base import (
     ExecutionStore,
+    StoreType,
+)
+from aws_durable_execution_sdk_python_testing.stores.filesystem import (
     FileSystemExecutionStore,
+)
+from aws_durable_execution_sdk_python_testing.stores.memory import (
     InMemoryExecutionStore,
 )
 from aws_durable_execution_sdk_python_testing.web.server import WebServer
@@ -88,7 +93,7 @@ class WebRunnerConfig:
     local_runner_mode: str = "local"
 
     # Store configuration
-    store_type: str = "memory"  # "memory" or "filesystem"
+    store_type: StoreType = StoreType.MEMORY
     store_path: str | None = None  # Path for filesystem store
 
 
@@ -589,7 +594,7 @@ class WebRunner:
             raise DurableFunctionsLocalRunnerError(msg)
 
         # Create dependencies and server
-        if self._config.store_type == "filesystem":
+        if self._config.store_type == StoreType.FILESYSTEM:
             store_path = self._config.store_path or ".durable_executions"
             self._store = FileSystemExecutionStore.create(store_path)
         else:

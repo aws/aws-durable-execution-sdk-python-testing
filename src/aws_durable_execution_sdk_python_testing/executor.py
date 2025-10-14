@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
     from aws_durable_execution_sdk_python_testing.invoker import Invoker
     from aws_durable_execution_sdk_python_testing.scheduler import Event, Scheduler
-    from aws_durable_execution_sdk_python_testing.stores import ExecutionStore
+    from aws_durable_execution_sdk_python_testing.stores.base import ExecutionStore
 
 logger = logging.getLogger(__name__)
 
