@@ -42,6 +42,7 @@ from aws_durable_execution_sdk_python_testing.web.models import (
     HTTPResponse,
 )
 from aws_durable_execution_sdk_python_testing.web.routes import (
+    BytesPayloadRoute,
     CallbackFailureRoute,
     CallbackHeartbeatRoute,
     CallbackSuccessRoute,
@@ -120,15 +121,25 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.rfile.read(content_length) if content_length > 0 else b""
             )
 
-            # Create strongly-typed HTTP request object with pre-parsed body
-            request: HTTPRequest = HTTPRequest.from_bytes(
-                body_bytes=body_bytes,
-                operation_name=None,  # Could be enhanced to map routes to AWS operation names
-                method=method,
-                path=parsed_route,
-                headers=dict(self.headers),
-                query_params=query_params,
-            )
+            # For callback operations, use raw bytes directly
+            if isinstance(parsed_route, BytesPayloadRoute):
+                request = HTTPRequest.from_raw_bytes(
+                    body_bytes=body_bytes,
+                    method=method,
+                    path=parsed_route,
+                    headers=dict(self.headers),
+                    query_params=query_params,
+                )
+            else:
+                # Create strongly-typed HTTP request object with pre-parsed body
+                request = HTTPRequest.from_bytes(
+                    body_bytes=body_bytes,
+                    operation_name=None,
+                    method=method,
+                    path=parsed_route,
+                    headers=dict(self.headers),
+                    query_params=query_params,
+                )
 
             # Handle request with appropriate handler
             response: HTTPResponse = handler.handle(parsed_route, request)

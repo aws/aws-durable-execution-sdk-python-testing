@@ -798,32 +798,38 @@ def test_send_durable_execution_callback_success_response_creation():
 
 def test_send_durable_execution_callback_failure_request_serialization():
     """Test SendDurableExecutionCallbackFailureRequest from_dict/to_dict round-trip."""
-    data = {
-        "CallbackId": "callback-123",
-        "Error": {"ErrorMessage": "callback failed"},
-    }
+    data = {"ErrorMessage": "callback failed"}
 
-    request_obj = SendDurableExecutionCallbackFailureRequest.from_dict(data)
+    request_obj = SendDurableExecutionCallbackFailureRequest.from_dict(
+        data, "callback-123"
+    )
     assert request_obj.callback_id == "callback-123"
     assert request_obj.error.message == "callback failed"
 
     result_data = request_obj.to_dict()
-    assert result_data == data
+    expected_data = {
+        "CallbackId": "callback-123",
+        "Error": {"ErrorMessage": "callback failed"},
+    }
+    assert result_data == expected_data
 
     # Test round-trip
-    round_trip = SendDurableExecutionCallbackFailureRequest.from_dict(result_data)
+    round_trip = SendDurableExecutionCallbackFailureRequest.from_dict(
+        result_data.get("Error", {}), result_data["CallbackId"]
+    )
     assert round_trip == request_obj
 
 
 def test_send_durable_execution_callback_failure_request_minimal():
     """Test SendDurableExecutionCallbackFailureRequest with only required fields."""
-    data = {"CallbackId": "callback-123"}
 
-    request_obj = SendDurableExecutionCallbackFailureRequest.from_dict(data)
+    request_obj = SendDurableExecutionCallbackFailureRequest.from_dict(
+        {}, "callback-123"
+    )
     assert request_obj.error is None
 
     result_data = request_obj.to_dict()
-    assert result_data == data
+    assert result_data == {"CallbackId": "callback-123"}
 
 
 def test_send_durable_execution_callback_failure_response_creation():

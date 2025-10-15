@@ -401,7 +401,12 @@ class ListDurableExecutionsByFunctionRoute(Route):
 
 
 @dataclass(frozen=True)
-class CallbackSuccessRoute(Route):
+class BytesPayloadRoute(Route):
+    """Base class for routes that handle raw bytes payloads instead of JSON."""
+
+
+@dataclass(frozen=True)
+class CallbackSuccessRoute(BytesPayloadRoute):
     """Route: POST /2025-12-01/durable-execution-callbacks/{callback_id}/succeed"""
 
     callback_id: str
@@ -444,7 +449,7 @@ class CallbackSuccessRoute(Route):
 
 
 @dataclass(frozen=True)
-class CallbackFailureRoute(Route):
+class CallbackFailureRoute(BytesPayloadRoute):
     """Route: POST /2025-12-01/durable-execution-callbacks/{callback_id}/fail"""
 
     callback_id: str

@@ -22,7 +22,6 @@ from aws_durable_execution_sdk_python_testing.web.models import (
     HTTPRequest,
     HTTPResponse,
     OperationHandler,
-    parse_json_body,
 )
 from aws_durable_execution_sdk_python_testing.web.routes import Route
 
@@ -78,53 +77,6 @@ def test_http_response_immutable() -> None:
     # Should not be able to modify fields
     with pytest.raises(AttributeError):
         response.status_code = 404  # type: ignore
-
-
-def test_parse_json_body_valid_json() -> None:
-    """Test parsing valid JSON from request body."""
-    test_data = {"key": "value", "number": 42}
-
-    path = Route.from_string("/test")
-    request = HTTPRequest(
-        method="POST",
-        path=path,
-        headers={"Content-Type": "application/json"},
-        query_params={},
-        body=test_data,
-    )
-
-    result = parse_json_body(request)
-    assert result == test_data
-
-
-def test_parse_json_body_empty_body() -> None:
-    """Test parsing JSON from empty request body raises ValueError."""
-    path = Route.from_string("/test")
-    request = HTTPRequest(
-        method="POST", path=path, headers={}, query_params={}, body={}
-    )
-
-    with pytest.raises(
-        InvalidParameterValueException, match="Request body is required"
-    ):
-        parse_json_body(request)
-
-
-def test_parse_json_body_with_dict_body() -> None:
-    """Test that parse_json_body now just returns the dict body directly."""
-    test_data = {"key": "value", "number": 42}
-    path = Route.from_string("/test")
-    request = HTTPRequest(
-        method="POST",
-        path=path,
-        headers={"Content-Type": "application/json"},
-        query_params={},
-        body=test_data,
-    )
-
-    result = parse_json_body(request)
-    assert result == test_data
-    assert result is request.body  # Should return the same dict object
 
 
 def test_http_response_json_basic() -> None:
@@ -418,6 +370,7 @@ def test_http_request_from_bytes_preserves_field_names() -> None:
     request = HTTPRequest.from_bytes(body_bytes=body_bytes)
 
     # Field names should be preserved as-is
+    assert isinstance(request.body, dict)
     assert "ExecutionName" in request.body
     assert "FunctionName" in request.body
     assert request.body["ExecutionName"] == "test-execution"

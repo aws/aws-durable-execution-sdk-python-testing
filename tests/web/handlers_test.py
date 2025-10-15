@@ -1957,13 +1957,13 @@ def test_send_durable_execution_callback_success_handler():
     assert isinstance(route, CallbackSuccessRoute)
     assert route.callback_id == "test-callback-id"
 
-    # Test with valid request body
+    # Test with valid request body (bytes for callback operations)
     request = HTTPRequest(
         method="POST",
         path=route,
         headers={"Content-Type": "application/json"},
         query_params={},
-        body={"CallbackId": "test-callback-id", "Result": "success-result"},
+        body=b"success-result",
     )
 
     response = handler.handle(route, request)
@@ -1974,33 +1974,40 @@ def test_send_durable_execution_callback_success_handler():
 
     # Verify executor was called with correct parameters
     executor.send_callback_success.assert_called_once_with(
-        callback_id="test-callback-id", result="success-result"
+        callback_id="test-callback-id", result=b"success-result"
     )
 
 
 def test_send_durable_execution_callback_success_handler_empty_body():
     """Test SendDurableExecutionCallbackSuccessHandler with empty body."""
     executor = Mock()
+    executor.send_callback_success.return_value = (
+        SendDurableExecutionCallbackSuccessResponse()
+    )
     handler = SendDurableExecutionCallbackSuccessHandler(executor)
+
+    base_route = Route.from_string(
+        "/2025-12-01/durable-execution-callbacks/test-id/succeed"
+    )
+    callback_route = CallbackSuccessRoute.from_route(base_route)
 
     request = HTTPRequest(
         method="POST",
-        path=Route.from_string(
-            "/2025-12-01/durable-execution-callbacks/test-id/succeed"
-        ),
+        path=callback_route,
         headers={},
         query_params={},
-        body={},
+        body=b"",
     )
 
-    response = handler.handle(
-        Route.from_string("/2025-12-01/durable-execution-callbacks/test-id/succeed"),
-        request,
+    response = handler.handle(callback_route, request)
+    # Handler should accept empty body (Result is optional) and return 200
+    assert response.status_code == 200
+    assert response.body == {}
+
+    # Verify executor was called with empty result
+    executor.send_callback_success.assert_called_once_with(
+        callback_id="test-id", result=b""
     )
-    # Handler returns 400 for empty body with AWS-compliant format
-    assert response.status_code == 400
-    assert response.body["Type"] == "InvalidParameterValueException"
-    assert "Request body is required" in response.body["message"]
 
 
 def test_send_durable_execution_callback_failure_handler():
@@ -2032,7 +2039,7 @@ def test_send_durable_execution_callback_failure_handler():
         path=route,
         headers={"Content-Type": "application/json"},
         query_params={},
-        body={"CallbackId": "test-callback-id", "Error": error_data},
+        body=error_data,  # Pass error data directly as body
     )
     response = handler.handle(route, request)
 
@@ -2152,18 +2159,20 @@ def test_send_durable_execution_callback_failure_handler_empty_body():
     executor = Mock()
     handler = SendDurableExecutionCallbackFailureHandler(executor)
 
+    base_route = Route.from_string(
+        "/2025-12-01/durable-execution-callbacks/test-id/fail"
+    )
+    callback_route = CallbackFailureRoute.from_route(base_route)
+
     request = HTTPRequest(
         method="POST",
-        path=Route.from_string("/2025-12-01/durable-execution-callbacks/test-id/fail"),
+        path=callback_route,
         headers={},
         query_params={},
         body={},
     )
 
-    response = handler.handle(
-        Route.from_string("/2025-12-01/durable-execution-callbacks/test-id/fail"),
-        request,
-    )
+    response = handler.handle(callback_route, request)
     # Handler returns 400 for empty body with AWS-compliant format
     assert response.status_code == 400
     assert response.body["Type"] == "InvalidParameterValueException"
@@ -2533,7 +2542,7 @@ def test_callback_handlers_use_dataclass_serialization():
     }
 
     failure_request = SendDurableExecutionCallbackFailureRequest.from_dict(
-        {"CallbackId": "test-id"}
+        {}, "test-id"
     )
     assert failure_request.callback_id == "test-id"
     assert failure_request.error is None

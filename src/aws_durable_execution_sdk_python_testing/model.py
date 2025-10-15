@@ -1386,13 +1386,13 @@ class SendDurableExecutionCallbackFailureRequest:
     error: ErrorObject | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> SendDurableExecutionCallbackFailureRequest:
-        error = None
-        if error_data := data.get("Error"):
-            error = ErrorObject.from_dict(error_data)
+    def from_dict(
+        cls, data: dict, callback_id: str
+    ) -> SendDurableExecutionCallbackFailureRequest:
+        error = ErrorObject.from_dict(data) if data else None
 
         return cls(
-            callback_id=data["CallbackId"],
+            callback_id=callback_id,
             error=error,
         )
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, cast
@@ -27,7 +28,6 @@ from aws_durable_execution_sdk_python_testing.model import (
     SendDurableExecutionCallbackFailureResponse,
     SendDurableExecutionCallbackHeartbeatRequest,
     SendDurableExecutionCallbackHeartbeatResponse,
-    SendDurableExecutionCallbackSuccessRequest,
     SendDurableExecutionCallbackSuccessResponse,
     StartDurableExecutionInput,
     StartDurableExecutionOutput,
@@ -37,7 +37,6 @@ from aws_durable_execution_sdk_python_testing.model import (
 from aws_durable_execution_sdk_python_testing.web.models import (
     HTTPRequest,
     HTTPResponse,
-    parse_json_body,
 )
 from aws_durable_execution_sdk_python_testing.web.routes import (
     CallbackFailureRoute,
@@ -92,9 +91,21 @@ class EndpointHandler(ABC):
             dict: The parsed JSON data
 
         Raises:
-            ValueError: If the request body is empty or invalid JSON
+            InvalidParameterValueException: If the request body is empty or invalid JSON
         """
-        return parse_json_body(request)
+        if not request.body:
+            msg = "Request body is required"
+            raise InvalidParameterValueException(msg)
+
+        # Handle both dict and bytes body types
+        if isinstance(request.body, dict):
+            return request.body
+
+        try:
+            return json.loads(request.body.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            msg = f"Invalid JSON in request body: {e}"
+            raise InvalidParameterValueException(msg) from e
 
     def _json_response(
         self,
@@ -631,18 +642,22 @@ class SendDurableExecutionCallbackSuccessHandler(EndpointHandler):
             HTTPResponse: The HTTP response to send to the client
         """
         try:
-            body_data: dict[str, Any] = self._parse_json_body(request)
-            callback_request: SendDurableExecutionCallbackSuccessRequest = (
-                SendDurableExecutionCallbackSuccessRequest.from_dict(body_data)
-            )
-
             callback_route = cast(CallbackSuccessRoute, parsed_route)
             callback_id: str = callback_route.callback_id
 
+            # For binary payload operations, body is raw bytes
+            result_bytes = request.body if isinstance(request.body, bytes) else b""
+
             callback_response: SendDurableExecutionCallbackSuccessResponse = (  # noqa: F841
                 self.executor.send_callback_success(
-                    callback_id=callback_id, result=callback_request.result
+                    callback_id=callback_id, result=result_bytes
                 )
+            )
+
+            logger.debug(
+                "Callback %s succeeded with result: %s",
+                callback_id,
+                result_bytes.decode("utf-8", errors="replace"),
             )
 
             # Callback success response is empty
@@ -672,18 +687,24 @@ class SendDurableExecutionCallbackFailureHandler(EndpointHandler):
             HTTPResponse: The HTTP response to send to the client
         """
         try:
-            body_data: dict[str, Any] = self._parse_json_body(request)
-            callback_request: SendDurableExecutionCallbackFailureRequest = (
-                SendDurableExecutionCallbackFailureRequest.from_dict(body_data)
-            )
-
             callback_route = cast(CallbackFailureRoute, parsed_route)
             callback_id: str = callback_route.callback_id
+
+            body_data: dict[str, Any] = self._parse_json_body(request)
+            callback_request: SendDurableExecutionCallbackFailureRequest = (
+                SendDurableExecutionCallbackFailureRequest.from_dict(
+                    body_data, callback_id
+                )
+            )
 
             callback_response: SendDurableExecutionCallbackFailureResponse = (  # noqa: F841
                 self.executor.send_callback_failure(
                     callback_id=callback_id, error=callback_request.error
                 )
+            )
+
+            logger.debug(
+                "Callback %s failed with error: %s", callback_id, callback_request.error
             )
 
             # Callback failure response is empty

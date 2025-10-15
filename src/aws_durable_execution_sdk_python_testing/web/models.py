@@ -25,13 +25,38 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class HTTPRequest:
-    """HTTP request data model with dict body for handler logic."""
+    """HTTP request data model with dict or bytes body for handler logic."""
 
     method: str
     path: Route
     headers: dict[str, str]
     query_params: dict[str, list[str]]
-    body: dict[str, Any]
+    body: dict[str, Any] | bytes
+
+    @classmethod
+    def from_raw_bytes(
+        cls,
+        body_bytes: bytes,
+        method: str = "POST",
+        path: Route | None = None,
+        headers: dict[str, str] | None = None,
+        query_params: dict[str, list[str]] | None = None,
+    ) -> HTTPRequest:
+        """Create HTTPRequest with raw bytes body (no parsing)."""
+        if headers is None:
+            headers = {}
+        if query_params is None:
+            query_params = {}
+        if path is None:
+            path = Route.from_string("")
+
+        return cls(
+            method=method,
+            path=path,
+            headers=headers,
+            query_params=query_params,
+            body=body_bytes,
+        )
 
     @classmethod
     def from_bytes(
@@ -269,22 +294,3 @@ class OperationHandler(Protocol):
             HTTPResponse: The HTTP response to send to the client
         """
         ...  # pragma: no cover
-
-
-def parse_json_body(request: HTTPRequest) -> dict[str, Any]:
-    """Parse JSON body from HTTP request.
-
-    Args:
-        request: The HTTP request containing the dict body
-
-    Returns:
-        dict: The parsed JSON data (now just returns the body directly)
-
-    Raises:
-        ValueError: If the request body is empty
-    """
-    if not request.body:
-        msg = "Request body is required"
-        raise InvalidParameterValueException(msg)
-
-    return request.body
