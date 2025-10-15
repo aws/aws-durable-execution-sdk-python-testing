@@ -325,14 +325,14 @@ class StopDurableExecutionRequest:
 class StopDurableExecutionResponse:
     """Response from stopping a durable execution."""
 
-    stop_date: float
+    end_timestamp: float
 
     @classmethod
     def from_dict(cls, data: dict) -> StopDurableExecutionResponse:
-        return cls(stop_date=data["StopDate"])
+        return cls(end_timestamp=data["EndTimestamp"])
 
     def to_dict(self) -> dict[str, Any]:
-        return {"StopDate": self.stop_date}
+        return {"EndTimestamp": self.end_timestamp}
 
 
 @dataclass(frozen=True)

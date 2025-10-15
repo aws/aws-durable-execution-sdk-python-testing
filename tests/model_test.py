@@ -317,8 +317,8 @@ def test_durable_execution_summary_serialization():
     assert round_trip == summary_obj
 
 
-def test_durable_execution_summary_no_stop_date():
-    """Test Execution without stop date."""
+def test_durable_execution_summary_no_end_timestamp():
+    """Test Execution without end timestamp."""
     data = {
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
         "DurableExecutionName": "test-execution",
@@ -421,10 +421,10 @@ def test_stop_durable_execution_request_minimal():
 
 def test_stop_durable_execution_response_serialization():
     """Test StopDurableExecutionResponse from_dict/to_dict round-trip."""
-    data = {"StopDate": "2023-01-01T00:01:00Z"}
+    data = {"EndTimestamp": "2023-01-01T00:01:00Z"}
 
     response_obj = StopDurableExecutionResponse.from_dict(data)
-    assert response_obj.stop_date == "2023-01-01T00:01:00Z"
+    assert response_obj.end_timestamp == "2023-01-01T00:01:00Z"
 
     result_data = response_obj.to_dict()
     assert result_data == data

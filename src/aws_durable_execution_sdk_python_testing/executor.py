@@ -312,7 +312,7 @@ class Executor(ExecutionObserver):
             error: Optional error to use when stopping the execution
 
         Returns:
-            StopDurableExecutionResponse: Response containing stop date
+            StopDurableExecutionResponse: Response containing end timestamp
 
         Raises:
             ResourceNotFoundException: If execution does not exist
@@ -333,7 +333,7 @@ class Executor(ExecutionObserver):
         # Stop the execution
         self.fail_execution(execution_arn, stop_error)
 
-        return StopDurableExecutionResponse(stop_date=datetime.now(UTC).timestamp())
+        return StopDurableExecutionResponse(end_timestamp=datetime.now(UTC).timestamp())
 
     def get_execution_state(
         self,

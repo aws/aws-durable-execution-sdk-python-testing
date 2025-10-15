@@ -1860,7 +1860,7 @@ def test_stop_execution(executor, mock_store):
 
     mock_store.load.assert_called_once_with("test-arn")
     mock_fail.assert_called_once()
-    assert result.stop_date is not None
+    assert result.end_timestamp is not None
 
 
 def test_stop_execution_already_complete(executor, mock_store):
