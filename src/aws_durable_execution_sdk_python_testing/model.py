@@ -19,6 +19,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
     StepOptions,
     WaitOptions,
 )
+from aws_durable_execution_sdk_python.types import (
+    LambdaContext as LambdaContextProtocol,
+)
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     InvalidParameterValueException,
@@ -26,7 +29,7 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
 
 
 @dataclass(frozen=True)
-class LambdaContext:
+class LambdaContext(LambdaContextProtocol):
     """Lambda context for testing."""
 
     aws_request_id: str

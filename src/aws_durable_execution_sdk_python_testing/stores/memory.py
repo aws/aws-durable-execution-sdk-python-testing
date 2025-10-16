@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from threading import Lock
 from typing import TYPE_CHECKING
 
 
@@ -14,15 +15,20 @@ class InMemoryExecutionStore:
 
     def __init__(self) -> None:
         self._store: dict[str, Execution] = {}
+        self._lock: Lock = Lock()
 
     def save(self, execution: Execution) -> None:
-        self._store[execution.durable_execution_arn] = execution
+        with self._lock:
+            self._store[execution.durable_execution_arn] = execution
 
     def load(self, execution_arn: str) -> Execution:
-        return self._store[execution_arn]
+        with self._lock:
+            return self._store[execution_arn]
 
     def update(self, execution: Execution) -> None:
-        self._store[execution.durable_execution_arn] = execution
+        with self._lock:
+            self._store[execution.durable_execution_arn] = execution
 
     def list_all(self) -> list[Execution]:
-        return list(self._store.values())
+        with self._lock:
+            return list(self._store.values())

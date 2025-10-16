@@ -76,7 +76,8 @@ def test_filesystem_execution_store_update(store, sample_execution):
     store.save(sample_execution)
 
     sample_execution.is_complete = True
-    sample_execution.token_sequence = 5
+    for _ in range(5):
+        sample_execution.get_new_checkpoint_token()
     store.update(sample_execution)
 
     loaded_execution = store.load(sample_execution.durable_execution_arn)
@@ -97,7 +98,8 @@ def test_filesystem_execution_store_update_overwrites(store, temp_storage_dir):
     execution1 = Execution.new(input_data)
     execution2 = Execution.new(input_data)
     execution2.durable_execution_arn = execution1.durable_execution_arn
-    execution2.token_sequence = 10
+    for _ in range(10):
+        execution2.get_new_checkpoint_token()
 
     store.save(execution1)
     store.update(execution2)
