@@ -88,16 +88,21 @@ jobs:
         echo "Deploying ${{ matrix.example.name }} as $FUNCTION_NAME"
         hatch run examples:deploy "${{ matrix.example.name }}" --function-name "$FUNCTION_NAME"
         
-        # Store function name for later steps
+        # $LATEST is also a qualified version        
+        QUALIFIED_FUNCTION_NAME="$FUNCTION_NAME:\$LATEST"
+        
+        # Store both names for later steps
         echo "FUNCTION_NAME=$FUNCTION_NAME" >> $GITHUB_ENV
+        echo "QUALIFIED_FUNCTION_NAME=$QUALIFIED_FUNCTION_NAME" >> $GITHUB_ENV
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
 
     - name: Invoke Lambda function - ${{ matrix.example.name }}
       env:
         LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
       run: |
-        echo "Testing function: $FUNCTION_NAME"
+        echo "Testing qualified function: $QUALIFIED_FUNCTION_NAME"
         aws lambda invoke \
-          --function-name "$FUNCTION_NAME" \
+          --function-name "$QUALIFIED_FUNCTION_NAME" \
           --cli-binary-format raw-in-base64-out \
           --payload '{"name": "World"}' \
           --region "${{ env.AWS_REGION }}" \
@@ -127,9 +132,9 @@ jobs:
       env:
         LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
       run: |
-        echo "Listing durable executions for function: $FUNCTION_NAME"
+        echo "Listing durable executions for qualified function: $QUALIFIED_FUNCTION_NAME"
         aws lambda list-durable-executions-by-function \
-          --function-name "$FUNCTION_NAME" \
+          --function-name "$QUALIFIED_FUNCTION_NAME" \
           --statuses SUCCEEDED \
           --region "${{ env.AWS_REGION }}" \
           --endpoint-url "$LAMBDA_ENDPOINT" \
