@@ -11,7 +11,11 @@ from aws_durable_execution_sdk_python.execution import (
     DurableExecutionInvocationOutput,
     InvocationStatus,
 )
-from aws_durable_execution_sdk_python.lambda_service import ErrorObject, OperationUpdate
+from aws_durable_execution_sdk_python.lambda_service import (
+    ErrorObject,
+    Operation,
+    OperationUpdate,
+)
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     ExecutionAlreadyStartedException,
@@ -33,6 +37,7 @@ from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
     StartDurableExecutionOutput,
     StopDurableExecutionResponse,
+    TERMINAL_STATUSES,
 )
 from aws_durable_execution_sdk_python_testing.model import (
     Event as HistoryEvent,
@@ -54,8 +59,8 @@ logger = logging.getLogger(__name__)
 
 
 class Executor(ExecutionObserver):
-    MAX_CONSECUTIVE_FAILED_ATTEMPTS = 5
-    RETRY_BACKOFF_SECONDS = 5
+    MAX_CONSECUTIVE_FAILED_ATTEMPTS: int = 5
+    RETRY_BACKOFF_SECONDS: int = 5
 
     def __init__(self, store: ExecutionStore, scheduler: Scheduler, invoker: Invoker):
         self._store = store
@@ -393,20 +398,18 @@ class Executor(ExecutionObserver):
     def get_execution_history(
         self,
         execution_arn: str,
-        include_execution_data: bool = False,  # noqa: FBT001, FBT002, ARG002
-        reverse_order: bool = False,  # noqa: FBT001, FBT002, ARG002
+        include_execution_data: bool = False,  # noqa: FBT001, FBT002
+        reverse_order: bool = False,  # noqa: FBT001, FBT002
         marker: str | None = None,
         max_items: int | None = None,
     ) -> GetDurableExecutionHistoryResponse:
         """Get execution history with events.
 
-        TODO: incomplete
-
         Args:
             execution_arn: The execution ARN
             include_execution_data: Whether to include execution data in events
             reverse_order: Return events in reverse chronological order
-            marker: Pagination marker
+            marker: Pagination marker (event_id)
             max_items: Maximum items to return
 
         Returns:
@@ -415,30 +418,79 @@ class Executor(ExecutionObserver):
         Raises:
             ResourceNotFoundException: If execution does not exist
         """
-        execution = self.get_execution(execution_arn)  # noqa: F841
+        execution: Execution = self.get_execution(execution_arn)
 
-        # Convert operations to events
-        # This is a simplified implementation - real implementation would need
-        # to generate proper event history from operations
-        events: list[HistoryEvent] = []
+        # Generate events
+        all_events: list[HistoryEvent] = []
+        event_id: int = 1
+        ops: list[Operation] = execution.operations
+        for op in ops:
+            if op.start_timestamp is not None:
+                started = HistoryEvent.from_operation_started(
+                    op, event_id, include_execution_data
+                )
+                all_events.append(started)
+                event_id += 1
+            if op.end_timestamp is not None and op.status in TERMINAL_STATUSES:
+                finished = HistoryEvent.from_operation_finished(
+                    op, event_id, include_execution_data
+                )
+                all_events.append(finished)
+                event_id += 1
 
-        # Apply pagination
+        # Apply cursor-based pagination
         if max_items is None:
             max_items = 100
 
-        start_index = 0
+        # Handle pagination marker
+        start_index: int = 0
         if marker:
             try:
-                start_index = int(marker)
+                marker_event_id: int = int(marker)
+                # Find the index of the first event with event_id >= marker
+                start_index = len(all_events)
+                for i, e in enumerate(all_events):
+                    if e.event_id >= marker_event_id:
+                        start_index = i
+                        break
             except ValueError:
                 start_index = 0
 
-        end_index = start_index + max_items
-        paginated_events = events[start_index:end_index]
+        # Apply reverse order after pagination setup
+        if reverse_order:
+            all_events.reverse()
+            # Adjust start_index for reversed order
+            if marker:
+                try:
+                    marker_event_id = int(marker)
+                    # In reverse order, we want events with event_id < marker
+                    start_index = len(all_events)
+                    for i, e in enumerate(all_events):
+                        if e.event_id < marker_event_id:
+                            start_index = i
+                            break
+                except ValueError:
+                    start_index = 0
 
-        next_marker = None
-        if end_index < len(events):
-            next_marker = str(end_index)
+        # Get paginated events
+        end_index: int = start_index + max_items
+        paginated_events: list[HistoryEvent] = all_events[start_index:end_index]
+
+        # Generate next marker
+        next_marker: str | None = None
+        if end_index < len(all_events):
+            if reverse_order:
+                # Next marker is the event_id of the last returned event
+                next_marker = (
+                    str(paginated_events[-1].event_id) if paginated_events else None
+                )
+            else:
+                # Next marker is the event_id of the next event after the last returned
+                next_marker = (
+                    str(all_events[end_index].event_id)
+                    if end_index < len(all_events)
+                    else None
+                )
 
         return GetDurableExecutionHistoryResponse(
             events=paginated_events, next_marker=next_marker
