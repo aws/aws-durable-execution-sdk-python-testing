@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 import boto3  # type: ignore
@@ -11,11 +10,11 @@ from aws_durable_execution_sdk_python.execution import (
     DurableExecutionInvocationOutput,
     InitialExecutionState,
 )
-from aws_durable_execution_sdk_python.lambda_context import LambdaContext
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
 )
+from aws_durable_execution_sdk_python_testing.model import LambdaContext
 
 
 if TYPE_CHECKING:
@@ -46,12 +45,9 @@ def create_test_lambda_context() -> LambdaContext:
     }
 
     return LambdaContext(
-        invoke_id="test-invoke-12345",
+        aws_request_id="test-invoke-12345",
         client_context=client_context_dict,
-        cognito_identity=cognito_identity_dict,
-        epoch_deadline_time_in_ms=int(
-            (time.time() + 900) * 1000
-        ),  # 15 minutes from now
+        identity=cognito_identity_dict,
         invoked_function_arn="arn:aws:lambda:us-west-2:123456789012:function:test-function",
         tenant_id="test-tenant-789",
     )

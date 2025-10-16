@@ -25,6 +25,48 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
 )
 
 
+@dataclass(frozen=True)
+class LambdaContext:
+    """Lambda context for testing."""
+
+    aws_request_id: str
+    log_group_name: str | None = None
+    log_stream_name: str | None = None
+    function_name: str | None = None
+    memory_limit_in_mb: str | None = None
+    function_version: str | None = None
+    invoked_function_arn: str | None = None
+    tenant_id: str | None = None
+    client_context: dict | None = None
+    identity: dict | None = None
+
+    def get_remaining_time_in_millis(self) -> int:
+        return 900000  # 15 minutes default
+
+    def log(self, msg) -> None:
+        pass  # No-op for testing
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]):
+        required_fields = ["aws_request_id"]
+        for field in required_fields:
+            if field not in data:
+                msg: str = f"Missing required field: {field}"
+                raise InvalidParameterValueException(msg)
+        return cls(
+            aws_request_id=data["aws_request_id"],
+            log_group_name=data.get("log_group_name"),
+            log_stream_name=data.get("log_stream_name"),
+            function_name=data.get("function_name"),
+            memory_limit_in_mb=data.get("memory_limit_in_mb"),
+            function_version=data.get("function_version"),
+            invoked_function_arn=data.get("invoked_function_arn"),
+            tenant_id=data.get("tenant_id"),
+            client_context=data.get("client_context"),
+            identity=data.get("identity"),
+        )
+
+
 # Web API specific models (not in Smithy but needed for web interface)
 @dataclass(frozen=True)
 class StartDurableExecutionInput:
