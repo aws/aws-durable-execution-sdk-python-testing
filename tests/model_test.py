@@ -6,6 +6,10 @@ import datetime
 
 import pytest
 
+from aws_durable_execution_sdk_python.lambda_service import (
+    OperationStatus,
+    OperationType,
+)
 from aws_durable_execution_sdk_python_testing.exceptions import (
     InvalidParameterValueException,
 )
@@ -63,6 +67,7 @@ from aws_durable_execution_sdk_python_testing.model import (
     WaitCancelledDetails,
     WaitStartedDetails,
     WaitSucceededDetails,
+    events_to_operations,
 )
 
 
@@ -1848,17 +1853,10 @@ def test_step_failed_details_with_error_only():
 def test_invoke_started_details_serialization():
     """Test ChainedInvokeStartedDetails from_dict/to_dict round-trip."""
     data = {
-        "Input": {"Payload": "invoke-input", "Truncated": False},
-        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:target-function",
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
     }
 
     details = ChainedInvokeStartedDetails.from_dict(data)
-    assert details.input.payload == "invoke-input"
-    assert (
-        details.function_arn
-        == "arn:aws:lambda:us-east-1:123456789012:function:target-function"
-    )
     assert (
         details.durable_execution_arn
         == "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test"
@@ -1873,8 +1871,6 @@ def test_invoke_started_details_minimal():
     data = {}
 
     details = ChainedInvokeStartedDetails.from_dict(data)
-    assert details.input is None
-    assert details.function_arn is None
     assert details.durable_execution_arn is None
 
     result_data = details.to_dict()
@@ -1883,21 +1879,9 @@ def test_invoke_started_details_minimal():
 
 def test_invoke_started_details_partial():
     """Test ChainedInvokeStartedDetails with partial data."""
-    data = {
-        "Input": {"Payload": "invoke-input", "Truncated": False},
-        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:target-function",
-    }
-
+    data = {}
     details = ChainedInvokeStartedDetails.from_dict(data)
-    assert details.input.payload == "invoke-input"
-    assert (
-        details.function_arn
-        == "arn:aws:lambda:us-east-1:123456789012:function:target-function"
-    )
     assert details.durable_execution_arn is None
-
-    result_data = details.to_dict()
-    assert result_data == data
 
 
 # Tests for ChainedInvokeSucceededDetails
@@ -2504,15 +2488,13 @@ def test_event_with_invoke_started_details():
         "EventType": "ChainedInvokeStarted",
         "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ChainedInvokeStartedDetails": {
-            "Input": {"Payload": "invoke input", "Truncated": False},
-            "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:target",
+            "DurableExecutionArn": "arn:aws:durable-execution:us-east-1:123456789012:execution:my-execution:1234567890",
         },
     }
 
     event_obj = Event.from_dict(data)
     assert event_obj.event_type == "ChainedInvokeStarted"
     assert event_obj.chained_invoke_started_details is not None
-    assert event_obj.chained_invoke_started_details.input.payload == "invoke input"
 
     result_data = event_obj.to_dict()
     expected_data = {
@@ -2520,8 +2502,7 @@ def test_event_with_invoke_started_details():
         "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ChainedInvokeStartedDetails": {
-            "Input": {"Payload": "invoke input", "Truncated": False},
-            "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:target",
+            "DurableExecutionArn": "arn:aws:durable-execution:us-east-1:123456789012:execution:my-execution:1234567890",
         },
     }
     assert result_data == expected_data
@@ -2955,20 +2936,6 @@ def test_events_to_operations_empty_list():
 
 def test_events_to_operations_execution_started():
     """Test events_to_operations with ExecutionStarted event."""
-    import datetime
-
-    from aws_durable_execution_sdk_python.lambda_service import (
-        OperationStatus,
-        OperationType,
-    )
-
-    from aws_durable_execution_sdk_python_testing.model import (
-        Event,
-        EventInput,
-        ExecutionStartedDetails,
-        events_to_operations,
-    )
-
     event = Event(
         event_type="ExecutionStarted",
         event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
@@ -2990,20 +2957,6 @@ def test_events_to_operations_execution_started():
 
 def test_events_to_operations_callback_lifecycle():
     """Test events_to_operations with complete callback lifecycle."""
-    import datetime
-
-    from aws_durable_execution_sdk_python.lambda_service import (
-        OperationStatus,
-        OperationType,
-    )
-
-    from aws_durable_execution_sdk_python_testing.model import (
-        CallbackStartedDetails,
-        CallbackSucceededDetails,
-        Event,
-        EventResult,
-        events_to_operations,
-    )
 
     started_event = Event(
         event_type="CallbackStarted",
@@ -3036,57 +2989,42 @@ def test_events_to_operations_callback_lifecycle():
 
 def test_events_to_operations_missing_event_type():
     """Test events_to_operations raises error for missing event_type."""
-    import datetime
-
-    from aws_durable_execution_sdk_python_testing.model import (
-        Event,
-        events_to_operations,
-    )
-
     event = Event(
         event_type=None,
         event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
     )
 
-    with pytest.raises(ValueError, match="Missing required 'event_type' field"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Missing required 'event_type' field"
+    ):
         events_to_operations([event])
 
 
 def test_events_to_operations_unknown_event_type():
     """Test events_to_operations raises error for unknown event type."""
-    import datetime
-
-    from aws_durable_execution_sdk_python_testing.model import (
-        Event,
-        events_to_operations,
-    )
-
     event = Event(
         event_type="UnknownEventType",
         event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
         operation_id="op-1",
     )
 
-    with pytest.raises(ValueError, match="Unknown event type: UnknownEventType"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Unknown event type: UnknownEventType"
+    ):
         events_to_operations([event])
 
 
 def test_events_to_operations_missing_operation_id():
     """Test events_to_operations raises error for missing operation_id."""
-    import datetime
-
-    from aws_durable_execution_sdk_python_testing.model import (
-        Event,
-        events_to_operations,
-    )
-
     event = Event(
         event_type="StepStarted",
         event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
         operation_id=None,
     )
 
-    with pytest.raises(ValueError, match="Missing required 'operation_id' field"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Missing required 'operation_id' field"
+    ):
         events_to_operations([event])
 
 
@@ -3243,13 +3181,6 @@ def test_events_to_operations_chained_invoke_succeeded():
 
 def test_events_to_operations_skips_invocation_completed():
     """Test events_to_operations skips InvocationCompleted events."""
-    import datetime
-
-    from aws_durable_execution_sdk_python_testing.model import (
-        Event,
-        events_to_operations,
-    )
-
     invocation_event = Event(
         event_type="InvocationCompleted",
         event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
@@ -3550,13 +3481,6 @@ def test_events_to_operations_merges_timestamps():
 
 def test_events_to_operations_preserves_parent_id():
     """Test events_to_operations preserves parent_id from events."""
-    import datetime
-
-    from aws_durable_execution_sdk_python_testing.model import (
-        Event,
-        events_to_operations,
-    )
-
     event = Event(
         event_type="StepStarted",
         event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
@@ -3573,13 +3497,6 @@ def test_events_to_operations_preserves_parent_id():
 
 def test_events_to_operations_preserves_sub_type():
     """Test events_to_operations preserves sub_type from events."""
-    import datetime
-
-    from aws_durable_execution_sdk_python_testing.model import (
-        Event,
-        events_to_operations,
-    )
-
     event = Event(
         event_type="StepStarted",
         event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
@@ -3595,23 +3512,17 @@ def test_events_to_operations_preserves_sub_type():
 
 
 def test_events_to_operations_invalid_sub_type():
-    """Test events_to_operations handles invalid sub_type gracefully."""
-    import datetime
-
-    from aws_durable_execution_sdk_python_testing.model import (
-        Event,
-        events_to_operations,
-    )
-
+    """Test events_to_operations raises InvalidParameterValueException when sub_type is invalid."""
+    invalid_sub_type: str = "INVALID_SUB_TYPE"
     event = Event(
         event_type="StepStarted",
         event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
         operation_id="step-1",
-        sub_type="INVALID_SUB_TYPE",
+        sub_type=invalid_sub_type,
     )
 
-    operations = events_to_operations([event])
-
-    assert len(operations) == 1
-    # Invalid sub_type should be ignored (set to None)
-    assert operations[0].sub_type is None
+    with pytest.raises(
+        InvalidParameterValueException,
+        match=f"'{invalid_sub_type}' is not a valid OperationSubType",
+    ):
+        events_to_operations([event])

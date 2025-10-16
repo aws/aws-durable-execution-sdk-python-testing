@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import datetime
 from dataclasses import dataclass, replace
+from enum import Enum
 from typing import Any
+
+from dateutil.tz import UTC
+
+from aws_durable_execution_sdk_python.execution import DurableExecutionInvocationOutput
 
 # Import existing types from the main SDK - REUSE EVERYTHING POSSIBLE
 from aws_durable_execution_sdk_python.lambda_service import (
@@ -36,6 +41,43 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
 )
 
 
+class EventType(Enum):
+    """Event types for durable execution events."""
+
+    EXECUTION_STARTED = "ExecutionStarted"
+    EXECUTION_SUCCEEDED = "ExecutionSucceeded"
+    EXECUTION_FAILED = "ExecutionFailed"
+    EXECUTION_TIMED_OUT = "ExecutionTimedOut"
+    EXECUTION_STOPPED = "ExecutionStopped"
+    CONTEXT_STARTED = "ContextStarted"
+    CONTEXT_SUCCEEDED = "ContextSucceeded"
+    CONTEXT_FAILED = "ContextFailed"
+    WAIT_STARTED = "WaitStarted"
+    WAIT_SUCCEEDED = "WaitSucceeded"
+    WAIT_CANCELLED = "WaitCancelled"
+    STEP_STARTED = "StepStarted"
+    STEP_SUCCEEDED = "StepSucceeded"
+    STEP_FAILED = "StepFailed"
+    CHAINED_INVOKE_STARTED = "ChainedInvokeStarted"
+    CHAINED_INVOKE_SUCCEEDED = "ChainedInvokeSucceeded"
+    CHAINED_INVOKE_FAILED = "ChainedInvokeFailed"
+    CHAINED_INVOKE_TIMED_OUT = "ChainedInvokeTimedOut"
+    CHAINED_INVOKE_STOPPED = "ChainedInvokeStopped"
+    CALLBACK_STARTED = "CallbackStarted"
+    CALLBACK_SUCCEEDED = "CallbackSucceeded"
+    CALLBACK_FAILED = "CallbackFailed"
+    CALLBACK_TIMED_OUT = "CallbackTimedOut"
+
+
+TERMINAL_STATUSES: set[OperationStatus] = {
+    OperationStatus.SUCCEEDED,
+    OperationStatus.FAILED,
+    OperationStatus.TIMED_OUT,
+    OperationStatus.STOPPED,
+    OperationStatus.CANCELLED,
+}
+
+
 @dataclass(frozen=True)
 class LambdaContext(LambdaContextProtocol):
     """Lambda context for testing."""
@@ -58,6 +100,7 @@ class LambdaContext(LambdaContextProtocol):
         pass  # No-op for testing
 
 
+# region web_api_models
 # Web API specific models (not in Smithy but needed for web interface)
 @dataclass(frozen=True)
 class StartDurableExecutionInput:
@@ -141,6 +184,10 @@ class StartDurableExecutionOutput:
         return result
 
 
+# endregion web_api_models
+
+
+# region smithy_api_models
 # Smithy-based API models
 @dataclass(frozen=True)
 class GetDurableExecutionRequest:
@@ -424,6 +471,10 @@ class GetDurableExecutionStateResponse:
         return result
 
 
+# endregion smithy_api_models
+
+
+# region event_structures
 # Event-related structures from Smithy model
 @dataclass(frozen=True)
 class EventInput:
@@ -445,6 +496,27 @@ class EventInput:
             result["Payload"] = self.payload
         return result
 
+    @classmethod
+    def from_details(
+        cls,
+        details: ExecutionDetails,
+        include: bool = False,  # noqa: FBT001, FBT002
+    ) -> EventInput:
+        details_input: str | None = details.input_payload if details else None
+        payload: str | None = details_input if include else None
+        truncated: bool = not include
+        return cls(payload=payload, truncated=truncated)
+
+    @classmethod
+    def from_start_durable_execution_input(
+        cls,
+        start_durable_execution_input: StartDurableExecutionInput,
+        include: bool = False,  # noqa: FBT001, FBT002
+    ) -> EventInput:
+        input: str | None = start_durable_execution_input.input
+        truncated: bool = not include
+        return cls(input, truncated)
+
 
 @dataclass(frozen=True)
 class EventResult:
@@ -465,6 +537,26 @@ class EventResult:
         if self.payload is not None:
             result["Payload"] = self.payload
         return result
+
+    @classmethod
+    def from_details(
+        cls,
+        details: CallbackDetails | StepDetails | ChainedInvokeDetails | ContextDetails,
+        include: bool = False,  # noqa: FBT001, FBT002
+    ) -> EventResult:
+        details_result: str | None = details.result if details else None
+        payload: str | None = details_result if include else None
+        truncated: bool = not include
+        return cls(payload=payload, truncated=truncated)
+
+    @classmethod
+    def from_durable_execution_invocation_output(
+        cls,
+        durable_execution_invocation_output: DurableExecutionInvocationOutput,
+        include: bool = False,  # noqa: FBT001, FBT002
+    ) -> EventResult:
+        truncated: bool = not include
+        return cls(durable_execution_invocation_output.result, truncated)
 
 
 @dataclass(frozen=True)
@@ -490,6 +582,25 @@ class EventError:
         if self.payload is not None:
             result["Payload"] = self.payload.to_dict()
         return result
+
+    @classmethod
+    def from_details(
+        cls,
+        details: CallbackDetails | StepDetails | ChainedInvokeDetails | ContextDetails,
+        include: bool = False,  # noqa: FBT001, FBT002
+    ) -> EventError:
+        error_object: ErrorObject | None = details.error if details else None
+        truncated: bool = not include
+        return cls(error_object, truncated)
+
+    @classmethod
+    def from_durable_execution_invocation_output(
+        cls,
+        durable_execution_invocation_output: DurableExecutionInvocationOutput,
+        include: bool = False,  # noqa: FBT001, FBT002
+    ) -> EventError:
+        truncated: bool = not include
+        return cls(durable_execution_invocation_output.error, truncated)
 
 
 @dataclass(frozen=True)
@@ -809,31 +920,46 @@ class StepFailedDetails:
 
 
 @dataclass(frozen=True)
-class ChainedInvokeStartedDetails:
-    """Invoke started event details."""
+class ChainedInvokePendingDetails:
+    """Chained Invoke Pending event details."""
 
     input: EventInput | None = None
-    function_arn: str | None = None
-    durable_execution_arn: str | None = None
+    function_name: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> ChainedInvokeStartedDetails:
+    def from_dict(cls, data: dict) -> ChainedInvokePendingDetails:
         input_data = None
         if input_dict := data.get("Input"):
             input_data = EventInput.from_dict(input_dict)
 
         return cls(
             input=input_data,
-            function_arn=data.get("FunctionArn"),
-            durable_execution_arn=data.get("DurableExecutionArn"),
+            function_name=data.get("FunctionName"),
         )
 
     def to_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {}
         if self.input is not None:
             result["Input"] = self.input.to_dict()
-        if self.function_arn is not None:
-            result["FunctionArn"] = self.function_arn
+        if self.function_name is not None:
+            result["FunctionName"] = self.function_name
+        return result
+
+
+@dataclass(frozen=True)
+class ChainedInvokeStartedDetails:
+    """Chained invoke started event details."""
+
+    durable_execution_arn: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> ChainedInvokeStartedDetails:
+        return cls(
+            durable_execution_arn=data.get("DurableExecutionArn"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {}
         if self.durable_execution_arn is not None:
             result["DurableExecutionArn"] = self.durable_execution_arn
         return result
@@ -841,7 +967,7 @@ class ChainedInvokeStartedDetails:
 
 @dataclass(frozen=True)
 class ChainedInvokeSucceededDetails:
-    """Invoke succeeded event details."""
+    """Chained invoke succeeded event details."""
 
     result: EventResult | None = None
 
@@ -862,7 +988,7 @@ class ChainedInvokeSucceededDetails:
 
 @dataclass(frozen=True)
 class ChainedInvokeFailedDetails:
-    """Invoke failed event details."""
+    """Chained invoke failed event details."""
 
     error: EventError | None = None
 
@@ -883,7 +1009,7 @@ class ChainedInvokeFailedDetails:
 
 @dataclass(frozen=True)
 class ChainedInvokeTimedOutDetails:
-    """Invoke timed out event details."""
+    """Chained invoke timed out event details."""
 
     error: EventError | None = None
 
@@ -904,7 +1030,7 @@ class ChainedInvokeTimedOutDetails:
 
 @dataclass(frozen=True)
 class ChainedInvokeStoppedDetails:
-    """Invoke stopped event details."""
+    """Chained invoke stopped event details."""
 
     error: EventError | None = None
 
@@ -1013,6 +1139,78 @@ class CallbackTimedOutDetails:
         return result
 
 
+# endregion event_structures
+
+
+@dataclass(frozen=True)
+class EventCreationContext:
+    operation: Operation
+    event_id: int
+    durable_execution_arn: str
+    start_durable_execution_input: StartDurableExecutionInput
+    durable_execution_invocation_output: DurableExecutionInvocationOutput | None = None
+    operation_update: OperationUpdate | None = None
+    include_execution_data: bool = False  # noqa: FBT001, FBT002
+
+    @classmethod
+    def create(
+        cls,
+        operation: Operation,
+        event_id: int,
+        durable_execution_arn: str,
+        start_input: StartDurableExecutionInput,
+        result: DurableExecutionInvocationOutput | None = None,
+        operation_update: OperationUpdate | None = None,
+        include_execution_data: bool = False,  # noqa: FBT001, FBT002
+    ) -> EventCreationContext:
+        return cls(
+            operation=operation,
+            event_id=event_id,
+            durable_execution_arn=durable_execution_arn,
+            start_durable_execution_input=start_input,
+            durable_execution_invocation_output=result,
+            operation_update=operation_update,
+            include_execution_data=include_execution_data,
+        )
+
+    @property
+    def sub_type(self) -> str | None:
+        return self.operation.sub_type.value if self.operation.sub_type else None
+
+    def get_retry_details(self) -> RetryDetails | None:
+        if not self.operation.step_details or not self.operation_update:
+            return None
+
+        delay = 0
+        if (
+            self.operation_update.operation_type == OperationType.STEP
+            and self.operation_update.step_options
+        ):
+            delay = self.operation_update.step_options.next_attempt_delay_seconds
+
+        return RetryDetails(
+            current_attempt=self.operation.step_details.attempt,
+            next_attempt_delay_seconds=delay,
+        )
+
+    @property
+    def start_timestamp(self) -> datetime.datetime:
+        return (
+            self.operation.start_timestamp
+            if self.operation.start_timestamp is not None
+            else datetime.datetime.now(UTC)
+        )
+
+    @property
+    def end_timestamp(self) -> datetime.datetime:
+        return (
+            self.operation.end_timestamp
+            if self.operation.end_timestamp is not None
+            else datetime.datetime.now(UTC)
+        )
+
+
+# region event_class
 @dataclass(frozen=True)
 class Event:
     """Event structure from Smithy model."""
@@ -1038,6 +1236,7 @@ class Event:
     step_started_details: StepStartedDetails | None = None
     step_succeeded_details: StepSucceededDetails | None = None
     step_failed_details: StepFailedDetails | None = None
+    chained_invoke_pending_details: ChainedInvokePendingDetails | None = None
     chained_invoke_started_details: ChainedInvokeStartedDetails | None = None
     chained_invoke_succeeded_details: ChainedInvokeSucceededDetails | None = None
     chained_invoke_failed_details: ChainedInvokeFailedDetails | None = None
@@ -1111,6 +1310,12 @@ class Event:
         if details_data := data.get("StepFailedDetails"):
             step_failed_details = StepFailedDetails.from_dict(details_data)
 
+        chained_invoke_pending_details = None
+        if details_data := data.get("ChainedInvokePendingDetails"):
+            chained_invoke_pending_details = ChainedInvokePendingDetails.from_dict(
+                details_data
+            )
+
         chained_invoke_started_details = None
         if details_data := data.get("ChainedInvokeStartedDetails"):
             chained_invoke_started_details = ChainedInvokeStartedDetails.from_dict(
@@ -1181,6 +1386,7 @@ class Event:
             step_started_details=step_started_details,
             step_succeeded_details=step_succeeded_details,
             step_failed_details=step_failed_details,
+            chained_invoke_pending_details=chained_invoke_pending_details,
             chained_invoke_started_details=chained_invoke_started_details,
             chained_invoke_succeeded_details=chained_invoke_succeeded_details,
             chained_invoke_failed_details=chained_invoke_failed_details,
@@ -1238,6 +1444,10 @@ class Event:
             result["StepSucceededDetails"] = self.step_succeeded_details.to_dict()
         if self.step_failed_details is not None:
             result["StepFailedDetails"] = self.step_failed_details.to_dict()
+        if self.chained_invoke_pending_details is not None:
+            result["ChainedInvokePendingDetails"] = (
+                self.chained_invoke_pending_details.to_dict()
+            )
         if self.chained_invoke_started_details is not None:
             result["ChainedInvokeStartedDetails"] = (
                 self.chained_invoke_started_details.to_dict()
@@ -1272,7 +1482,702 @@ class Event:
             )
         return result
 
+    # region execution
+    @classmethod
+    def create_execution_event_started(cls, context: EventCreationContext) -> Event:
+        execution_details: ExecutionDetails | None = context.operation.execution_details
+        event_input: EventInput | None = (
+            EventInput.from_details(execution_details, context.include_execution_data)
+            if execution_details
+            else None
+        )
+        execution_timeout: int | None = (
+            context.start_durable_execution_input.execution_timeout_seconds
+        )
 
+        return cls(
+            event_type=EventType.EXECUTION_STARTED.value,
+            event_timestamp=context.start_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            execution_started_details=ExecutionStartedDetails(
+                input=event_input,
+                execution_timeout=execution_timeout,
+            ),
+        )
+
+    @classmethod
+    def create_execution_event_succeeded(cls, context: EventCreationContext) -> Event:
+        result: EventResult | None = (
+            EventResult.from_durable_execution_invocation_output(
+                context.durable_execution_invocation_output,
+                context.include_execution_data,
+            )
+            if context.durable_execution_invocation_output
+            else None
+        )
+        return cls(
+            event_type=EventType.EXECUTION_SUCCEEDED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            execution_succeeded_details=ExecutionSucceededDetails(result=result),
+        )
+
+    @classmethod
+    def create_execution_event_failed(cls, context: EventCreationContext) -> Event:
+        error: EventError | None = (
+            EventError.from_durable_execution_invocation_output(
+                context.durable_execution_invocation_output,
+                include=context.include_execution_data,
+            )
+            if context.durable_execution_invocation_output
+            else None
+        )
+        return cls(
+            event_type=EventType.EXECUTION_FAILED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            execution_failed_details=ExecutionFailedDetails(error=error),
+        )
+
+    @classmethod
+    def create_execution_event_timed_out(cls, context: EventCreationContext) -> Event:
+        error: EventError | None = (
+            EventError.from_durable_execution_invocation_output(
+                context.durable_execution_invocation_output,
+                include=context.include_execution_data,
+            )
+            if context.durable_execution_invocation_output
+            else None
+        )
+        return cls(
+            event_type=EventType.EXECUTION_TIMED_OUT.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            execution_timed_out_details=ExecutionTimedOutDetails(error=error),
+        )
+
+    @classmethod
+    def create_execution_event_stopped(cls, context: EventCreationContext) -> Event:
+        error: EventError | None = (
+            EventError.from_durable_execution_invocation_output(
+                context.durable_execution_invocation_output,
+                include=context.include_execution_data,
+            )
+            if context.durable_execution_invocation_output
+            else None
+        )
+        return cls(
+            event_type=EventType.EXECUTION_STOPPED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            execution_stopped_details=ExecutionStoppedDetails(error=error),
+        )
+
+    @classmethod
+    def create_execution_event(cls, context: EventCreationContext) -> Event:
+        """Create execution event based on action."""
+        match context.operation.status:
+            case OperationStatus.STARTED:
+                return cls.create_execution_event_started(context)
+            case OperationStatus.SUCCEEDED:
+                return cls.create_execution_event_succeeded(context)
+            case OperationStatus.FAILED:
+                return cls.create_execution_event_failed(context)
+            case OperationStatus.TIMED_OUT:
+                return cls.create_execution_event_timed_out(context)
+            case OperationStatus.STOPPED:
+                return cls.create_execution_event_stopped(context)
+            case _:
+                msg = f"Operation status {context.operation.status} is not valid for execution operations. Valid statuses are: STARTED, SUCCEEDED, FAILED, TIMED_OUT, STOPPED"
+                raise InvalidParameterValueException(msg)
+
+    # endregion execution
+
+    # region context
+    @classmethod
+    def create_context_event_started(cls, context: EventCreationContext) -> Event:
+        return cls(
+            event_type=EventType.CONTEXT_STARTED.value,
+            event_timestamp=context.start_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            context_started_details=ContextStartedDetails(),
+        )
+
+    @classmethod
+    def create_context_event_succeeded(cls, context: EventCreationContext) -> Event:
+        context_details: ContextDetails | None = context.operation.context_details
+        event_result: EventResult | None = (
+            EventResult.from_details(context_details, context.include_execution_data)
+            if context_details
+            else None
+        )
+        return cls(
+            event_type=EventType.CONTEXT_SUCCEEDED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            context_succeeded_details=ContextSucceededDetails(result=event_result),
+        )
+
+    @classmethod
+    def create_context_event_failed(cls, context: EventCreationContext) -> Event:
+        context_details: ContextDetails | None = context.operation.context_details
+        event_error: EventError | None = (
+            EventError.from_details(context_details) if context_details else None
+        )
+        return cls(
+            event_type=EventType.CONTEXT_FAILED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            context_failed_details=ContextFailedDetails(error=event_error),
+        )
+
+    @classmethod
+    def create_context_event(cls, context: EventCreationContext) -> Event:
+        """Create context event based on action."""
+        match context.operation.status:
+            case OperationStatus.STARTED:
+                return cls.create_context_event_started(context)
+            case OperationStatus.SUCCEEDED:
+                return cls.create_context_event_succeeded(context)
+            case OperationStatus.FAILED:
+                return cls.create_context_event_failed(context)
+            case _:
+                msg = (
+                    f"Operation status {context.operation.status} is not valid for context operations. "
+                    f"Valid statuses are: STARTED, SUCCEEDED, FAILED"
+                )
+                raise InvalidParameterValueException(msg)
+
+    # endregion context
+
+    # region wait
+    @classmethod
+    def create_wait_event_started(cls, context: EventCreationContext) -> Event:
+        wait_details: WaitDetails | None = context.operation.wait_details
+        scheduled_end_timestamp: datetime.datetime | None = (
+            wait_details.scheduled_end_timestamp if wait_details else None
+        )
+        duration: int | None = None
+        if (
+            wait_details
+            and wait_details.scheduled_end_timestamp
+            and context.operation.start_timestamp
+        ):
+            duration = int(
+                (
+                    wait_details.scheduled_end_timestamp
+                    - context.operation.start_timestamp
+                ).total_seconds()
+            )
+        return cls(
+            event_type=EventType.WAIT_STARTED.value,
+            event_timestamp=context.start_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            wait_started_details=WaitStartedDetails(
+                duration=duration,
+                scheduled_end_timestamp=scheduled_end_timestamp,
+            ),
+        )
+
+    @classmethod
+    def create_wait_event_succeeded(cls, context: EventCreationContext) -> Event:
+        wait_details: WaitDetails | None = context.operation.wait_details
+        duration: int | None = None
+        if (
+            wait_details
+            and wait_details.scheduled_end_timestamp
+            and context.operation.start_timestamp
+        ):
+            duration = int(
+                (
+                    wait_details.scheduled_end_timestamp - context.start_timestamp
+                ).total_seconds()
+            )
+        return cls(
+            event_type=EventType.WAIT_SUCCEEDED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            wait_succeeded_details=WaitSucceededDetails(duration=duration),
+        )
+
+    @classmethod
+    def create_wait_event_cancelled(cls, context: EventCreationContext) -> Event:
+        error: EventError | None = None
+        if (
+            context.operation_update
+            and context.operation_update.operation_type == OperationType.WAIT
+            and context.operation_update.action == OperationAction.CANCEL
+        ):
+            error = EventError(
+                context.operation_update.error, not context.include_execution_data
+            )
+        return cls(
+            event_type=EventType.WAIT_CANCELLED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            wait_cancelled_details=WaitCancelledDetails(error=error),
+        )
+
+    @classmethod
+    def create_wait_event(cls, context: EventCreationContext) -> Event:
+        """Create wait event based on action."""
+        match context.operation.status:
+            case OperationStatus.STARTED:
+                return cls.create_wait_event_started(context)
+            case OperationStatus.SUCCEEDED:
+                return cls.create_wait_event_succeeded(context)
+            case OperationStatus.CANCELLED:
+                return cls.create_wait_event_cancelled(context)
+            case _:
+                msg = (
+                    f"Operation status {context.operation.status} is not valid for wait operations. "
+                    f"Valid statuses are: STARTED, SUCCEEDED, CANCELLED"
+                )
+                raise InvalidParameterValueException(msg)
+
+    # endregion wait
+
+    # region step
+    @classmethod
+    def create_step_event_started(cls, context: EventCreationContext) -> Event:
+        return cls(
+            event_type=EventType.STEP_STARTED.value,
+            event_timestamp=context.start_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            step_started_details=StepStartedDetails(),
+        )
+
+    @classmethod
+    def create_step_event_succeeded(cls, context: EventCreationContext) -> Event:
+        step_details: StepDetails | None = context.operation.step_details
+        event_result: EventResult | None = (
+            EventResult.from_details(step_details, context.include_execution_data)
+            if step_details
+            else None
+        )
+        return cls(
+            event_type=EventType.STEP_SUCCEEDED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            step_succeeded_details=StepSucceededDetails(
+                result=event_result,
+                retry_details=context.get_retry_details(),
+            ),
+        )
+
+    @classmethod
+    def create_step_event_failed(cls, context: EventCreationContext) -> Event:
+        step_details: StepDetails | None = context.operation.step_details
+        event_error: EventError | None = (
+            EventError.from_details(
+                step_details, include=context.include_execution_data
+            )
+            if step_details
+            else None
+        )
+        return cls(
+            event_type=EventType.STEP_FAILED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            step_failed_details=StepFailedDetails(
+                error=event_error,
+                retry_details=context.get_retry_details(),
+            ),
+        )
+
+    @classmethod
+    def create_step_event(cls, context: EventCreationContext) -> Event:
+        """Create step event based on action."""
+        match context.operation.status:
+            case OperationStatus.STARTED:
+                return cls.create_step_event_started(context)
+            case OperationStatus.SUCCEEDED:
+                return cls.create_step_event_succeeded(context)
+            case OperationStatus.FAILED:
+                return cls.create_step_event_failed(context)
+            case _:
+                msg = (
+                    f"Operation status {context.operation.status} is not valid for step operations. "
+                    f"Valid statuses are: STARTED, SUCCEEDED, FAILED"
+                )
+                raise InvalidParameterValueException(msg)
+
+    # endregion step
+
+    # region chained_invoke
+    @classmethod
+    def create_chained_invoke_event_pending(
+        cls, context: EventCreationContext
+    ) -> Event:
+        input: EventInput = EventInput.from_start_durable_execution_input(
+            context.start_durable_execution_input, context.include_execution_data
+        )
+        return cls(
+            event_type=EventType.CHAINED_INVOKE_STARTED.value,
+            event_timestamp=context.start_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            chained_invoke_pending_details=ChainedInvokePendingDetails(
+                input=input,
+                function_name=context.start_durable_execution_input.function_name,
+            ),
+        )
+
+    @classmethod
+    def create_chained_invoke_event_started(
+        cls, context: EventCreationContext
+    ) -> Event:
+        return cls(
+            event_type=EventType.CHAINED_INVOKE_STARTED.value,
+            event_timestamp=context.start_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            chained_invoke_started_details=ChainedInvokeStartedDetails(
+                durable_execution_arn=context.durable_execution_arn
+            ),
+        )
+
+    @classmethod
+    def create_chained_invoke_event_succeeded(
+        cls, context: EventCreationContext
+    ) -> Event:
+        chained_invoke_details: ChainedInvokeDetails | None = (
+            context.operation.chained_invoke_details
+        )
+        event_result: EventResult | None = (
+            EventResult.from_details(
+                chained_invoke_details, context.include_execution_data
+            )
+            if chained_invoke_details
+            else None
+        )
+        return cls(
+            event_type=EventType.CHAINED_INVOKE_SUCCEEDED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            chained_invoke_succeeded_details=ChainedInvokeSucceededDetails(
+                result=event_result
+            ),
+        )
+
+    @classmethod
+    def create_chained_invoke_event_failed(cls, context: EventCreationContext) -> Event:
+        chained_invoke_details: ChainedInvokeDetails | None = (
+            context.operation.chained_invoke_details
+        )
+        event_error: EventError | None = (
+            EventError.from_details(
+                chained_invoke_details, include=context.include_execution_data
+            )
+            if chained_invoke_details
+            else None
+        )
+        return cls(
+            event_type=EventType.CHAINED_INVOKE_FAILED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            chained_invoke_failed_details=ChainedInvokeFailedDetails(error=event_error),
+        )
+
+    @classmethod
+    def create_chained_invoke_event_timed_out(
+        cls, context: EventCreationContext
+    ) -> Event:
+        chained_invoke_details: ChainedInvokeDetails | None = (
+            context.operation.chained_invoke_details
+        )
+        event_error: EventError | None = (
+            EventError.from_details(
+                chained_invoke_details, include=context.include_execution_data
+            )
+            if chained_invoke_details
+            else None
+        )
+        return cls(
+            event_type=EventType.CHAINED_INVOKE_TIMED_OUT.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            chained_invoke_timed_out_details=ChainedInvokeTimedOutDetails(
+                error=event_error
+            ),
+        )
+
+    @classmethod
+    def create_chained_invoke_event_stopped(
+        cls, context: EventCreationContext
+    ) -> Event:
+        chained_invoke_details: ChainedInvokeDetails | None = (
+            context.operation.chained_invoke_details
+        )
+        event_error: EventError | None = (
+            EventError.from_details(
+                chained_invoke_details, include=context.include_execution_data
+            )
+            if chained_invoke_details
+            else None
+        )
+        return cls(
+            event_type=EventType.CHAINED_INVOKE_STOPPED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            chained_invoke_stopped_details=ChainedInvokeStoppedDetails(
+                error=event_error
+            ),
+        )
+
+    @classmethod
+    def create_chained_invoke_event(cls, context: EventCreationContext) -> Event:
+        """Create chained invoke event based on action."""
+        match context.operation.status:
+            case OperationStatus.PENDING:
+                return cls.create_chained_invoke_event_pending(context)
+            case OperationStatus.STARTED:
+                return cls.create_chained_invoke_event_started(context)
+            case OperationStatus.SUCCEEDED:
+                return cls.create_chained_invoke_event_succeeded(context)
+            case OperationStatus.FAILED:
+                return cls.create_chained_invoke_event_failed(context)
+            case OperationStatus.TIMED_OUT:
+                return cls.create_chained_invoke_event_timed_out(context)
+            case OperationStatus.STOPPED:
+                return cls.create_chained_invoke_event_stopped(context)
+            case _:
+                msg = (
+                    f"Operation status {context.operation.status} is not valid for chained invoke operations. Valid statuses are: "
+                    f"STARTED, SUCCEEDED, FAILED, TIMED_OUT, STOPPED"
+                )
+                raise InvalidParameterValueException(msg)
+
+    # endregion chained_invoke
+
+    # region callback
+    @classmethod
+    def create_callback_event_started(cls, context: EventCreationContext) -> Event:
+        callback_details: CallbackDetails | None = context.operation.callback_details
+        callback_id: str | None = (
+            callback_details.callback_id if callback_details else None
+        )
+        return cls(
+            event_type=EventType.CALLBACK_STARTED.value,
+            event_timestamp=context.start_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            callback_started_details=CallbackStartedDetails(callback_id=callback_id),
+        )
+
+    @classmethod
+    def create_callback_event_succeeded(cls, context: EventCreationContext) -> Event:
+        callback_details: CallbackDetails | None = context.operation.callback_details
+        event_result: EventResult | None = (
+            EventResult.from_details(callback_details, context.include_execution_data)
+            if callback_details
+            else None
+        )
+        return cls(
+            event_type=EventType.CALLBACK_SUCCEEDED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            callback_succeeded_details=CallbackSucceededDetails(result=event_result),
+        )
+
+    @classmethod
+    def create_callback_event_failed(cls, context: EventCreationContext) -> Event:
+        callback_details: CallbackDetails | None = context.operation.callback_details
+        event_error: EventError | None = (
+            EventError.from_details(callback_details) if callback_details else None
+        )
+        return cls(
+            event_type=EventType.CALLBACK_FAILED.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            callback_failed_details=CallbackFailedDetails(error=event_error),
+        )
+
+    @classmethod
+    def create_callback_event_timed_out(cls, context: EventCreationContext) -> Event:
+        callback_details: CallbackDetails | None = context.operation.callback_details
+        event_error: EventError | None = (
+            EventError.from_details(callback_details) if callback_details else None
+        )
+        return cls(
+            event_type=EventType.CALLBACK_TIMED_OUT.value,
+            event_timestamp=context.end_timestamp,
+            sub_type=context.sub_type,
+            event_id=context.event_id,
+            operation_id=context.operation.operation_id,
+            name=context.operation.name,
+            parent_id=context.operation.parent_id,
+            callback_timed_out_details=CallbackTimedOutDetails(error=event_error),
+        )
+
+    @classmethod
+    def create_callback_event(cls, context: EventCreationContext) -> Event:
+        """Create callback event based on action."""
+        match context.operation.status:
+            case OperationStatus.STARTED:
+                return cls.create_callback_event_started(context)
+            case OperationStatus.SUCCEEDED:
+                return cls.create_callback_event_succeeded(context)
+            case OperationStatus.FAILED:
+                return cls.create_callback_event_failed(context)
+            case OperationStatus.TIMED_OUT:
+                return cls.create_callback_event_timed_out(context)
+            case _:
+                msg = (
+                    f"Operation status {context.operation.status} is not valid for callback operations. "
+                    f"Valid statuses are: STARTED, SUCCEEDED, FAILED, TIMED_OUT"
+                )
+                raise InvalidParameterValueException(msg)
+
+    # endregion callback
+
+    @classmethod
+    def create_event_started(cls, context: EventCreationContext) -> Event:
+        """Convert operation to started event."""
+        if context.operation.start_timestamp is None:
+            msg: str = "Operation start timestamp cannot be None when converting to started event"
+            raise InvalidParameterValueException(msg)
+
+        match context.operation.operation_type:
+            case OperationType.EXECUTION:
+                return cls.create_execution_event_started(context)
+            case OperationType.CONTEXT:
+                return cls.create_context_event_started(context)
+            case OperationType.WAIT:
+                return cls.create_wait_event_started(context)
+            case OperationType.STEP:
+                return cls.create_step_event_started(context)
+            case OperationType.CHAINED_INVOKE:
+                return cls.create_chained_invoke_event_started(context)
+            case OperationType.CALLBACK:
+                return cls.create_callback_event_started(context)
+            case _:
+                msg = f"Unknown operation type: {context.operation.operation_type}"
+                raise InvalidParameterValueException(msg)
+
+    @classmethod
+    def create_event_terminated(cls, context: EventCreationContext) -> Event:
+        """Convert operation to finished event."""
+        operation: Operation = context.operation
+        if operation.end_timestamp is None:
+            msg: str = "Operation end timestamp cannot be None when converting to finished event"
+            raise InvalidParameterValueException(msg)
+
+        if operation.status not in TERMINAL_STATUSES:
+            msg = f"Operation status must be one of SUCCEEDED, FAILED, TIMED_OUT, STOPPED, or CANCELLED. Got: {operation.status}"
+            raise InvalidParameterValueException(msg)
+
+        match operation.operation_type:
+            case OperationType.EXECUTION:
+                return cls.create_execution_event(context)
+            case OperationType.CONTEXT:
+                return cls.create_context_event(context)
+            case OperationType.WAIT:
+                return cls.create_wait_event(context)
+            case OperationType.STEP:
+                return cls.create_step_event(context)
+            case OperationType.CHAINED_INVOKE:
+                return cls.create_chained_invoke_event(context)
+            case OperationType.CALLBACK:
+                return cls.create_callback_event(context)
+            case _:
+                msg = f"Unknown operation type: {operation.operation_type}"
+                raise InvalidParameterValueException(msg)
+
+
+# endregion event_class
+
+
+# region history_models
 @dataclass(frozen=True)
 class HistoryEventTypeConfig:
     """Configuration for how to process a specific event type."""
@@ -1477,7 +2382,7 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
         List of operations, one per unique operation ID
 
     Raises:
-        ValueError: When required fields are missing from an event
+        InvalidParameterValueException: When required fields are missing from an event
 
     Note:
         InvocationCompleted events are currently skipped as they don't represent
@@ -1489,7 +2394,7 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
     for event in events:
         if not event.event_type:
             msg = "Missing required 'event_type' field in event"
-            raise ValueError(msg)
+            raise InvalidParameterValueException(msg)
 
         # Get event type configuration
         event_config: HistoryEventTypeConfig | None = HISTORY_EVENT_TYPES.get(
@@ -1497,7 +2402,7 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
         )
         if not event_config:
             msg = f"Unknown event type: {event.event_type}"
-            raise ValueError(msg)
+            raise InvalidParameterValueException(msg)
 
         # TODO: add support for populating invocation information from InvocationCompleted event
         if event.event_type == "InvocationCompleted":
@@ -1505,7 +2410,7 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
 
         if not event.operation_id:
             msg = f"Missing required 'operation_id' field in event {event.event_id}"
-            raise ValueError(msg)
+            raise InvalidParameterValueException(msg)
 
         # Get previous operation if it exists
         previous_operation: Operation | None = operations_map.get(event.operation_id)
@@ -1523,8 +2428,8 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
         if event.sub_type:
             try:
                 sub_type = OperationSubType(event.sub_type)
-            except ValueError:
-                pass
+            except ValueError as e:
+                raise InvalidParameterValueException(str(e)) from e
 
         # Create base operation
         operation = Operation(
@@ -1851,6 +2756,10 @@ class ListDurableExecutionsByFunctionResponse:
         return result
 
 
+# endregion history_models
+
+
+# region callback_models
 # Callback-related models
 @dataclass(frozen=True)
 class SendDurableExecutionCallbackSuccessRequest:
@@ -1927,6 +2836,10 @@ class SendDurableExecutionCallbackHeartbeatResponse:
     """Response from sending callback heartbeat."""
 
 
+# endregion callback_models
+
+
+# region checkpoint_models
 # Checkpoint-related models
 @dataclass(frozen=True)
 class CheckpointUpdatedExecutionState:
@@ -2053,6 +2966,10 @@ class CheckpointDurableExecutionResponse:
         return result
 
 
+# endregion checkpoint_models
+
+
+# region error_models
 # Error response structure for consistent error handling
 @dataclass(frozen=True)
 class ErrorResponse:
@@ -2098,3 +3015,6 @@ class ErrorResponse:
             error_data["requestId"] = self.request_id
 
         return {"error": error_data}
+
+
+# endregion error_models

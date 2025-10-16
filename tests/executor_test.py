@@ -1997,6 +1997,12 @@ def test_get_execution_state_invalid_token(executor, mock_store):
 def test_get_execution_history(executor, mock_store):
     """Test get_execution_history method."""
     mock_execution = Mock()
+    mock_execution.operations = []  # Empty operations list
+    mock_execution.updates = []
+    mock_execution.durable_execution_arn = ""
+    mock_execution.start_input = Mock()
+    mock_execution.result = Mock()
+
     mock_store.load.return_value = mock_execution
 
     result = executor.get_execution_history("test-arn")
@@ -2004,6 +2010,134 @@ def test_get_execution_history(executor, mock_store):
     assert result.events == []
     assert result.next_marker is None
     mock_store.load.assert_called_once_with("test-arn")
+
+
+def test_get_execution_history_with_events(executor, mock_store):
+    """Test get_execution_history with actual events."""
+    from aws_durable_execution_sdk_python.lambda_service import StepDetails
+
+    # Create operations that will generate events
+    op1 = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.STEP,
+        status=OperationStatus.SUCCEEDED,
+        start_timestamp=datetime.now(UTC),
+        end_timestamp=datetime.now(UTC),
+        step_details=StepDetails(result="test_result"),
+    )
+    mock_execution = Mock()
+    mock_execution.operations = [op1]
+    mock_execution.updates = []
+    mock_execution.durable_execution_arn = ""
+    mock_execution.start_input = Mock()
+    mock_execution.result = Mock()
+    mock_store.load.return_value = mock_execution
+
+    result = executor.get_execution_history("test-arn", include_execution_data=True)
+
+    assert len(result.events) == 2  # Started + Succeeded events
+    assert result.events[0].event_type == "StepStarted"
+    assert result.events[1].event_type == "StepSucceeded"
+
+
+def test_get_execution_history_reverse_order(executor, mock_store):
+    """Test get_execution_history with reverse order."""
+    op1 = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.STEP,
+        status=OperationStatus.SUCCEEDED,
+        start_timestamp=datetime.now(UTC),
+        end_timestamp=datetime.now(UTC),
+    )
+
+    mock_execution = Mock()
+    mock_execution.operations = [op1]
+    mock_execution.updates = []
+    mock_execution.durable_execution_arn = ""
+    mock_execution.start_input = Mock()
+    mock_execution.result = Mock()
+    mock_store.load.return_value = mock_execution
+
+    result = executor.get_execution_history("test-arn", reverse_order=True)
+
+    assert len(result.events) == 2
+    # In reverse order, succeeded event should come first
+    assert result.events[0].event_type == "StepSucceeded"
+    assert result.events[1].event_type == "StepStarted"
+
+
+def test_get_execution_history_pagination(executor, mock_store):
+    """Test get_execution_history with pagination."""
+    # Create multiple operations to generate many events
+    operations = []
+    for i in range(3):
+        op = Operation(
+            operation_id=f"op-{i}",
+            operation_type=OperationType.STEP,
+            status=OperationStatus.SUCCEEDED,
+            start_timestamp=datetime.now(UTC),
+            end_timestamp=datetime.now(UTC),
+        )
+        operations.append(op)
+
+    mock_execution = Mock()
+    mock_execution.operations = operations
+    mock_execution.updates = []
+    mock_execution.durable_execution_arn = ""
+    mock_execution.start_input = Mock()
+    mock_execution.result = Mock()
+    mock_store.load.return_value = mock_execution
+
+    # Test with max_items=2
+    result = executor.get_execution_history("test-arn", max_items=2)
+
+    assert len(result.events) == 2
+    assert result.next_marker == "3"  # Next event_id
+
+
+def test_get_execution_history_pagination_with_marker(executor, mock_store):
+    """Test get_execution_history pagination with marker."""
+    operations = []
+    for i in range(3):
+        op = Operation(
+            operation_id=f"op-{i}",
+            operation_type=OperationType.STEP,
+            status=OperationStatus.SUCCEEDED,
+            start_timestamp=datetime.now(UTC),
+            end_timestamp=datetime.now(UTC),
+        )
+        operations.append(op)
+
+    mock_execution = Mock()
+    mock_execution.operations = operations
+    mock_execution.updates = []
+    mock_execution.durable_execution_arn = ""
+    mock_execution.start_input = Mock()
+    mock_execution.result = Mock()
+    mock_store.load.return_value = mock_execution
+
+    # Test with marker (start from event_id 3)
+    result = executor.get_execution_history("test-arn", marker="3", max_items=2)
+
+    assert len(result.events) == 2
+    # Should get events with event_id >= 3
+
+
+def test_get_execution_history_invalid_marker(executor, mock_store):
+    """Test get_execution_history with invalid marker."""
+    mock_execution = Mock()
+    mock_execution.operations = []
+    mock_execution.updates = []
+    mock_execution.durable_execution_arn = ""
+    mock_execution.start_input = Mock()
+    mock_execution.result = Mock()
+    mock_store.load.return_value = mock_execution
+
+    # Invalid marker should default to 1
+    result = executor.get_execution_history("test-arn", marker="invalid")
+
+    assert result.events == []
+    assert result.next_marker is None
 
 
 def test_checkpoint_execution(executor, mock_store):

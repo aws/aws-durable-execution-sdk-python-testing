@@ -318,9 +318,11 @@ def test_create_invoke_details_no_options():
 
 def test_create_wait_details_with_current_operation():
     processor = MockProcessor()
-    scheduled_time = datetime.datetime.now(tz=datetime.UTC)
+    scheduled_end_timestamp = datetime.datetime.now(tz=datetime.UTC)
     current_op = Mock()
-    current_op.wait_details = WaitDetails(scheduled_end_timestamp=scheduled_time)
+    current_op.wait_details = WaitDetails(
+        scheduled_end_timestamp=scheduled_end_timestamp
+    )
 
     wait_options = WaitOptions(wait_seconds=30)
     update = OperationUpdate(
@@ -333,7 +335,7 @@ def test_create_wait_details_with_current_operation():
     result = processor.create_wait_details(update, current_op)
 
     assert isinstance(result, WaitDetails)
-    assert result.scheduled_end_timestamp == scheduled_time
+    assert result.scheduled_end_timestamp == scheduled_end_timestamp
 
 
 def test_create_wait_details_without_current_operation():
