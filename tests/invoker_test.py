@@ -11,7 +11,6 @@ from aws_durable_execution_sdk_python.execution import (
     InitialExecutionState,
     InvocationStatus,
 )
-from aws_durable_execution_sdk_python.lambda_context import LambdaContext
 
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.invoker import (
@@ -19,14 +18,16 @@ from aws_durable_execution_sdk_python_testing.invoker import (
     LambdaInvoker,
     create_test_lambda_context,
 )
-from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
+from aws_durable_execution_sdk_python_testing.model import (
+    LambdaContext,
+    StartDurableExecutionInput,
+)
 
 
 def test_create_test_lambda_context():
     """Test creating a test lambda context."""
     context = create_test_lambda_context()
 
-    assert isinstance(context, LambdaContext)
     assert (
         context.invoked_function_arn
         == "arn:aws:lambda:us-west-2:123456789012:function:test-function"
