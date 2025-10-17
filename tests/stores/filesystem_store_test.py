@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
-    DurableFunctionsLocalRunnerError,
+    ResourceNotFoundException,
 )
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
@@ -64,9 +64,9 @@ def test_filesystem_execution_store_save_and_load(store, sample_execution):
 
 
 def test_filesystem_execution_store_load_nonexistent(store):
-    """Test loading a nonexistent execution raises DurableFunctionsLocalRunnerError."""
+    """Test loading a nonexistent execution raises ResourceNotFoundException."""
     with pytest.raises(
-        DurableFunctionsLocalRunnerError, match="Execution nonexistent-arn not found"
+        ResourceNotFoundException, match="Execution nonexistent-arn not found"
     ):
         store.load("nonexistent-arn")
 
