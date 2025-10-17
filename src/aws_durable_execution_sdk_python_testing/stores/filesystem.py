@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
-    DurableFunctionsLocalRunnerError,
+    ResourceNotFoundException,
 )
 from aws_durable_execution_sdk_python_testing.execution import Execution
 
@@ -74,7 +74,7 @@ class FileSystemExecutionStore:
         file_path = self._get_file_path(execution_arn)
         if not file_path.exists():
             msg = f"Execution {execution_arn} not found"
-            raise DurableFunctionsLocalRunnerError(msg)
+            raise ResourceNotFoundException(msg)
 
         with open(file_path, encoding="utf-8") as f:
             data = json.load(f, object_hook=datetime_object_hook)
