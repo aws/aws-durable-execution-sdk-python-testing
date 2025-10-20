@@ -12,6 +12,11 @@ from aws_durable_execution_sdk_python_testing.model import (
     CallbackStartedDetails,
     CallbackSucceededDetails,
     CallbackTimedOutDetails,
+    ChainedInvokeFailedDetails,
+    ChainedInvokeStartedDetails,
+    ChainedInvokeStoppedDetails,
+    ChainedInvokeSucceededDetails,
+    ChainedInvokeTimedOutDetails,
     CheckpointDurableExecutionRequest,
     CheckpointDurableExecutionResponse,
     CheckpointUpdatedExecutionState,
@@ -35,11 +40,6 @@ from aws_durable_execution_sdk_python_testing.model import (
     GetDurableExecutionResponse,
     GetDurableExecutionStateRequest,
     GetDurableExecutionStateResponse,
-    InvokeFailedDetails,
-    InvokeStartedDetails,
-    InvokeStoppedDetails,
-    InvokeSucceededDetails,
-    InvokeTimedOutDetails,
     ListDurableExecutionsByFunctionRequest,
     ListDurableExecutionsByFunctionResponse,
     ListDurableExecutionsRequest,
@@ -1835,16 +1835,16 @@ def test_step_failed_details_with_error_only():
     }
 
 
-# Tests for InvokeStartedDetails
+# Tests for ChainedInvokeStartedDetails
 def test_invoke_started_details_serialization():
-    """Test InvokeStartedDetails from_dict/to_dict round-trip."""
+    """Test ChainedInvokeStartedDetails from_dict/to_dict round-trip."""
     data = {
         "Input": {"Payload": "invoke-input", "Truncated": False},
         "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:target-function",
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
     }
 
-    details = InvokeStartedDetails.from_dict(data)
+    details = ChainedInvokeStartedDetails.from_dict(data)
     assert details.input.payload == "invoke-input"
     assert (
         details.function_arn
@@ -1860,10 +1860,10 @@ def test_invoke_started_details_serialization():
 
 
 def test_invoke_started_details_minimal():
-    """Test InvokeStartedDetails with minimal data."""
+    """Test ChainedInvokeStartedDetails with minimal data."""
     data = {}
 
-    details = InvokeStartedDetails.from_dict(data)
+    details = ChainedInvokeStartedDetails.from_dict(data)
     assert details.input is None
     assert details.function_arn is None
     assert details.durable_execution_arn is None
@@ -1873,13 +1873,13 @@ def test_invoke_started_details_minimal():
 
 
 def test_invoke_started_details_partial():
-    """Test InvokeStartedDetails with partial data."""
+    """Test ChainedInvokeStartedDetails with partial data."""
     data = {
         "Input": {"Payload": "invoke-input", "Truncated": False},
         "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:target-function",
     }
 
-    details = InvokeStartedDetails.from_dict(data)
+    details = ChainedInvokeStartedDetails.from_dict(data)
     assert details.input.payload == "invoke-input"
     assert (
         details.function_arn
@@ -1891,14 +1891,14 @@ def test_invoke_started_details_partial():
     assert result_data == data
 
 
-# Tests for InvokeSucceededDetails
+# Tests for ChainedInvokeSucceededDetails
 def test_invoke_succeeded_details_serialization():
-    """Test InvokeSucceededDetails from_dict/to_dict round-trip."""
+    """Test ChainedInvokeSucceededDetails from_dict/to_dict round-trip."""
     data = {
         "Result": {"Payload": "invoke-result", "Truncated": False},
     }
 
-    details = InvokeSucceededDetails.from_dict(data)
+    details = ChainedInvokeSucceededDetails.from_dict(data)
     assert details.result.payload == "invoke-result"
 
     result_data = details.to_dict()
@@ -1906,24 +1906,24 @@ def test_invoke_succeeded_details_serialization():
 
 
 def test_invoke_succeeded_details_minimal():
-    """Test InvokeSucceededDetails with minimal data."""
+    """Test ChainedInvokeSucceededDetails with minimal data."""
     data = {}
 
-    details = InvokeSucceededDetails.from_dict(data)
+    details = ChainedInvokeSucceededDetails.from_dict(data)
     assert details.result is None
 
     result_data = details.to_dict()
     assert result_data == {}
 
 
-# Tests for InvokeFailedDetails
+# Tests for ChainedInvokeFailedDetails
 def test_invoke_failed_details_serialization():
-    """Test InvokeFailedDetails from_dict/to_dict round-trip."""
+    """Test ChainedInvokeFailedDetails from_dict/to_dict round-trip."""
     data = {
         "Error": {"Payload": {"ErrorMessage": "invoke failed"}, "Truncated": False},
     }
 
-    details = InvokeFailedDetails.from_dict(data)
+    details = ChainedInvokeFailedDetails.from_dict(data)
     assert details.error.payload.message == "invoke failed"
 
     result_data = details.to_dict()
@@ -1931,24 +1931,24 @@ def test_invoke_failed_details_serialization():
 
 
 def test_invoke_failed_details_minimal():
-    """Test InvokeFailedDetails with minimal data."""
+    """Test ChainedInvokeFailedDetails with minimal data."""
     data = {}
 
-    details = InvokeFailedDetails.from_dict(data)
+    details = ChainedInvokeFailedDetails.from_dict(data)
     assert details.error is None
 
     result_data = details.to_dict()
     assert result_data == {}
 
 
-# Tests for InvokeTimedOutDetails
+# Tests for ChainedInvokeTimedOutDetails
 def test_invoke_timed_out_details_serialization():
-    """Test InvokeTimedOutDetails from_dict/to_dict round-trip."""
+    """Test ChainedInvokeTimedOutDetails from_dict/to_dict round-trip."""
     data = {
         "Error": {"Payload": {"ErrorMessage": "invoke timed out"}, "Truncated": False},
     }
 
-    details = InvokeTimedOutDetails.from_dict(data)
+    details = ChainedInvokeTimedOutDetails.from_dict(data)
     assert details.error.payload.message == "invoke timed out"
 
     result_data = details.to_dict()
@@ -1956,24 +1956,24 @@ def test_invoke_timed_out_details_serialization():
 
 
 def test_invoke_timed_out_details_minimal():
-    """Test InvokeTimedOutDetails with minimal data."""
+    """Test ChainedInvokeTimedOutDetails with minimal data."""
     data = {}
 
-    details = InvokeTimedOutDetails.from_dict(data)
+    details = ChainedInvokeTimedOutDetails.from_dict(data)
     assert details.error is None
 
     result_data = details.to_dict()
     assert result_data == {}
 
 
-# Tests for InvokeStoppedDetails
+# Tests for ChainedInvokeStoppedDetails
 def test_invoke_stopped_details_serialization():
-    """Test InvokeStoppedDetails from_dict/to_dict round-trip."""
+    """Test ChainedInvokeStoppedDetails from_dict/to_dict round-trip."""
     data = {
         "Error": {"Payload": {"ErrorMessage": "invoke stopped"}, "Truncated": False},
     }
 
-    details = InvokeStoppedDetails.from_dict(data)
+    details = ChainedInvokeStoppedDetails.from_dict(data)
     assert details.error.payload.message == "invoke stopped"
 
     result_data = details.to_dict()
@@ -1981,10 +1981,10 @@ def test_invoke_stopped_details_serialization():
 
 
 def test_invoke_stopped_details_minimal():
-    """Test InvokeStoppedDetails with minimal data."""
+    """Test ChainedInvokeStoppedDetails with minimal data."""
     data = {}
 
-    details = InvokeStoppedDetails.from_dict(data)
+    details = ChainedInvokeStoppedDetails.from_dict(data)
     assert details.error is None
 
     result_data = details.to_dict()
@@ -2490,27 +2490,27 @@ def test_event_with_step_failed_details():
 
 
 def test_event_with_invoke_started_details():
-    """Test Event with InvokeStartedDetails."""
+    """Test Event with ChainedInvokeStartedDetails."""
     data = {
-        "EventType": "InvokeStarted",
+        "EventType": "ChainedInvokeStarted",
         "EventTimestamp": "2023-01-01T00:01:00Z",
-        "InvokeStartedDetails": {
+        "ChainedInvokeStartedDetails": {
             "Input": {"Payload": "invoke input", "Truncated": False},
             "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:target",
         },
     }
 
     event_obj = Event.from_dict(data)
-    assert event_obj.event_type == "InvokeStarted"
-    assert event_obj.invoke_started_details is not None
-    assert event_obj.invoke_started_details.input.payload == "invoke input"
+    assert event_obj.event_type == "ChainedInvokeStarted"
+    assert event_obj.chained_invoke_started_details is not None
+    assert event_obj.chained_invoke_started_details.input.payload == "invoke input"
 
     result_data = event_obj.to_dict()
     expected_data = {
-        "EventType": "InvokeStarted",
+        "EventType": "ChainedInvokeStarted",
         "EventTimestamp": "2023-01-01T00:01:00Z",
         "EventId": 1,
-        "InvokeStartedDetails": {
+        "ChainedInvokeStartedDetails": {
             "Input": {"Payload": "invoke input", "Truncated": False},
             "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:target",
         },
@@ -2519,26 +2519,26 @@ def test_event_with_invoke_started_details():
 
 
 def test_event_with_invoke_succeeded_details():
-    """Test Event with InvokeSucceededDetails."""
+    """Test Event with ChainedInvokeSucceededDetails."""
     data = {
-        "EventType": "InvokeSucceeded",
+        "EventType": "ChainedInvokeSucceeded",
         "EventTimestamp": "2023-01-01T00:01:00Z",
-        "InvokeSucceededDetails": {
+        "ChainedInvokeSucceededDetails": {
             "Result": {"Payload": "invoke result", "Truncated": False}
         },
     }
 
     event_obj = Event.from_dict(data)
-    assert event_obj.event_type == "InvokeSucceeded"
-    assert event_obj.invoke_succeeded_details is not None
-    assert event_obj.invoke_succeeded_details.result.payload == "invoke result"
+    assert event_obj.event_type == "ChainedInvokeSucceeded"
+    assert event_obj.chained_invoke_succeeded_details is not None
+    assert event_obj.chained_invoke_succeeded_details.result.payload == "invoke result"
 
     result_data = event_obj.to_dict()
     expected_data = {
-        "EventType": "InvokeSucceeded",
+        "EventType": "ChainedInvokeSucceeded",
         "EventTimestamp": "2023-01-01T00:01:00Z",
         "EventId": 1,
-        "InvokeSucceededDetails": {
+        "ChainedInvokeSucceededDetails": {
             "Result": {"Payload": "invoke result", "Truncated": False}
         },
     }
@@ -2546,26 +2546,28 @@ def test_event_with_invoke_succeeded_details():
 
 
 def test_event_with_invoke_failed_details():
-    """Test Event with InvokeFailedDetails."""
+    """Test Event with ChainedInvokeFailedDetails."""
     data = {
-        "EventType": "InvokeFailed",
+        "EventType": "ChainedInvokeFailed",
         "EventTimestamp": "2023-01-01T00:01:00Z",
-        "InvokeFailedDetails": {
+        "ChainedInvokeFailedDetails": {
             "Error": {"Payload": {"ErrorMessage": "invoke failed"}, "Truncated": False}
         },
     }
 
     event_obj = Event.from_dict(data)
-    assert event_obj.event_type == "InvokeFailed"
-    assert event_obj.invoke_failed_details is not None
-    assert event_obj.invoke_failed_details.error.payload.message == "invoke failed"
+    assert event_obj.event_type == "ChainedInvokeFailed"
+    assert event_obj.chained_invoke_failed_details is not None
+    assert (
+        event_obj.chained_invoke_failed_details.error.payload.message == "invoke failed"
+    )
 
     result_data = event_obj.to_dict()
     expected_data = {
-        "EventType": "InvokeFailed",
+        "EventType": "ChainedInvokeFailed",
         "EventTimestamp": "2023-01-01T00:01:00Z",
         "EventId": 1,
-        "InvokeFailedDetails": {
+        "ChainedInvokeFailedDetails": {
             "Error": {"Payload": {"ErrorMessage": "invoke failed"}, "Truncated": False}
         },
     }
@@ -2573,11 +2575,11 @@ def test_event_with_invoke_failed_details():
 
 
 def test_event_with_invoke_timed_out_details():
-    """Test Event with InvokeTimedOutDetails."""
+    """Test Event with ChainedInvokeTimedOutDetails."""
     data = {
-        "EventType": "InvokeTimedOut",
+        "EventType": "ChainedInvokeTimedOut",
         "EventTimestamp": "2023-01-01T00:01:00Z",
-        "InvokeTimedOutDetails": {
+        "ChainedInvokeTimedOutDetails": {
             "Error": {
                 "Payload": {"ErrorMessage": "invoke timed out"},
                 "Truncated": False,
@@ -2586,18 +2588,19 @@ def test_event_with_invoke_timed_out_details():
     }
 
     event_obj = Event.from_dict(data)
-    assert event_obj.event_type == "InvokeTimedOut"
-    assert event_obj.invoke_timed_out_details is not None
+    assert event_obj.event_type == "ChainedInvokeTimedOut"
+    assert event_obj.chained_invoke_timed_out_details is not None
     assert (
-        event_obj.invoke_timed_out_details.error.payload.message == "invoke timed out"
+        event_obj.chained_invoke_timed_out_details.error.payload.message
+        == "invoke timed out"
     )
 
     result_data = event_obj.to_dict()
     expected_data = {
-        "EventType": "InvokeTimedOut",
+        "EventType": "ChainedInvokeTimedOut",
         "EventTimestamp": "2023-01-01T00:01:00Z",
         "EventId": 1,
-        "InvokeTimedOutDetails": {
+        "ChainedInvokeTimedOutDetails": {
             "Error": {
                 "Payload": {"ErrorMessage": "invoke timed out"},
                 "Truncated": False,
@@ -2608,26 +2611,29 @@ def test_event_with_invoke_timed_out_details():
 
 
 def test_event_with_invoke_stopped_details():
-    """Test Event with InvokeStoppedDetails."""
+    """Test Event with ChainedInvokeStoppedDetails."""
     data = {
-        "EventType": "InvokeStopped",
+        "EventType": "ChainedInvokeStopped",
         "EventTimestamp": "2023-01-01T00:01:00Z",
-        "InvokeStoppedDetails": {
+        "ChainedInvokeStoppedDetails": {
             "Error": {"Payload": {"ErrorMessage": "invoke stopped"}, "Truncated": False}
         },
     }
 
     event_obj = Event.from_dict(data)
-    assert event_obj.event_type == "InvokeStopped"
-    assert event_obj.invoke_stopped_details is not None
-    assert event_obj.invoke_stopped_details.error.payload.message == "invoke stopped"
+    assert event_obj.event_type == "ChainedInvokeStopped"
+    assert event_obj.chained_invoke_stopped_details is not None
+    assert (
+        event_obj.chained_invoke_stopped_details.error.payload.message
+        == "invoke stopped"
+    )
 
     result_data = event_obj.to_dict()
     expected_data = {
-        "EventType": "InvokeStopped",
+        "EventType": "ChainedInvokeStopped",
         "EventTimestamp": "2023-01-01T00:01:00Z",
         "EventId": 1,
-        "InvokeStoppedDetails": {
+        "ChainedInvokeStoppedDetails": {
             "Error": {"Payload": {"ErrorMessage": "invoke stopped"}, "Truncated": False}
         },
     }

@@ -64,7 +64,9 @@ def test_validate_invoke_valid_actions():
         OperationAction.CANCEL,
     ]
     for action in valid_actions:
-        ValidActionsByOperationTypeValidator.validate(OperationType.INVOKE, action)
+        ValidActionsByOperationTypeValidator.validate(
+            OperationType.CHAINED_INVOKE, action
+        )
 
 
 def test_validate_execution_valid_actions():
@@ -128,7 +130,7 @@ def test_validate_invalid_action_for_invoke():
         match="Invalid action for the given operation type",
     ):
         ValidActionsByOperationTypeValidator.validate(
-            OperationType.INVOKE, OperationAction.RETRY
+            OperationType.CHAINED_INVOKE, OperationAction.RETRY
         )
 
 

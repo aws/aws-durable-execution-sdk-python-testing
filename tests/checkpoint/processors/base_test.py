@@ -7,11 +7,11 @@ from unittest.mock import Mock
 import pytest
 from aws_durable_execution_sdk_python.lambda_service import (
     CallbackDetails,
+    ChainedInvokeDetails,
+    ChainedInvokeOptions,
     ContextDetails,
     ErrorObject,
     ExecutionDetails,
-    InvokeDetails,
-    InvokeOptions,
     Operation,
     OperationAction,
     OperationStatus,
@@ -271,20 +271,19 @@ def test_create_callback_details_non_callback_type():
 def test_create_invoke_details():
     processor = MockProcessor()
     error = ErrorObject.from_message("test error")
-    invoke_options = InvokeOptions(function_name="test-function")
+    invoke_options = ChainedInvokeOptions(function_name="test-function")
     update = OperationUpdate(
         operation_id="test-id",
-        operation_type=OperationType.INVOKE,
+        operation_type=OperationType.CHAINED_INVOKE,
         action=OperationAction.START,
         payload="test-payload",
         error=error,
-        invoke_options=invoke_options,
+        chained_invoke_options=invoke_options,
     )
 
     result = processor.create_invoke_details(update)
 
-    assert isinstance(result, InvokeDetails)
-    assert "test-function" in result.durable_execution_arn
+    assert isinstance(result, ChainedInvokeDetails)
     assert result.result == "test-payload"
     assert result.error == error
 
@@ -307,7 +306,7 @@ def test_create_invoke_details_no_options():
     processor = MockProcessor()
     update = OperationUpdate(
         operation_id="test-id",
-        operation_type=OperationType.INVOKE,
+        operation_type=OperationType.CHAINED_INVOKE,
         action=OperationAction.START,
         payload="test-payload",
     )

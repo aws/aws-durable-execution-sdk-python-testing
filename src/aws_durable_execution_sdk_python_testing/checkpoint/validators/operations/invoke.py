@@ -22,7 +22,7 @@ VALID_ACTIONS_FOR_INVOKE = frozenset(
 )
 
 
-class InvokeOperationValidator:
+class ChainedInvokeOperationValidator:
     """Validates INVOKE operation transitions."""
 
     _ALLOWED_STATUS_TO_CANCEL = frozenset(
@@ -46,7 +46,7 @@ class InvokeOperationValidator:
                 if (
                     current_state is None
                     or current_state.status
-                    not in InvokeOperationValidator._ALLOWED_STATUS_TO_CANCEL
+                    not in ChainedInvokeOperationValidator._ALLOWED_STATUS_TO_CANCEL
                 ):
                     msg_invoke_cancel: str = "Cannot cancel an INVOKE that does not exist or has already completed."
                     raise InvalidParameterValueException(msg_invoke_cancel)

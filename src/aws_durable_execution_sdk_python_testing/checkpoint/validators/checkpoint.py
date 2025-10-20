@@ -20,7 +20,7 @@ from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.e
     ExecutionOperationValidator,
 )
 from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.invoke import (
-    InvokeOperationValidator,
+    ChainedInvokeOperationValidator,
 )
 from aws_durable_execution_sdk_python_testing.checkpoint.validators.operations.step import (
     StepOperationValidator,
@@ -118,8 +118,8 @@ class CheckpointValidator:
                 WaitOperationValidator.validate(current_state, update)
             case OperationType.CALLBACK:
                 CallbackOperationValidator.validate(current_state, update)
-            case OperationType.INVOKE:
-                InvokeOperationValidator.validate(current_state, update)
+            case OperationType.CHAINED_INVOKE:
+                ChainedInvokeOperationValidator.validate(current_state, update)
             case OperationType.EXECUTION:
                 ExecutionOperationValidator.validate(update)
             case _:  # pragma: no cover

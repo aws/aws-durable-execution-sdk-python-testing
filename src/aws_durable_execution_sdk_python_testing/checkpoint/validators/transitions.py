@@ -42,7 +42,7 @@ class ValidActionsByOperationTypeValidator:
         OperationType.CONTEXT: VALID_ACTIONS_FOR_CONTEXT,
         OperationType.WAIT: VALID_ACTIONS_FOR_WAIT,
         OperationType.CALLBACK: VALID_ACTIONS_FOR_CALLBACK,
-        OperationType.INVOKE: VALID_ACTIONS_FOR_INVOKE,
+        OperationType.CHAINED_INVOKE: VALID_ACTIONS_FOR_INVOKE,
         OperationType.EXECUTION: VALID_ACTIONS_FOR_EXECUTION,
     }
 

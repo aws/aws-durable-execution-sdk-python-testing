@@ -101,7 +101,7 @@ def test_process_retry_action():
     current_op.context_details = None
     current_op.wait_details = None
     current_op.callback_details = None
-    current_op.invoke_details = None
+    current_op.chained_invoke_details = None
 
     step_options = StepOptions(next_attempt_delay_seconds=30)
     update = OperationUpdate(
@@ -137,7 +137,7 @@ def test_process_retry_action_without_step_options():
     current_op.context_details = None
     current_op.wait_details = None
     current_op.callback_details = None
-    current_op.invoke_details = None
+    current_op.chained_invoke_details = None
 
     update = OperationUpdate(
         operation_id="step-123",
@@ -186,7 +186,7 @@ def test_process_retry_action_without_current_step_details():
     current_op.context_details = None
     current_op.wait_details = None
     current_op.callback_details = None
-    current_op.invoke_details = None
+    current_op.chained_invoke_details = None
 
     step_options = StepOptions(next_attempt_delay_seconds=45)
     update = OperationUpdate(
@@ -358,7 +358,7 @@ def test_retry_preserves_current_operation_details():
     current_op.context_details = Mock()
     current_op.wait_details = Mock()
     current_op.callback_details = Mock()
-    current_op.invoke_details = Mock()
+    current_op.chained_invoke_details = Mock()
 
     step_options = StepOptions(next_attempt_delay_seconds=60)
     update = OperationUpdate(
@@ -378,7 +378,7 @@ def test_retry_preserves_current_operation_details():
     assert result.context_details == current_op.context_details
     assert result.wait_details == current_op.wait_details
     assert result.callback_details == current_op.callback_details
-    assert result.invoke_details == current_op.invoke_details
+    assert result.chained_invoke_details == current_op.chained_invoke_details
 
 
 def test_no_completed_or_failed_calls_for_non_execution_actions():

@@ -378,7 +378,7 @@ def test_validate_operation_status_transition_invoke():
 
     invoke_op = Operation(
         operation_id="invoke-1",
-        operation_type=OperationType.INVOKE,
+        operation_type=OperationType.CHAINED_INVOKE,
         status=OperationStatus.STARTED,
     )
     execution.operations.append(invoke_op)
@@ -386,7 +386,7 @@ def test_validate_operation_status_transition_invoke():
     updates = [
         OperationUpdate(
             operation_id="invoke-1",
-            operation_type=OperationType.INVOKE,
+            operation_type=OperationType.CHAINED_INVOKE,
             action=OperationAction.CANCEL,
         )
     ]

@@ -8,9 +8,9 @@ import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
 from aws_durable_execution_sdk_python.lambda_service import (
     CallbackDetails,
+    ChainedInvokeDetails,
     ContextDetails,
     ExecutionDetails,
-    InvokeDetails,
     OperationStatus,
     OperationType,
     StepDetails,
@@ -265,7 +265,7 @@ def test_context_operation_get_invoke():
     """Test ContextOperation get_invoke method."""
     invoke_op = InvokeOperation(
         operation_id="invoke-id",
-        operation_type=OperationType.INVOKE,
+        operation_type=OperationType.CHAINED_INVOKE,
         status=OperationStatus.SUCCEEDED,
         name="test-invoke",
     )
@@ -406,25 +406,20 @@ def test_callback_operation_wrong_type():
 
 def test_invoke_operation_from_svc_operation():
     """Test InvokeOperation creation from service operation."""
-    invoke_details = InvokeDetails(
-        durable_execution_arn="arn:aws:lambda:us-east-1:123456789012:function:test",
+    invoke_details = ChainedInvokeDetails(
         result=json.dumps("invoke-result"),
     )
     svc_op = SvcOperation(
         operation_id="invoke-id",
-        operation_type=OperationType.INVOKE,
+        operation_type=OperationType.CHAINED_INVOKE,
         status=OperationStatus.SUCCEEDED,
-        invoke_details=invoke_details,
+        chained_invoke_details=invoke_details,
     )
 
     invoke_op = InvokeOperation.from_svc_operation(svc_op)
 
     assert invoke_op.operation_id == "invoke-id"
-    assert invoke_op.operation_type is OperationType.INVOKE
-    assert (
-        invoke_op.durable_execution_arn
-        == "arn:aws:lambda:us-east-1:123456789012:function:test"
-    )
+    assert invoke_op.operation_type is OperationType.CHAINED_INVOKE
     assert invoke_op.result == "invoke-result"
 
 
@@ -450,7 +445,7 @@ def test_operation_factories_mapping():
         OperationType.CONTEXT: ContextOperation,
         OperationType.STEP: StepOperation,
         OperationType.WAIT: WaitOperation,
-        OperationType.INVOKE: InvokeOperation,
+        OperationType.CHAINED_INVOKE: InvokeOperation,
         OperationType.CALLBACK: CallbackOperation,
     }
 
@@ -633,7 +628,7 @@ def test_durable_function_test_result_get_invoke():
     """Test DurableFunctionTestResult get_invoke method."""
     invoke_op = InvokeOperation(
         operation_id="invoke-id",
-        operation_type=OperationType.INVOKE,
+        operation_type=OperationType.CHAINED_INVOKE,
         status=OperationStatus.SUCCEEDED,
         name="test-invoke",
     )

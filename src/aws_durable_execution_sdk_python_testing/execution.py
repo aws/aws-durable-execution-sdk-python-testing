@@ -173,7 +173,11 @@ class Execution:
                 and operation.status == OperationStatus.PENDING
             ) or (
                 operation.operation_type
-                in [OperationType.WAIT, OperationType.CALLBACK, OperationType.INVOKE]
+                in [
+                    OperationType.WAIT,
+                    OperationType.CALLBACK,
+                    OperationType.CHAINED_INVOKE,
+                ]
                 and operation.status == OperationStatus.STARTED
             ):
                 return True

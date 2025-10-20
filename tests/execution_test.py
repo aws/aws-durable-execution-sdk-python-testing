@@ -312,7 +312,7 @@ def test_has_pending_operations_with_started_invoke():
             parent_id=None,
             name="test",
             start_timestamp=datetime.now(UTC),
-            operation_type=OperationType.INVOKE,
+            operation_type=OperationType.CHAINED_INVOKE,
             status=OperationStatus.STARTED,
         )
     ]

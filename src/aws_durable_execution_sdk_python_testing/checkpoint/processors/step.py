@@ -94,7 +94,9 @@ class StepProcessor(OperationProcessor):
                     callback_details=current_op.callback_details
                     if current_op
                     else None,
-                    invoke_details=current_op.invoke_details if current_op else None,
+                    chained_invoke_details=current_op.chained_invoke_details
+                    if current_op
+                    else None,
                 )
 
                 # Schedule step retry timer to fire after delay

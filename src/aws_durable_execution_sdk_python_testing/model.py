@@ -8,9 +8,9 @@ from typing import Any
 # Import existing types from the main SDK - REUSE EVERYTHING POSSIBLE
 from aws_durable_execution_sdk_python.lambda_service import (
     CallbackOptions,
+    ChainedInvokeOptions,
     ContextOptions,
     ErrorObject,
-    InvokeOptions,
     Operation,
     OperationAction,
     OperationSubType,
@@ -801,7 +801,7 @@ class StepFailedDetails:
 
 
 @dataclass(frozen=True)
-class InvokeStartedDetails:
+class ChainedInvokeStartedDetails:
     """Invoke started event details."""
 
     input: EventInput | None = None
@@ -809,7 +809,7 @@ class InvokeStartedDetails:
     durable_execution_arn: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> InvokeStartedDetails:
+    def from_dict(cls, data: dict) -> ChainedInvokeStartedDetails:
         input_data = None
         if input_dict := data.get("Input"):
             input_data = EventInput.from_dict(input_dict)
@@ -832,13 +832,13 @@ class InvokeStartedDetails:
 
 
 @dataclass(frozen=True)
-class InvokeSucceededDetails:
+class ChainedInvokeSucceededDetails:
     """Invoke succeeded event details."""
 
     result: EventResult | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> InvokeSucceededDetails:
+    def from_dict(cls, data: dict) -> ChainedInvokeSucceededDetails:
         result_data = None
         if result_dict := data.get("Result"):
             result_data = EventResult.from_dict(result_dict)
@@ -853,13 +853,13 @@ class InvokeSucceededDetails:
 
 
 @dataclass(frozen=True)
-class InvokeFailedDetails:
+class ChainedInvokeFailedDetails:
     """Invoke failed event details."""
 
     error: EventError | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> InvokeFailedDetails:
+    def from_dict(cls, data: dict) -> ChainedInvokeFailedDetails:
         error_data = None
         if error_dict := data.get("Error"):
             error_data = EventError.from_dict(error_dict)
@@ -874,13 +874,13 @@ class InvokeFailedDetails:
 
 
 @dataclass(frozen=True)
-class InvokeTimedOutDetails:
+class ChainedInvokeTimedOutDetails:
     """Invoke timed out event details."""
 
     error: EventError | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> InvokeTimedOutDetails:
+    def from_dict(cls, data: dict) -> ChainedInvokeTimedOutDetails:
         error_data = None
         if error_dict := data.get("Error"):
             error_data = EventError.from_dict(error_dict)
@@ -895,13 +895,13 @@ class InvokeTimedOutDetails:
 
 
 @dataclass(frozen=True)
-class InvokeStoppedDetails:
+class ChainedInvokeStoppedDetails:
     """Invoke stopped event details."""
 
     error: EventError | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> InvokeStoppedDetails:
+    def from_dict(cls, data: dict) -> ChainedInvokeStoppedDetails:
         error_data = None
         if error_dict := data.get("Error"):
             error_data = EventError.from_dict(error_dict)
@@ -1030,11 +1030,11 @@ class Event:
     step_started_details: StepStartedDetails | None = None
     step_succeeded_details: StepSucceededDetails | None = None
     step_failed_details: StepFailedDetails | None = None
-    invoke_started_details: InvokeStartedDetails | None = None
-    invoke_succeeded_details: InvokeSucceededDetails | None = None
-    invoke_failed_details: InvokeFailedDetails | None = None
-    invoke_timed_out_details: InvokeTimedOutDetails | None = None
-    invoke_stopped_details: InvokeStoppedDetails | None = None
+    chained_invoke_started_details: ChainedInvokeStartedDetails | None = None
+    chained_invoke_succeeded_details: ChainedInvokeSucceededDetails | None = None
+    chained_invoke_failed_details: ChainedInvokeFailedDetails | None = None
+    chained_invoke_timed_out_details: ChainedInvokeTimedOutDetails | None = None
+    chained_invoke_stopped_details: ChainedInvokeStoppedDetails | None = None
     callback_started_details: CallbackStartedDetails | None = None
     callback_succeeded_details: CallbackSucceededDetails | None = None
     callback_failed_details: CallbackFailedDetails | None = None
@@ -1103,25 +1103,35 @@ class Event:
         if details_data := data.get("StepFailedDetails"):
             step_failed_details = StepFailedDetails.from_dict(details_data)
 
-        invoke_started_details = None
-        if details_data := data.get("InvokeStartedDetails"):
-            invoke_started_details = InvokeStartedDetails.from_dict(details_data)
+        chained_invoke_started_details = None
+        if details_data := data.get("ChainedInvokeStartedDetails"):
+            chained_invoke_started_details = ChainedInvokeStartedDetails.from_dict(
+                details_data
+            )
 
-        invoke_succeeded_details = None
-        if details_data := data.get("InvokeSucceededDetails"):
-            invoke_succeeded_details = InvokeSucceededDetails.from_dict(details_data)
+        chained_invoke_succeeded_details = None
+        if details_data := data.get("ChainedInvokeSucceededDetails"):
+            chained_invoke_succeeded_details = ChainedInvokeSucceededDetails.from_dict(
+                details_data
+            )
 
-        invoke_failed_details = None
-        if details_data := data.get("InvokeFailedDetails"):
-            invoke_failed_details = InvokeFailedDetails.from_dict(details_data)
+        chained_invoke_failed_details = None
+        if details_data := data.get("ChainedInvokeFailedDetails"):
+            chained_invoke_failed_details = ChainedInvokeFailedDetails.from_dict(
+                details_data
+            )
 
-        invoke_timed_out_details = None
-        if details_data := data.get("InvokeTimedOutDetails"):
-            invoke_timed_out_details = InvokeTimedOutDetails.from_dict(details_data)
+        chained_invoke_timed_out_details = None
+        if details_data := data.get("ChainedInvokeTimedOutDetails"):
+            chained_invoke_timed_out_details = ChainedInvokeTimedOutDetails.from_dict(
+                details_data
+            )
 
-        invoke_stopped_details = None
-        if details_data := data.get("InvokeStoppedDetails"):
-            invoke_stopped_details = InvokeStoppedDetails.from_dict(details_data)
+        chained_invoke_stopped_details = None
+        if details_data := data.get("ChainedInvokeStoppedDetails"):
+            chained_invoke_stopped_details = ChainedInvokeStoppedDetails.from_dict(
+                details_data
+            )
 
         callback_started_details = None
         if details_data := data.get("CallbackStartedDetails"):
@@ -1163,11 +1173,11 @@ class Event:
             step_started_details=step_started_details,
             step_succeeded_details=step_succeeded_details,
             step_failed_details=step_failed_details,
-            invoke_started_details=invoke_started_details,
-            invoke_succeeded_details=invoke_succeeded_details,
-            invoke_failed_details=invoke_failed_details,
-            invoke_timed_out_details=invoke_timed_out_details,
-            invoke_stopped_details=invoke_stopped_details,
+            chained_invoke_started_details=chained_invoke_started_details,
+            chained_invoke_succeeded_details=chained_invoke_succeeded_details,
+            chained_invoke_failed_details=chained_invoke_failed_details,
+            chained_invoke_timed_out_details=chained_invoke_timed_out_details,
+            chained_invoke_stopped_details=chained_invoke_stopped_details,
             callback_started_details=callback_started_details,
             callback_succeeded_details=callback_succeeded_details,
             callback_failed_details=callback_failed_details,
@@ -1220,16 +1230,26 @@ class Event:
             result["StepSucceededDetails"] = self.step_succeeded_details.to_dict()
         if self.step_failed_details is not None:
             result["StepFailedDetails"] = self.step_failed_details.to_dict()
-        if self.invoke_started_details is not None:
-            result["InvokeStartedDetails"] = self.invoke_started_details.to_dict()
-        if self.invoke_succeeded_details is not None:
-            result["InvokeSucceededDetails"] = self.invoke_succeeded_details.to_dict()
-        if self.invoke_failed_details is not None:
-            result["InvokeFailedDetails"] = self.invoke_failed_details.to_dict()
-        if self.invoke_timed_out_details is not None:
-            result["InvokeTimedOutDetails"] = self.invoke_timed_out_details.to_dict()
-        if self.invoke_stopped_details is not None:
-            result["InvokeStoppedDetails"] = self.invoke_stopped_details.to_dict()
+        if self.chained_invoke_started_details is not None:
+            result["ChainedInvokeStartedDetails"] = (
+                self.chained_invoke_started_details.to_dict()
+            )
+        if self.chained_invoke_succeeded_details is not None:
+            result["ChainedInvokeSucceededDetails"] = (
+                self.chained_invoke_succeeded_details.to_dict()
+            )
+        if self.chained_invoke_failed_details is not None:
+            result["ChainedInvokeFailedDetails"] = (
+                self.chained_invoke_failed_details.to_dict()
+            )
+        if self.chained_invoke_timed_out_details is not None:
+            result["ChainedInvokeTimedOutDetails"] = (
+                self.chained_invoke_timed_out_details.to_dict()
+            )
+        if self.chained_invoke_stopped_details is not None:
+            result["ChainedInvokeStoppedDetails"] = (
+                self.chained_invoke_stopped_details.to_dict()
+            )
         if self.callback_started_details is not None:
             result["CallbackStartedDetails"] = self.callback_started_details.to_dict()
         if self.callback_succeeded_details is not None:
@@ -1522,8 +1542,10 @@ class CheckpointDurableExecutionRequest:
                     callback_options=CallbackOptions(**update_data["CallbackOptions"])
                     if update_data.get("CallbackOptions")
                     else None,
-                    invoke_options=InvokeOptions(**update_data["InvokeOptions"])
-                    if update_data.get("InvokeOptions")
+                    chained_invoke_options=ChainedInvokeOptions(
+                        **update_data["ChainedInvokeOptions"]
+                    )
+                    if update_data.get("ChainedInvokeOptions")
                     else None,
                 )
                 updates.append(operation_update)

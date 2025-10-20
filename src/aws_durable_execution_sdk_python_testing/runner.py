@@ -344,7 +344,6 @@ class CallbackOperation(ContextOperation):
 
 @dataclass(frozen=True)
 class InvokeOperation(Operation):
-    durable_execution_arn: str | None = None
     result: Any = None
     error: ErrorObject | None = None
 
@@ -353,7 +352,7 @@ class InvokeOperation(Operation):
         operation: SvcOperation,
         all_operations: list[SvcOperation] | None = None,  # noqa: ARG004
     ) -> InvokeOperation:
-        if operation.operation_type != OperationType.INVOKE:
+        if operation.operation_type != OperationType.CHAINED_INVOKE:
             msg: str = f"Expected INVOKE operation, got {operation.operation_type}"
             raise InvalidParameterValueException(msg)
         return InvokeOperation(
@@ -365,17 +364,15 @@ class InvokeOperation(Operation):
             sub_type=operation.sub_type,
             start_timestamp=operation.start_timestamp,
             end_timestamp=operation.end_timestamp,
-            durable_execution_arn=(
-                operation.invoke_details.durable_execution_arn
-                if operation.invoke_details
-                else None
-            ),
             result=(
-                json.loads(operation.invoke_details.result)
-                if operation.invoke_details and operation.invoke_details.result
+                json.loads(operation.chained_invoke_details.result)
+                if operation.chained_invoke_details
+                and operation.chained_invoke_details.result
                 else None
             ),
-            error=operation.invoke_details.error if operation.invoke_details else None,
+            error=operation.chained_invoke_details.error
+            if operation.chained_invoke_details
+            else None,
         )
 
 
@@ -384,7 +381,7 @@ OPERATION_FACTORIES: MutableMapping[OperationType, type[OperationFactory]] = {
     OperationType.CONTEXT: ContextOperation,
     OperationType.STEP: StepOperation,
     OperationType.WAIT: WaitOperation,
-    OperationType.INVOKE: InvokeOperation,
+    OperationType.CHAINED_INVOKE: InvokeOperation,
     OperationType.CALLBACK: CallbackOperation,
 }
 

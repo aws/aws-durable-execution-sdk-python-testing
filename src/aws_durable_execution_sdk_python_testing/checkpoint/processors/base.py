@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING
 
 from aws_durable_execution_sdk_python.lambda_service import (
     CallbackDetails,
+    ChainedInvokeDetails,
     ContextDetails,
     ExecutionDetails,
-    InvokeDetails,
     Operation,
     OperationStatus,
     OperationType,
@@ -105,16 +105,15 @@ class OperationProcessor:
             else None
         )
 
-    def _create_invoke_details(self, update: OperationUpdate) -> InvokeDetails | None:
-        """Create InvokeDetails from OperationUpdate."""
-        if update.operation_type == OperationType.INVOKE and update.invoke_options:
-            # Create a basic ARN using the function name
-            # In a real implementation, this would need more context about the execution
-            # TODO: To confirm how or if this works
-            arn = f"arn:aws:lambda:us-west-2:123456789012:durable-execution:{update.invoke_options.function_name}:execution-name"
-            return InvokeDetails(
-                durable_execution_arn=arn, result=update.payload, error=update.error
-            )
+    def _create_invoke_details(
+        self, update: OperationUpdate
+    ) -> ChainedInvokeDetails | None:
+        """Create ChainedInvokeDetails from OperationUpdate."""
+        if (
+            update.operation_type == OperationType.CHAINED_INVOKE
+            and update.chained_invoke_options
+        ):
+            return ChainedInvokeDetails(result=update.payload, error=update.error)
         return None
 
     def _create_wait_details(
@@ -165,6 +164,6 @@ class OperationProcessor:
             context_details=context_details,
             step_details=step_details,
             callback_details=callback_details,
-            invoke_details=invoke_details,
+            chained_invoke_details=invoke_details,
             wait_details=wait_details,
         )

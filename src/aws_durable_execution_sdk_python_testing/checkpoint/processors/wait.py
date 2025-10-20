@@ -63,7 +63,7 @@ class WaitProcessor(OperationProcessor):
                     step_details=None,
                     wait_details=wait_details,
                     callback_details=None,
-                    invoke_details=None,
+                    chained_invoke_details=None,
                 )
 
                 # Schedule wait timer to complete after delay
