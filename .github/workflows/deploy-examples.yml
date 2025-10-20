@@ -89,7 +89,7 @@ jobs:
         hatch run examples:deploy "${{ matrix.example.name }}" --function-name "$FUNCTION_NAME"
         
         # $LATEST is also a qualified version        
-        QUALIFIED_FUNCTION_NAME="$FUNCTION_NAME:\$LATEST"
+        QUALIFIED_FUNCTION_NAME="${FUNCTION_NAME}:\$LATEST"
         
         # Store both names for later steps
         echo "FUNCTION_NAME=$FUNCTION_NAME" >> $GITHUB_ENV
