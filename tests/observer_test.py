@@ -20,6 +20,8 @@ class MockExecutionObserver(ExecutionObserver):
     def __init__(self):
         self.on_completed_calls = []
         self.on_failed_calls = []
+        self.on_timed_out_calls = []
+        self.on_stopped_calls = []
         self.on_wait_timer_scheduled_calls = []
         self.on_step_retry_scheduled_calls = []
         self.on_callback_created_calls = []
@@ -29,6 +31,12 @@ class MockExecutionObserver(ExecutionObserver):
 
     def on_failed(self, execution_arn: str, error: ErrorObject) -> None:
         self.on_failed_calls.append((execution_arn, error))
+
+    def on_timed_out(self, execution_arn: str, error: ErrorObject) -> None:
+        self.on_timed_out_calls.append((execution_arn, error))
+
+    def on_stopped(self, execution_arn: str, error: ErrorObject) -> None:
+        self.on_stopped_calls.append((execution_arn, error))
 
     def on_wait_timer_scheduled(
         self, execution_arn: str, operation_id: str, delay: float
@@ -243,14 +251,19 @@ def test_mock_execution_observer_implementation():
     observer = MockExecutionObserver()
 
     # Test all methods can be called
+    error = ErrorObject("Error", "Message", "data", ["trace"])
     observer.on_completed("arn", "result")
-    observer.on_failed("arn", ErrorObject("Error", "Message", "data", ["trace"]))
+    observer.on_failed("arn", error)
+    observer.on_timed_out("arn", error)
+    observer.on_stopped("arn", error)
     observer.on_wait_timer_scheduled("arn", "op", 1.0)
     observer.on_step_retry_scheduled("arn", "op", 2.0)
 
     # Verify calls were recorded
     assert len(observer.on_completed_calls) == 1
     assert len(observer.on_failed_calls) == 1
+    assert len(observer.on_timed_out_calls) == 1
+    assert len(observer.on_stopped_calls) == 1
     assert len(observer.on_wait_timer_scheduled_calls) == 1
     assert len(observer.on_step_retry_scheduled_calls) == 1
 
@@ -289,6 +302,8 @@ def test_execution_observer_abstract_method_coverage():
 
     assert "on_completed" in method_names
     assert "on_failed" in method_names
+    assert "on_timed_out" in method_names
+    assert "on_stopped" in method_names
     assert "on_wait_timer_scheduled" in method_names
     assert "on_step_retry_scheduled" in method_names
 

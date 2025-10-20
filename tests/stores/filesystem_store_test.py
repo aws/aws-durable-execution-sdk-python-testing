@@ -280,3 +280,155 @@ def test_datetime_object_hook_converts_timestamp_fields():
 
     expected_datetime = datetime.fromtimestamp(timestamp, tz=timezone.utc)
     assert result["start_timestamp"] == expected_datetime
+
+
+def test_filesystem_execution_store_query_empty(store):
+    """Test query method with empty store."""
+    executions, next_marker = store.query()
+
+    assert executions == []
+    assert next_marker is None
+
+
+def test_filesystem_execution_store_query_by_function_name(store):
+    """Test query filtering by function name."""
+    # Create executions with different function names
+    input1 = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="function-a",
+        function_qualifier="$LATEST",
+        execution_name="exec-1",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+        invocation_id="invocation-1",
+    )
+    input2 = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="function-b",
+        function_qualifier="$LATEST",
+        execution_name="exec-2",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+        invocation_id="invocation-2",
+    )
+
+    exec1 = Execution.new(input1)
+    exec1.start()
+    exec2 = Execution.new(input2)
+    exec2.start()
+    store.save(exec1)
+    store.save(exec2)
+
+    # Query for function-a only
+    executions, next_marker = store.query(function_name="function-a")
+
+    assert len(executions) == 1
+    assert executions[0].durable_execution_arn == exec1.durable_execution_arn
+    assert next_marker is None
+
+
+def test_filesystem_execution_store_query_by_status(store):
+    """Test query filtering by status."""
+    # Create running execution
+    input1 = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="test-function",
+        function_qualifier="$LATEST",
+        execution_name="running-exec",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+        invocation_id="invocation-1",
+    )
+    exec1 = Execution.new(input1)
+    exec1.start()
+
+    # Create completed execution
+    input2 = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="test-function",
+        function_qualifier="$LATEST",
+        execution_name="completed-exec",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+        invocation_id="invocation-2",
+    )
+    exec2 = Execution.new(input2)
+    exec2.start()
+    exec2.complete_success("success result")
+
+    store.save(exec1)
+    store.save(exec2)
+
+    # Query for running executions
+    executions, next_marker = store.query(status_filter="RUNNING")
+
+    assert len(executions) == 1
+    assert executions[0].durable_execution_arn == exec1.durable_execution_arn
+
+    # Query for succeeded executions
+    executions, next_marker = store.query(status_filter="SUCCEEDED")
+
+    assert len(executions) == 1
+    assert executions[0].durable_execution_arn == exec2.durable_execution_arn
+
+
+def test_filesystem_execution_store_query_pagination(store):
+    """Test query pagination."""
+    # Create multiple executions
+    executions = []
+    for i in range(5):
+        input_data = StartDurableExecutionInput(
+            account_id="123456789012",
+            function_name="test-function",
+            function_qualifier="$LATEST",
+            execution_name=f"exec-{i}",
+            execution_timeout_seconds=300,
+            execution_retention_period_days=7,
+            invocation_id=f"invocation-{i}",
+        )
+        exec_obj = Execution.new(input_data)
+        exec_obj.start()
+        executions.append(exec_obj)
+        store.save(exec_obj)
+
+    # Test first page
+    executions, next_marker = store.query(limit=2, offset=0)
+
+    assert len(executions) == 2
+    assert next_marker is not None
+
+    # Test last page
+    executions, next_marker = store.query(limit=2, offset=4)
+
+    assert len(executions) == 1
+    assert next_marker is None
+
+
+def test_filesystem_execution_store_query_corrupted_file_handling(
+    store, temp_storage_dir
+):
+    """Test that corrupted files are skipped during query."""
+    # Create a valid execution
+    input_data = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="test-function",
+        function_qualifier="$LATEST",
+        execution_name="test-execution",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
+    )
+    execution = Execution.new(input_data)
+    execution.start()
+    store.save(execution)
+
+    # Create a corrupted file
+    corrupted_file = temp_storage_dir / "corrupted.json"
+    with open(corrupted_file, "w") as f:
+        f.write("invalid json content")
+
+    # Query should skip the corrupted file and return only valid executions
+    executions, next_marker = store.query()
+
+    assert len(executions) == 1
+    assert executions[0].durable_execution_arn == execution.durable_execution_arn

@@ -21,7 +21,6 @@ from aws_durable_execution_sdk_python_testing.model import (
     GetDurableExecutionHistoryResponse,
     GetDurableExecutionStateResponse,
     ListDurableExecutionsByFunctionRequest,
-    ListDurableExecutionsByFunctionResponse,
     ListDurableExecutionsRequest,
     ListDurableExecutionsResponse,
     SendDurableExecutionCallbackFailureRequest,
@@ -495,48 +494,8 @@ class ListDurableExecutionsHandler(EndpointHandler):
             HTTPResponse: The HTTP response to send to the client
         """
         try:
-            query_params: dict[str, Any] = {}
-
-            # TODO: encapsulate this better. Also, it is a GET, to confirm AWS SDK does
-            # pass args in querystring rather than body (per spec body should be ignored)
-            if function_name := self._parse_query_param(request, "FunctionName"):
-                query_params["FunctionName"] = function_name
-            if function_version := self._parse_query_param(request, "FunctionVersion"):
-                query_params["FunctionVersion"] = function_version
-            if durable_execution_name := self._parse_query_param(
-                request, "DurableExecutionName"
-            ):
-                query_params["DurableExecutionName"] = durable_execution_name
-            if status_filter := self._parse_query_param(request, "StatusFilter"):
-                query_params["StatusFilter"] = [
-                    status_filter
-                ]  # Convert to list for model
-            if time_after := self._parse_query_param(request, "TimeAfter"):
-                query_params["TimeAfter"] = time_after
-            if time_before := self._parse_query_param(request, "TimeBefore"):
-                query_params["TimeBefore"] = time_before
-            if marker := self._parse_query_param(request, "Marker"):
-                query_params["Marker"] = marker
-
-            # Parse integer parameters
-            if max_items_str := self._parse_query_param(request, "MaxItems"):
-                try:
-                    query_params["MaxItems"] = int(max_items_str)
-                except ValueError as e:
-                    error_msg: str = f"Invalid MaxItems value: {max_items_str}"
-                    raise InvalidParameterValueException(error_msg) from e
-
-            # Parse boolean parameters
-            if reverse_order_str := self._parse_query_param(request, "ReverseOrder"):
-                query_params["ReverseOrder"] = reverse_order_str.lower() in (
-                    "true",
-                    "1",
-                    "yes",
-                )
-
-            # Create request object from query parameters
             list_request: ListDurableExecutionsRequest = (
-                ListDurableExecutionsRequest.from_dict(query_params)
+                ListDurableExecutionsRequest.from_dict(request.query_params)
             )
 
             # Call executor method with correct attribute mapping
@@ -547,8 +506,8 @@ class ListDurableExecutionsHandler(EndpointHandler):
                 status_filter=list_request.status_filter[0]
                 if list_request.status_filter
                 else None,  # Executor expects single string
-                time_after=list_request.time_after,
-                time_before=list_request.time_before,
+                started_after=list_request.started_after,
+                started_before=list_request.started_before,
                 marker=list_request.marker,
                 max_items=list_request.max_items
                 if list_request.max_items > 0
@@ -570,6 +529,13 @@ class ListDurableExecutionsHandler(EndpointHandler):
 class ListDurableExecutionsByFunctionHandler(EndpointHandler):
     """Handler for GET /2025-12-01/functions/{function_name}/durable-executions."""
 
+    @staticmethod
+    def _validate_function_name(function_name: str) -> None:
+        """Validate function name parameter."""
+        if not function_name or not function_name.strip():
+            msg = "Function name is required"
+            raise InvalidParameterValueException(msg)
+
     def handle(self, parsed_route: Route, request: HTTPRequest) -> HTTPResponse:
         """Handle list durable executions by function request.
 
@@ -580,63 +546,37 @@ class ListDurableExecutionsByFunctionHandler(EndpointHandler):
         Returns:
             HTTPResponse: The HTTP response to send to the client
         """
+        function_route = cast(ListDurableExecutionsByFunctionRoute, parsed_route)
+        function_name: str = function_route.function_name
+
+        # Validate function name before processing
+        self._validate_function_name(function_name)
+
         try:
-            function_route = cast(ListDurableExecutionsByFunctionRoute, parsed_route)
-            function_name: str = function_route.function_name
-
-            # Parse query parameters and map to dataclass field names
-            query_params: dict[str, Any] = {"FunctionName": function_name}
-
-            if qualifier := self._parse_query_param(request, "functionVersion"):
-                query_params["Qualifier"] = qualifier
-            if execution_name := self._parse_query_param(request, "executionName"):
-                query_params["DurableExecutionName"] = execution_name
-            if status_filter := self._parse_query_param(request, "statusFilter"):
-                query_params["StatusFilter"] = [status_filter]  # Convert to list
-            if time_after := self._parse_query_param(request, "timeAfter"):
-                query_params["StartedAfter"] = time_after
-            if time_before := self._parse_query_param(request, "timeBefore"):
-                query_params["StartedBefore"] = time_before
-            if marker := self._parse_query_param(request, "marker"):
-                query_params["Marker"] = marker
-            if max_items_str := self._parse_query_param(request, "maxItems"):
-                try:
-                    query_params["MaxItems"] = int(max_items_str)
-                except ValueError as ve:
-                    error_msg: str = f"Invalid MaxItems value: {max_items_str}"
-                    raise InvalidParameterValueException(error_msg) from ve
-            if reverse_order_str := self._parse_query_param(request, "reverseOrder"):
-                query_params["ReverseOrder"] = reverse_order_str.lower() in (
-                    "true",
-                    "1",
-                    "yes",
-                )
-
-            list_request: ListDurableExecutionsByFunctionRequest = (
-                ListDurableExecutionsByFunctionRequest.from_dict(query_params)
+            # Add function name from route to query params
+            query_params = dict(request.query_params)
+            query_params["FunctionName"] = [function_name]
+            list_request = ListDurableExecutionsByFunctionRequest.from_dict(
+                query_params
             )
 
-            list_response: ListDurableExecutionsByFunctionResponse = (
-                self.executor.list_executions_by_function(
-                    function_name=list_request.function_name,
-                    qualifier=list_request.qualifier,
-                    execution_name=list_request.durable_execution_name,
-                    status_filter=list_request.status_filter[0]
-                    if list_request.status_filter
-                    else None,
-                    time_after=list_request.started_after,
-                    time_before=list_request.started_before,
-                    marker=list_request.marker,
-                    max_items=list_request.max_items
-                    if list_request.max_items > 0
-                    else None,
-                    reverse_order=list_request.reverse_order or False,
-                )
+            list_response = self.executor.list_executions_by_function(
+                function_name=list_request.function_name,
+                qualifier=list_request.qualifier,
+                execution_name=list_request.durable_execution_name,
+                status_filter=list_request.status_filter[0]
+                if list_request.status_filter
+                else None,
+                started_after=list_request.started_after,
+                started_before=list_request.started_before,
+                marker=list_request.marker,
+                max_items=list_request.max_items
+                if list_request.max_items > 0
+                else None,
+                reverse_order=list_request.reverse_order or False,
             )
 
-            response_data: dict[str, Any] = list_response.to_dict()
-
-            return self._success_response(response_data)
+            return self._success_response(list_response.to_dict())
 
         except AwsApiException as e:
             return self._handle_aws_exception(e)

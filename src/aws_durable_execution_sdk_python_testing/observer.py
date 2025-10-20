@@ -26,6 +26,14 @@ class ExecutionObserver(ABC):
         """Called when execution fails."""
 
     @abstractmethod
+    def on_timed_out(self, execution_arn: str, error: ErrorObject) -> None:
+        """Called when execution times out."""
+
+    @abstractmethod
+    def on_stopped(self, execution_arn: str, error: ErrorObject) -> None:
+        """Called when execution is stopped."""
+
+    @abstractmethod
     def on_wait_timer_scheduled(
         self, execution_arn: str, operation_id: str, delay: float
     ) -> None:
@@ -74,6 +82,18 @@ class ExecutionNotifier:
         """Notify observers about execution failure."""
         self._notify_observers(
             ExecutionObserver.on_failed, execution_arn=execution_arn, error=error
+        )
+
+    def notify_timed_out(self, execution_arn: str, error: ErrorObject) -> None:
+        """Notify observers about execution timeout."""
+        self._notify_observers(
+            ExecutionObserver.on_timed_out, execution_arn=execution_arn, error=error
+        )
+
+    def notify_stopped(self, execution_arn: str, error: ErrorObject) -> None:
+        """Notify observers about execution being stopped."""
+        self._notify_observers(
+            ExecutionObserver.on_stopped, execution_arn=execution_arn, error=error
         )
 
     def notify_wait_timer_scheduled(

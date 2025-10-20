@@ -28,7 +28,6 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
     ResourceNotFoundException,
 )
 from aws_durable_execution_sdk_python_testing.execution import Execution
-from aws_durable_execution_sdk_python_testing.exceptions import IllegalStateException
 from aws_durable_execution_sdk_python_testing.model import (
     CheckpointDurableExecutionResponse,
     CheckpointUpdatedExecutionState,
@@ -157,18 +156,7 @@ class Executor(ExecutionObserver):
 
         # Extract execution details from the first operation (EXECUTION type)
         execution_op = execution.get_operation_execution_started()
-
-        # Determine status based on execution state
-        if execution.is_complete:
-            if (
-                execution.result
-                and execution.result.status == InvocationStatus.SUCCEEDED
-            ):
-                status = "SUCCEEDED"
-            else:
-                status = "FAILED"
-        else:
-            status = "RUNNING"
+        status = execution.current_status().value
 
         # Extract result and error from execution result
         result = None
@@ -204,8 +192,8 @@ class Executor(ExecutionObserver):
         function_version: str | None = None,  # noqa: ARG002
         execution_name: str | None = None,
         status_filter: str | None = None,
-        time_after: str | None = None,  # noqa: ARG002
-        time_before: str | None = None,  # noqa: ARG002
+        started_after: str | None = None,
+        started_before: str | None = None,
         marker: str | None = None,
         max_items: int | None = None,
         reverse_order: bool = False,  # noqa: FBT001, FBT002
@@ -217,8 +205,8 @@ class Executor(ExecutionObserver):
             function_version: Filter by function version
             execution_name: Filter by execution name
             status_filter: Filter by status (RUNNING, SUCCEEDED, FAILED)
-            time_after: Filter executions started after this time
-            time_before: Filter executions started before this time
+            started_after: Filter executions started after this time
+            started_before: Filter executions started before this time
             marker: Pagination marker
             max_items: Maximum items to return (default 50)
             reverse_order: Return results in reverse chronological order
@@ -226,77 +214,34 @@ class Executor(ExecutionObserver):
         Returns:
             ListDurableExecutionsResponse: List of executions with pagination
         """
-        # Get all executions from store
-        all_executions = self._store.list_all()
-
-        # Apply filters
-        filtered_executions = []
-        for execution in all_executions:
-            # Filter by function name
-            if function_name and execution.start_input.function_name != function_name:
-                continue
-
-            # Filter by execution name
-            if (
-                execution_name
-                and execution.start_input.execution_name != execution_name
-            ):
-                continue
-
-            # Determine execution status
-            execution_status = "RUNNING"
-            if execution.is_complete:
-                if (
-                    execution.result
-                    and execution.result.status == InvocationStatus.SUCCEEDED
-                ):
-                    execution_status = "SUCCEEDED"
-                else:
-                    execution_status = "FAILED"
-
-            # Filter by status
-            if status_filter and execution_status != status_filter:
-                continue
-
-            # Convert to ExecutionSummary
-            execution_op = execution.get_operation_execution_started()
-            execution_summary = ExecutionSummary(
-                durable_execution_arn=execution.durable_execution_arn,
-                durable_execution_name=execution.start_input.execution_name,
-                function_arn=f"arn:aws:lambda:us-east-1:123456789012:function:{execution.start_input.function_name}",
-                status=execution_status,
-                start_timestamp=execution_op.start_timestamp
-                if execution_op.start_timestamp
-                else datetime.now(UTC),
-                end_timestamp=execution_op.end_timestamp
-                if execution_op.end_timestamp
-                else None,
-            )
-            filtered_executions.append(execution_summary)
-
-        # Sort by start date
-        filtered_executions.sort(key=lambda e: e.start_timestamp, reverse=reverse_order)
-
-        # Apply pagination
-        if max_items is None:
-            max_items = 50
-
-        start_index = 0
+        # Convert marker to offset
+        offset: int = 0
         if marker:
             try:
-                start_index = int(marker)
+                offset = int(marker)
             except ValueError:
-                start_index = 0
+                offset = 0
 
-        end_index = start_index + max_items
-        paginated_executions = filtered_executions[start_index:end_index]
+        # Query store directly with parameters
+        executions, next_marker = self._store.query(
+            function_name=function_name,
+            execution_name=execution_name,
+            status_filter=status_filter,
+            started_after=started_after,
+            started_before=started_before,
+            limit=max_items or 50,
+            offset=offset,
+            reverse_order=reverse_order,
+        )
 
-        next_marker = None
-        if end_index < len(filtered_executions):
-            next_marker = str(end_index)
+        # Convert to ExecutionSummary objects
+        execution_summaries: list[ExecutionSummary] = [
+            ExecutionSummary.from_execution(execution, execution.current_status().value)
+            for execution in executions
+        ]
 
         return ListDurableExecutionsResponse(
-            durable_executions=paginated_executions, next_marker=next_marker
+            durable_executions=execution_summaries, next_marker=next_marker
         )
 
     def list_executions_by_function(
@@ -305,8 +250,8 @@ class Executor(ExecutionObserver):
         qualifier: str | None = None,  # noqa: ARG002
         execution_name: str | None = None,
         status_filter: str | None = None,
-        time_after: str | None = None,
-        time_before: str | None = None,
+        started_after: str | None = None,
+        started_before: str | None = None,
         marker: str | None = None,
         max_items: int | None = None,
         reverse_order: bool = False,  # noqa: FBT001, FBT002
@@ -318,8 +263,8 @@ class Executor(ExecutionObserver):
             qualifier: Function qualifier/version
             execution_name: Filter by execution name
             status_filter: Filter by status (RUNNING, SUCCEEDED, FAILED)
-            time_after: Filter executions started after this time
-            time_before: Filter executions started before this time
+            started_after: Filter executions started after this time
+            started_before: Filter executions started before this time
             marker: Pagination marker
             max_items: Maximum items to return (default 50)
             reverse_order: Return results in reverse chronological order
@@ -332,8 +277,8 @@ class Executor(ExecutionObserver):
             function_name=function_name,
             execution_name=execution_name,
             status_filter=status_filter,
-            time_after=time_after,
-            time_before=time_before,
+            started_after=started_after,
+            started_before=started_before,
             marker=marker,
             max_items=max_items,
             reverse_order=reverse_order,
@@ -372,8 +317,11 @@ class Executor(ExecutionObserver):
             "Execution stopped by user request"
         )
 
-        # Stop the execution
-        self.fail_execution(execution_arn, stop_error)
+        # Stop sets TERMINATED close status (different from fail)
+        logger.exception("[%s] Stopping execution.", execution_arn)
+        execution.complete_stopped(error=stop_error)  # Sets CloseStatus.TERMINATED
+        self._store.update(execution)
+        self._complete_events(execution_arn=execution_arn)
 
         return StopDurableExecutionResponse(stop_timestamp=datetime.now(UTC))
 
@@ -459,13 +407,13 @@ class Executor(ExecutionObserver):
 
         # Generate events
         all_events: list[HistoryEvent] = []
-        event_id: int = 1
         ops: list[Operation] = execution.operations
         updates: list[OperationUpdate] = execution.updates
         updates_dict: dict[str, OperationUpdate] = {u.operation_id: u for u in updates}
         durable_execution_arn: str = execution.durable_execution_arn
+
+        # Generate all events first (without final event IDs)
         for op in ops:
-            # Step Operation can have PENDING status -> not included in History
             operation_update: OperationUpdate | None = updates_dict.get(
                 op.operation_id, None
             )
@@ -478,7 +426,7 @@ class Executor(ExecutionObserver):
                     continue
                 context: EventCreationContext = EventCreationContext(
                     op,
-                    event_id,
+                    0,  # Temporary event_id, will be reassigned after sorting
                     durable_execution_arn,
                     execution.start_input,
                     execution.result,
@@ -487,11 +435,10 @@ class Executor(ExecutionObserver):
                 )
                 pending = HistoryEvent.create_chained_invoke_event_pending(context)
                 all_events.append(pending)
-                event_id += 1
             if op.start_timestamp is not None:
                 context = EventCreationContext(
                     op,
-                    event_id,
+                    0,  # Temporary event_id, will be reassigned after sorting
                     durable_execution_arn,
                     execution.start_input,
                     execution.result,
@@ -500,11 +447,10 @@ class Executor(ExecutionObserver):
                 )
                 started = HistoryEvent.create_event_started(context)
                 all_events.append(started)
-                event_id += 1
             if op.end_timestamp is not None and op.status in TERMINAL_STATUSES:
                 context = EventCreationContext(
                     op,
-                    event_id,
+                    0,  # Temporary event_id, will be reassigned after sorting
                     durable_execution_arn,
                     execution.start_input,
                     execution.result,
@@ -513,7 +459,15 @@ class Executor(ExecutionObserver):
                 )
                 finished = HistoryEvent.create_event_terminated(context)
                 all_events.append(finished)
-                event_id += 1
+
+        # Sort events by timestamp to get correct chronological order
+        all_events.sort(key=lambda event: event.event_timestamp)
+
+        # Reassign event IDs based on chronological order
+        all_events = [
+            HistoryEvent.from_event_with_id(event, i)
+            for i, event in enumerate(all_events, 1)
+        ]
 
         # Apply cursor-based pagination
         if max_items is None:
@@ -938,27 +892,25 @@ class Executor(ExecutionObserver):
         raise ResourceNotFoundException(msg)
 
     def complete_execution(self, execution_arn: str, result: str | None = None) -> None:
-        """Complete execution successfully."""
+        """Complete execution successfully (COMPLETE_WORKFLOW_EXECUTION decision)."""
         logger.debug("[%s] Completing execution with result: %s", execution_arn, result)
         execution: Execution = self._store.load(execution_arn=execution_arn)
-        execution.complete_success(result=result)
+        execution.complete_success(result=result)  # Sets CloseStatus.COMPLETED
         self._store.update(execution)
         if execution.result is None:
             msg: str = "Execution result is required"
-
             raise IllegalStateException(msg)
         self._complete_events(execution_arn=execution_arn)
 
     def fail_execution(self, execution_arn: str, error: ErrorObject) -> None:
-        """Fail execution with error."""
+        """Fail execution with error (FAIL_WORKFLOW_EXECUTION decision)."""
         logger.error("[%s] Completing execution with error: %s", execution_arn, error)
         execution: Execution = self._store.load(execution_arn=execution_arn)
-        execution.complete_fail(error=error)
+        execution.complete_fail(error=error)  # Sets CloseStatus.FAILED
         self._store.update(execution)
         # set by complete_fail
         if execution.result is None:
             msg: str = "Execution result is required"
-
             raise IllegalStateException(msg)
         self._complete_events(execution_arn=execution_arn)
 
@@ -1008,6 +960,19 @@ class Executor(ExecutionObserver):
 
     def on_failed(self, execution_arn: str, error: ErrorObject) -> None:
         """Fail execution. Observer method triggered by notifier."""
+        self.fail_execution(execution_arn, error)
+
+    def on_timed_out(self, execution_arn: str, error: ErrorObject) -> None:
+        """Handle execution timeout (workflow timeout). Observer method triggered by notifier."""
+        logger.exception("[%s] Execution timed out.", execution_arn)
+        execution: Execution = self._store.load(execution_arn=execution_arn)
+        execution.complete_timeout(error=error)  # Sets CloseStatus.TIMED_OUT
+        self._store.update(execution)
+        self._complete_events(execution_arn=execution_arn)
+
+    def on_stopped(self, execution_arn: str, error: ErrorObject) -> None:
+        """Handle execution stop. Observer method triggered by notifier."""
+        # This should not be called directly - stop_execution handles termination
         self.fail_execution(execution_arn, error)
 
     def on_wait_timer_scheduled(

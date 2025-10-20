@@ -297,6 +297,24 @@ class Execution:
             result["EndTimestamp"] = self.end_timestamp
         return result
 
+    @classmethod
+    def from_execution(cls, execution, status: str) -> Execution:
+        """Create ExecutionSummary from Execution object."""
+
+        execution_op = execution.get_operation_execution_started()
+        return cls(
+            durable_execution_arn=execution.durable_execution_arn,
+            durable_execution_name=execution.start_input.execution_name,
+            function_arn=f"arn:aws:lambda:us-east-1:123456789012:function:{execution.start_input.function_name}",
+            status=status,
+            start_timestamp=execution_op.start_timestamp
+            if execution_op.start_timestamp
+            else datetime.datetime.now(datetime.UTC),
+            end_timestamp=execution_op.end_timestamp
+            if execution_op.end_timestamp
+            else None,
+        )
+
 
 @dataclass(frozen=True)
 class ListDurableExecutionsRequest:
@@ -306,24 +324,71 @@ class ListDurableExecutionsRequest:
     function_version: str | None = None
     durable_execution_name: str | None = None
     status_filter: list[str] | None = None
-    time_after: str | None = None
-    time_before: str | None = None
+    started_after: str | None = None
+    started_before: str | None = None
     marker: str | None = None
     max_items: int = 0
     reverse_order: bool | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> ListDurableExecutionsRequest:
+        # Handle query parameters that may be lists
+        function_name = data.get("FunctionName")
+        if isinstance(function_name, list):
+            function_name = function_name[0] if function_name else None
+
+        function_version = data.get("FunctionVersion")
+        if isinstance(function_version, list):
+            function_version = function_version[0] if function_version else None
+
+        durable_execution_name = data.get("DurableExecutionName")
+        if isinstance(durable_execution_name, list):
+            durable_execution_name = (
+                durable_execution_name[0] if durable_execution_name else None
+            )
+
+        status_filter = data.get("StatusFilter")
+        if isinstance(status_filter, list):
+            status_filter = status_filter if status_filter else None
+        elif status_filter:
+            status_filter = [status_filter]
+
+        started_after = data.get("StartedAfter")
+        if isinstance(started_after, list):
+            started_after = started_after[0] if started_after else None
+
+        started_before = data.get("StartedBefore")
+        if isinstance(started_before, list):
+            started_before = started_before[0] if started_before else None
+
+        marker = data.get("Marker")
+        if isinstance(marker, list):
+            marker = marker[0] if marker else None
+
+        max_items = data.get("MaxItems", 0)
+        if isinstance(max_items, list):
+            max_items = int(max_items[0]) if max_items else 0
+
+        reverse_order = data.get("ReverseOrder")
+        if isinstance(reverse_order, list):
+            reverse_order = (
+                reverse_order[0].lower() in ("true", "1", "yes")
+                if reverse_order
+                else None
+            )
+        elif isinstance(reverse_order, str):
+            reverse_order = reverse_order.lower() in ("true", "1", "yes")
+
         return cls(
-            function_name=data.get("FunctionName"),
-            function_version=data.get("FunctionVersion"),
-            durable_execution_name=data.get("DurableExecutionName"),
-            status_filter=data.get("StatusFilter"),
-            time_after=data.get("TimeAfter"),
-            time_before=data.get("TimeBefore"),
-            marker=data.get("Marker"),
-            max_items=data.get("MaxItems", 0),
-            reverse_order=data.get("ReverseOrder"),
+            function_name=function_name,
+            function_version=function_version,
+            durable_execution_name=durable_execution_name,
+            status_filter=status_filter,
+            started_after=started_after,
+            started_before=started_before,
+            marker=marker,
+            max_items=max_items,
+            reverse_order=reverse_order,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -336,10 +401,10 @@ class ListDurableExecutionsRequest:
             result["DurableExecutionName"] = self.durable_execution_name
         if self.status_filter is not None:
             result["StatusFilter"] = self.status_filter
-        if self.time_after is not None:
-            result["TimeAfter"] = self.time_after
-        if self.time_before is not None:
-            result["TimeBefore"] = self.time_before
+        if self.started_after is not None:
+            result["StartedAfter"] = self.started_after
+        if self.started_before is not None:
+            result["StartedBefore"] = self.started_before
         if self.marker is not None:
             result["Marker"] = self.marker
         if self.max_items is not None:
@@ -2145,6 +2210,43 @@ class Event:
                 raise InvalidParameterValueException(msg)
 
     @classmethod
+    def from_event_with_id(cls, event: Event, event_id: int) -> Event:
+        """Create a new Event from an existing event with updated event_id."""
+        return cls(
+            event_type=event.event_type,
+            event_timestamp=event.event_timestamp,
+            sub_type=event.sub_type,
+            event_id=event_id,
+            operation_id=event.operation_id,
+            name=event.name,
+            parent_id=event.parent_id,
+            execution_started_details=event.execution_started_details,
+            execution_succeeded_details=event.execution_succeeded_details,
+            execution_failed_details=event.execution_failed_details,
+            execution_timed_out_details=event.execution_timed_out_details,
+            execution_stopped_details=event.execution_stopped_details,
+            context_started_details=event.context_started_details,
+            context_succeeded_details=event.context_succeeded_details,
+            context_failed_details=event.context_failed_details,
+            wait_started_details=event.wait_started_details,
+            wait_succeeded_details=event.wait_succeeded_details,
+            wait_cancelled_details=event.wait_cancelled_details,
+            step_started_details=event.step_started_details,
+            step_succeeded_details=event.step_succeeded_details,
+            step_failed_details=event.step_failed_details,
+            chained_invoke_pending_details=event.chained_invoke_pending_details,
+            chained_invoke_started_details=event.chained_invoke_started_details,
+            chained_invoke_succeeded_details=event.chained_invoke_succeeded_details,
+            chained_invoke_failed_details=event.chained_invoke_failed_details,
+            chained_invoke_timed_out_details=event.chained_invoke_timed_out_details,
+            chained_invoke_stopped_details=event.chained_invoke_stopped_details,
+            callback_started_details=event.callback_started_details,
+            callback_succeeded_details=event.callback_succeeded_details,
+            callback_failed_details=event.callback_failed_details,
+            callback_timed_out_details=event.callback_timed_out_details,
+        )
+
+    @classmethod
     def create_event_terminated(cls, context: EventCreationContext) -> Event:
         """Convert operation to finished event."""
         operation: Operation = context.operation
@@ -2696,16 +2798,67 @@ class ListDurableExecutionsByFunctionRequest:
 
     @classmethod
     def from_dict(cls, data: dict) -> ListDurableExecutionsByFunctionRequest:
+        # Handle query parameters that may be lists
+        function_name = data.get("FunctionName")
+        if isinstance(function_name, list):
+            function_name = function_name[0] if function_name else ""
+        elif not function_name:
+            function_name = ""
+
+        qualifier = data.get("Qualifier") or data.get("functionVersion")
+        if isinstance(qualifier, list):
+            qualifier = qualifier[0] if qualifier else None
+
+        durable_execution_name = data.get("DurableExecutionName") or data.get(
+            "executionName"
+        )
+        if isinstance(durable_execution_name, list):
+            durable_execution_name = (
+                durable_execution_name[0] if durable_execution_name else None
+            )
+
+        status_filter = data.get("StatusFilter") or data.get("statusFilter")
+        if isinstance(status_filter, list):
+            status_filter = status_filter if status_filter else None
+        elif status_filter:
+            status_filter = [status_filter]
+
+        started_after = data.get("StartedAfter") or data.get("startedAfter")
+        if isinstance(started_after, list):
+            started_after = started_after[0] if started_after else None
+
+        started_before = data.get("StartedBefore") or data.get("startedBefore")
+        if isinstance(started_before, list):
+            started_before = started_before[0] if started_before else None
+
+        marker = data.get("Marker") or data.get("marker")
+        if isinstance(marker, list):
+            marker = marker[0] if marker else None
+
+        max_items = data.get("MaxItems") or data.get("maxItems", 0)
+        if isinstance(max_items, list):
+            max_items = int(max_items[0]) if max_items else 0
+
+        reverse_order = data.get("ReverseOrder") or data.get("reverseOrder")
+        if isinstance(reverse_order, list):
+            reverse_order = (
+                reverse_order[0].lower() in ("true", "1", "yes")
+                if reverse_order
+                else None
+            )
+        elif isinstance(reverse_order, str):
+            reverse_order = reverse_order.lower() in ("true", "1", "yes")
+
         return cls(
-            function_name=data["FunctionName"],
-            qualifier=data.get("Qualifier"),
-            durable_execution_name=data.get("DurableExecutionName"),
-            status_filter=data.get("StatusFilter"),
-            started_after=data.get("StartedAfter"),
-            started_before=data.get("StartedBefore"),
-            marker=data.get("Marker"),
-            max_items=data.get("MaxItems", 0),
-            reverse_order=data.get("ReverseOrder"),
+            function_name=function_name,
+            qualifier=qualifier,
+            durable_execution_name=durable_execution_name,
+            status_filter=status_filter,
+            started_after=started_after,
+            started_before=started_before,
+            marker=marker,
+            max_items=max_items,
+            reverse_order=reverse_order,
         )
 
     def to_dict(self) -> dict[str, Any]:

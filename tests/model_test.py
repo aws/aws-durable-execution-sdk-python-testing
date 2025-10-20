@@ -256,8 +256,8 @@ def test_list_durable_executions_request_serialization():
         "FunctionVersion": "$LATEST",
         "DurableExecutionName": "test-execution",
         "StatusFilter": ["RUNNING", "SUCCEEDED"],
-        "TimeAfter": TIMESTAMP_2023_01_01_00_00,
-        "TimeBefore": TIMESTAMP_2023_01_02_00_00,
+        "StartedAfter": TIMESTAMP_2023_01_01_00_00,
+        "StartedBefore": TIMESTAMP_2023_01_02_00_00,
         "Marker": "marker-123",
         "MaxItems": 10,
         "ReverseOrder": True,
@@ -268,8 +268,8 @@ def test_list_durable_executions_request_serialization():
     assert request_obj.function_version == "$LATEST"
     assert request_obj.durable_execution_name == "test-execution"
     assert request_obj.status_filter == ["RUNNING", "SUCCEEDED"]
-    assert request_obj.time_after == TIMESTAMP_2023_01_01_00_00
-    assert request_obj.time_before == TIMESTAMP_2023_01_02_00_00
+    assert request_obj.started_after == TIMESTAMP_2023_01_01_00_00
+    assert request_obj.started_before == TIMESTAMP_2023_01_02_00_00
     assert request_obj.marker == "marker-123"
     assert request_obj.max_items == 10
     assert request_obj.reverse_order is True
@@ -291,8 +291,8 @@ def test_list_durable_executions_request_empty():
     assert request_obj.function_version is None
     assert request_obj.durable_execution_name is None
     assert request_obj.status_filter is None
-    assert request_obj.time_after is None
-    assert request_obj.time_before is None
+    assert request_obj.started_after is None
+    assert request_obj.started_before is None
     assert request_obj.marker is None
     assert request_obj.max_items == 0  # Default value from Smithy
     assert request_obj.reverse_order is None
@@ -1253,8 +1253,8 @@ def test_list_durable_executions_request_all_optional_fields():
         function_version=None,
         durable_execution_name=None,
         status_filter=None,
-        time_after=None,
-        time_before=None,
+        started_after=None,
+        started_before=None,
         marker=None,
         max_items=None,
         reverse_order=None,
@@ -1273,8 +1273,8 @@ def test_list_durable_executions_request_partial_fields():
         function_version=None,
         durable_execution_name="test-execution",
         status_filter=None,
-        time_after=TIMESTAMP_2023_01_01_00_00,
-        time_before=None,
+        started_after=TIMESTAMP_2023_01_01_00_00,
+        started_before=None,
         marker="marker-123",
         max_items=10,
         reverse_order=None,
@@ -1284,7 +1284,7 @@ def test_list_durable_executions_request_partial_fields():
     expected_data = {
         "FunctionName": "my-function",
         "DurableExecutionName": "test-execution",
-        "TimeAfter": TIMESTAMP_2023_01_01_00_00,
+        "StartedAfter": TIMESTAMP_2023_01_01_00_00,
         "Marker": "marker-123",
         "MaxItems": 10,
     }

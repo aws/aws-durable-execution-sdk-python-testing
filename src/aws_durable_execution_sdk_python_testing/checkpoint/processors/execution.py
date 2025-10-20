@@ -45,6 +45,8 @@ class ExecutionProcessor(OperationProcessor):
                         "There is no error details but EXECUTION checkpoint action is not SUCCEED."
                     )
                 )
+                # All EXECUTION failures go through normal fail path
+                # Timeout/Stop status is set by executor based on the operation that caused it
                 notifier.notify_failed(execution_arn=execution_arn, error=error)
         # TODO: Svc doesn't actually create checkpoint for EXECUTION. might have to for localrunner though.
         return None
