@@ -10,6 +10,7 @@ import { readFileSync, appendFileSync } from "fs";
 const types = new Set([
   "build",
   "chore",
+  "parity",
   "ci",
   "config",
   "deps",
