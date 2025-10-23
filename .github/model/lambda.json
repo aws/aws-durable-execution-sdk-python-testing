@@ -1055,6 +1055,26 @@
       ],
       "documentation":"<p>Adds a provisioned concurrency configuration to a function's alias or version.</p>"
     },
+    "PutResourcePolicy":{
+      "name":"PutResourcePolicy",
+      "http":{
+        "method":"PUT",
+        "requestUri":"/2024-09-16/resource-policy/{ResourceArn}",
+        "responseCode":200
+      },
+      "input":{"shape":"PutResourcePolicyRequest"},
+      "output":{"shape":"PutResourcePolicyResponse"},
+      "errors":[
+        {"shape":"InvalidParameterValueException"},
+        {"shape":"ResourceConflictException"},
+        {"shape":"PublicPolicyException"},
+        {"shape":"ServiceException"},
+        {"shape":"TooManyRequestsException"},
+        {"shape":"PolicyLengthExceededException"},
+        {"shape":"ResourceNotFoundException"},
+        {"shape":"PreconditionFailedException"}
+      ]
+    },
     "RemoveLayerVersionPermission":{
       "name":"RemoveLayerVersionPermission",
       "http":{
@@ -4737,6 +4757,10 @@
       "type":"integer",
       "min":0
     },
+    "NullableBoolean":{
+      "type":"boolean",
+      "box":true
+    },
     "OnFailure":{
       "type":"structure",
       "members":{
@@ -4948,6 +4972,36 @@
     "PositiveInteger":{
       "type":"integer",
       "min":1
+    },
+    "PolicyResourceArn":{
+      "type":"string",
+      "max":256,
+      "min":0,
+      "pattern":"arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:(lite-function|function|layer):[a-zA-Z0-9-_]+(:(\\$LATEST|[a-zA-Z0-9-_])+)?"
+    },
+    "PutResourcePolicyRequest":{
+      "type":"structure",
+      "required":[
+        "ResourceArn",
+        "Policy"
+      ],
+      "members":{
+        "ResourceArn":{
+          "shape":"PolicyResourceArn",
+          "location":"uri",
+          "locationName":"ResourceArn"
+        },
+        "Policy":{"shape":"ResourcePolicy"},
+        "BlockPublicPolicy":{"shape":"NullableBoolean"},
+        "RevisionId":{"shape":"RevisionId"}
+      }
+    },
+    "PutResourcePolicyResponse":{
+      "type":"structure",
+      "members":{
+        "Policy":{"shape":"ResourcePolicy"},
+        "RevisionId":{"shape":"RevisionId"}
+      }
     },
     "PreconditionFailedException":{
       "type":"structure",
@@ -5409,6 +5463,18 @@
       "documentation":"<p>The resource specified in the request does not exist.</p>",
       "error":{"httpStatusCode":404},
       "exception":true
+    },
+    "ResourcePolicy":{
+      "type":"string",
+      "max":20480,
+      "min":1,
+      "pattern":"[\\s\\S]+"
+    },
+    "RevisionId":{
+      "type":"string",
+      "max":36,
+      "min":36,
+      "pattern":"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
     },
     "ResourceNotReadyException":{
       "type":"structure",

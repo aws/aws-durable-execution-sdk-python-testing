@@ -378,45 +378,26 @@ def deploy_function(example_name: str, function_name: str | None = None):
     except lambda_client.exceptions.ResourceNotFoundException:
         lambda_client.create_function(**function_config, Code={"ZipFile": zip_content})
 
-    # Update invoke permission for worker account if needed
-    try:
-        policy_response = lambda_client.get_policy(FunctionName=function_name)
-        policy = json.loads(policy_response["Policy"])
+    # Update invoke permission for worker account using put_resource_policy
+    function_arn = f"arn:aws:lambda:{config['region']}:{config['account_id']}:function:{function_name}"
+    
+    policy_document = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "dex-invoke-permission",
+                "Effect": "Allow",
+                "Principal": {"AWS": config["invoke_account_id"]},
+                "Action": "lambda:InvokeFunction",
+                "Resource": f"{function_arn}*"
+            }
+        ]
+    }
 
-        # Check if permission exists with correct principal
-        needs_update = True
-        for statement in policy.get("Statement", []):
-            if (
-                statement.get("Sid") == "dex-invoke-permission"
-                and statement.get("Principal", {}).get("AWS")
-                == config["invoke_account_id"]
-            ):
-                needs_update = False
-                break
-
-        if needs_update:
-            with contextlib.suppress(
-                lambda_client.exceptions.ResourceNotFoundException
-            ):
-                lambda_client.remove_permission(
-                    FunctionName=function_name, StatementId="dex-invoke-permission"
-                )
-
-            lambda_client.add_permission(
-                FunctionName=function_name,
-                StatementId="dex-invoke-permission",
-                Action="lambda:InvokeFunction",
-                Principal=config["invoke_account_id"],
-            )
-
-    except lambda_client.exceptions.ResourceNotFoundException:
-        # No policy exists, add permission
-        lambda_client.add_permission(
-            FunctionName=function_name,
-            StatementId="dex-invoke-permission",
-            Action="lambda:InvokeFunction",
-            Principal=config["invoke_account_id"],
-        )
+    lambda_client.put_resource_policy(
+        ResourceArn=function_arn,
+        Policy=json.dumps(policy_document)
+    )
 
     logger.info("Function deployed successfully! %s", function_name)
     return True
