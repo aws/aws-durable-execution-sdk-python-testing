@@ -389,7 +389,7 @@ def deploy_function(example_name: str, function_name: str | None = None):
                 "Effect": "Allow",
                 "Principal": {"AWS": config["invoke_account_id"]},
                 "Action": "lambda:InvokeFunction",
-                "Resource": f"{function_arn}*"
+                "Resource": f"{function_arn}:*"
             }
         ]
     }
