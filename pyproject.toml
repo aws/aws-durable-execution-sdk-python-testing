@@ -61,7 +61,8 @@ dependencies = [
 
 [tool.hatch.envs.test.scripts]
 test = "pytest tests/ -v"
-examples = "pytest examples/test/ -v"
+examples = "pytest --runner-mode=local -m example examples/test/ -v"
+examples-integration = "pytest --runner-mode=cloud -m example examples/test/ -v {args}"
 cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aws_durable_execution_sdk_python_testing --cov-fail-under=96"
 
 [tool.hatch.envs.examples]
@@ -115,6 +116,7 @@ target-version = "py313"
 
 [tool.ruff.lint]
 preview = false
+select = ["TID252"]  # Enforce absolute imports (ban relative imports)
 
 [tool.ruff.lint.isort]
 known-first-party = ["aws_durable_execution_sdk_python_testing"]
@@ -143,3 +145,16 @@ lines-after-imports = 2
 "src/aws_durable_execution_sdk_python_testing/invoker.py" = [
   "A002", # Argument `input` is shadowing a Python builtin
 ]
+
+[tool.pytest.ini_options]
+# Declare custom markers to avoid warnings with --strict-markers
+markers = [
+  # Used for test selection with -m example
+  "example: marks tests as example tests (deselect with '-m \"not example\"')",
+  # Used for configuration - passes handler and lambda_function_name to durable_runner fixture
+  "durable_execution: marks tests that use the durable_runner fixture (not used for test selection)",
+]
+# Default test discovery paths
+testpaths = ["tests", "examples/test"]
+# Default options for all test runs
+addopts = "-v --strict-markers"

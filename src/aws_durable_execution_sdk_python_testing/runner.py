@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
@@ -23,6 +24,7 @@ from aws_durable_execution_sdk_python.execution import (
 )
 from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
+    OperationPayload,
     OperationStatus,
     OperationSubType,
     OperationType,
@@ -44,8 +46,11 @@ from aws_durable_execution_sdk_python_testing.invoker import (
     LambdaInvoker,
 )
 from aws_durable_execution_sdk_python_testing.model import (
+    GetDurableExecutionHistoryResponse,
+    GetDurableExecutionResponse,
     StartDurableExecutionInput,
     StartDurableExecutionOutput,
+    events_to_operations,
 )
 from aws_durable_execution_sdk_python_testing.scheduler import Scheduler
 from aws_durable_execution_sdk_python_testing.stores.base import (
@@ -152,7 +157,7 @@ class ExecutionOperation(Operation):
 @dataclass(frozen=True)
 class ContextOperation(Operation):
     child_operations: list[Operation]
-    result: Any = None
+    result: OperationPayload | None = None
     error: ErrorObject | None = None
 
     @staticmethod
@@ -181,11 +186,9 @@ class ContextOperation(Operation):
             start_timestamp=operation.start_timestamp,
             end_timestamp=operation.end_timestamp,
             child_operations=child_operations,
-            result=(
-                json.loads(operation.context_details.result)
-                if operation.context_details and operation.context_details.result
-                else None
-            ),
+            result=operation.context_details.result
+            if operation.context_details
+            else None,
             error=operation.context_details.error
             if operation.context_details
             else None,
@@ -221,7 +224,7 @@ class ContextOperation(Operation):
 class StepOperation(ContextOperation):
     attempt: int = 0
     next_attempt_timestamp: datetime.datetime | None = None
-    result: Any = None
+    result: OperationPayload | None = None
     error: ErrorObject | None = None
 
     @staticmethod
@@ -256,11 +259,7 @@ class StepOperation(ContextOperation):
                 if operation.step_details
                 else None
             ),
-            result=(
-                json.loads(operation.step_details.result)
-                if operation.step_details and operation.step_details.result
-                else None
-            ),
+            result=operation.step_details.result if operation.step_details else None,
             error=operation.step_details.error if operation.step_details else None,
         )
 
@@ -297,7 +296,7 @@ class WaitOperation(Operation):
 @dataclass(frozen=True)
 class CallbackOperation(ContextOperation):
     callback_id: str | None = None
-    result: Any = None
+    result: OperationPayload | None = None
     error: ErrorObject | None = None
 
     @staticmethod
@@ -331,11 +330,9 @@ class CallbackOperation(ContextOperation):
                 if operation.callback_details
                 else None
             ),
-            result=(
-                json.loads(operation.callback_details.result)
-                if operation.callback_details and operation.callback_details.result
-                else None
-            ),
+            result=operation.callback_details.result
+            if operation.callback_details
+            else None,
             error=operation.callback_details.error
             if operation.callback_details
             else None,
@@ -344,7 +341,7 @@ class CallbackOperation(ContextOperation):
 
 @dataclass(frozen=True)
 class InvokeOperation(Operation):
-    result: Any = None
+    result: OperationPayload | None = None
     error: ErrorObject | None = None
 
     @staticmethod
@@ -364,12 +361,9 @@ class InvokeOperation(Operation):
             sub_type=operation.sub_type,
             start_timestamp=operation.start_timestamp,
             end_timestamp=operation.end_timestamp,
-            result=(
-                json.loads(operation.chained_invoke_details.result)
-                if operation.chained_invoke_details
-                and operation.chained_invoke_details.result
-                else None
-            ),
+            result=operation.chained_invoke_details.result
+            if operation.chained_invoke_details
+            else None,
             error=operation.chained_invoke_details.error
             if operation.chained_invoke_details
             else None,
@@ -402,7 +396,7 @@ def create_operation(
 class DurableFunctionTestResult:
     status: InvocationStatus
     operations: list[Operation]
-    result: Any = None
+    result: OperationPayload | None = None
     error: ErrorObject | None = None
 
     @classmethod
@@ -420,15 +414,53 @@ class DurableFunctionTestResult:
             msg: str = "Execution result must exist to create test result."
             raise DurableFunctionsTestError(msg)
 
-        deserialized_result = (
-            json.loads(execution.result.result) if execution.result.result else None
-        )
-
         return cls(
             status=execution.result.status,
             operations=operations,
-            result=deserialized_result,
+            result=execution.result.result,
             error=execution.result.error,
+        )
+
+    @classmethod
+    def from_execution_history(
+        cls,
+        execution_response: GetDurableExecutionResponse,
+        history_response: GetDurableExecutionHistoryResponse,
+    ) -> DurableFunctionTestResult:
+        """Create test result from execution history responses.
+
+        Factory method for cloud runner that builds DurableFunctionTestResult
+        from GetDurableExecution and GetDurableExecutionHistory API responses.
+        """
+        # Map status string to InvocationStatus enum
+        try:
+            status = InvocationStatus[execution_response.status]
+        except KeyError:
+            logger.warning(
+                "Unknown status: %s, defaulting to FAILED", execution_response.status
+            )
+            status = InvocationStatus.FAILED
+
+        # Convert Events to Operations - group by operation_id and merge
+        try:
+            svc_operations = events_to_operations(history_response.events)
+        except Exception as e:
+            logger.warning("Failed to convert events to operations: %s", e)
+            svc_operations = []
+
+        # Build operation tree (exclude EXECUTION type from top level)
+        operations = []
+        for svc_op in svc_operations:
+            if svc_op.operation_type == OperationType.EXECUTION:
+                continue
+            if svc_op.parent_id is None:
+                operations.append(create_operation(svc_op, svc_operations))
+
+        return cls(
+            status=status,
+            operations=operations,
+            result=execution_response.result,
+            error=execution_response.error,
         )
 
     def get_operation_by_name(self, name: str) -> Operation:
@@ -680,3 +712,195 @@ class WebRunner:
             endpoint_url=self._config.lambda_endpoint,
             region_name=self._config.local_runner_region,
         )
+
+
+class DurableFunctionCloudTestRunner:
+    """Test runner that executes durable functions against actual AWS Lambda backend.
+
+    This runner invokes deployed Lambda functions and polls for execution completion,
+    providing the same interface as DurableFunctionTestRunner for seamless test
+    compatibility between local and cloud modes.
+
+    Example:
+        >>> runner = DurableFunctionCloudTestRunner(
+        ...     function_name="HelloWorld-Python-PR-123", region="us-west-2"
+        ... )
+        >>> with runner:
+        ...     result = runner.run(input={"name": "World"}, timeout=60)
+        >>> assert result.status == InvocationStatus.SUCCEEDED
+    """
+
+    def __init__(
+        self,
+        function_name: str,
+        region: str = "us-west-2",
+        lambda_endpoint: str | None = None,
+        poll_interval: float = 1.0,
+    ):
+        """Initialize cloud test runner."""
+        self.function_name = function_name
+        self.region = region
+        self.lambda_endpoint = lambda_endpoint
+        self.poll_interval = poll_interval
+
+        # Set up AWS data path for custom boto models (durable execution fields)
+        package_path = os.path.dirname(aws_durable_execution_sdk_python.__file__)
+        data_path = f"{package_path}/botocore/data"
+        os.environ["AWS_DATA_PATH"] = data_path
+
+        client_config = boto3.session.Config(parameter_validation=False)
+        self.lambda_client = boto3.client(
+            "lambdainternal",
+            endpoint_url=lambda_endpoint,
+            region_name=region,
+            config=client_config,
+        )
+
+    def run(
+        self,
+        input: str | None = None,  # noqa: A002
+        timeout: int = 60,
+    ) -> DurableFunctionTestResult:
+        """Execute function on AWS Lambda and wait for completion."""
+        logger.info(
+            "Invoking Lambda function: %s (timeout: %ds)", self.function_name, timeout
+        )
+
+        # JSON encode input
+        payload = json.dumps(input)
+
+        # Invoke Lambda function
+        try:
+            response = self.lambda_client.invoke(
+                FunctionName=self.function_name,
+                InvocationType="RequestResponse",
+                Payload=payload,
+            )
+        except Exception as e:
+            msg = f"Failed to invoke Lambda function {self.function_name}: {e}"
+            raise DurableFunctionsTestError(msg) from e
+
+        # Check HTTP status code (200 for RequestResponse, 202 for Event, 204 for DryRun)
+        status_code = response.get("StatusCode")
+        if status_code not in (200, 202, 204):
+            error_payload = response["Payload"].read().decode("utf-8")
+            msg = f"Lambda invocation failed with status {status_code}: {error_payload}"
+            raise DurableFunctionsTestError(msg)
+
+        # Check for function errors
+        if "FunctionError" in response:
+            error_payload = response["Payload"].read().decode("utf-8")
+            msg = f"Lambda function failed: {error_payload}"
+            raise DurableFunctionsTestError(msg)
+
+        result_payload = response["Payload"].read().decode("utf-8")
+        logger.info(
+            "Lambda invocation completed, response: %s",
+            result_payload,
+        )
+
+        # Extract durable execution ARN from response headers
+        # The InvocationResponse includes X-Amz-Durable-Execution-Arn header
+        execution_arn = response.get("DurableExecutionArn")
+        if not execution_arn:
+            msg = (
+                f"No DurableExecutionArn in response for function {self.function_name}"
+            )
+            raise DurableFunctionsTestError(msg)
+
+        # Poll for completion
+        execution_response = self._wait_for_completion(execution_arn, timeout)
+
+        # Get execution history
+        history_response = self._get_execution_history(execution_arn)
+
+        # Build test result from execution history
+        return DurableFunctionTestResult.from_execution_history(
+            execution_response, history_response
+        )
+
+    def _wait_for_completion(
+        self, execution_arn: str, timeout: int
+    ) -> GetDurableExecutionResponse:
+        """Poll execution status until completion or timeout.
+
+        Args:
+            execution_arn: ARN of the durable execution
+            timeout: Maximum seconds to wait
+
+        Returns:
+            GetDurableExecutionResponse with typed execution details
+
+        Raises:
+            TimeoutError: If execution doesn't complete within timeout
+            DurableFunctionsTestError: If status check fails
+        """
+        start_time = time.time()
+        last_status = None
+
+        while time.time() - start_time < timeout:
+            try:
+                execution_dict = self.lambda_client.get_durable_execution(
+                    DurableExecutionArn=execution_arn
+                )
+                execution = GetDurableExecutionResponse.from_dict(execution_dict)
+            except Exception as e:
+                msg = f"Failed to get execution status: {e}"
+                raise DurableFunctionsTestError(msg) from e
+
+            # Log status changes
+            if execution.status != last_status:
+                logger.info("Execution status: %s", execution.status)
+                last_status = execution.status
+
+            # Check if execution completed
+            if execution.status == "SUCCEEDED":
+                logger.info("Execution succeeded")
+                return execution
+            if execution.status == "FAILED":
+                logger.warning("Execution failed")
+                return execution
+            if execution.status in ["TIMED_OUT", "ABORTED"]:
+                logger.warning("Execution terminated: %s", execution.status)
+                return execution
+
+            # Wait before next poll
+            time.sleep(self.poll_interval)
+
+        # Timeout reached
+        elapsed = time.time() - start_time
+        msg = (
+            f"Execution did not complete within {timeout}s "
+            f"(elapsed: {elapsed:.1f}s, last status: {last_status})"
+        )
+        raise TimeoutError(msg)
+
+    def _get_execution_history(
+        self, execution_arn: str
+    ) -> GetDurableExecutionHistoryResponse:
+        """Retrieve execution history from Lambda service.
+
+        Args:
+            execution_arn: ARN of the durable execution
+
+        Returns:
+            GetDurableExecutionHistoryResponse with typed Event objects
+
+        Raises:
+            DurableFunctionsTestError: If history retrieval fails
+        """
+        try:
+            history_dict = self.lambda_client.get_durable_execution_history(
+                DurableExecutionArn=execution_arn,
+                IncludeExecutionData=True,
+            )
+            history_response = GetDurableExecutionHistoryResponse.from_dict(
+                history_dict
+            )
+        except Exception as e:
+            msg = f"Failed to get execution history: {e}"
+            raise DurableFunctionsTestError(msg) from e
+
+        logger.info("Retrieved %d events from history", len(history_response.events))
+
+        return history_response

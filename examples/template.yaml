@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Globals:
   Function:
@@ -64,7 +64,8 @@ Resources:
     Properties:
       CodeUri: build/
       Handler: callback.handler
-      Description: Basic usage of context.create_callback() to create a callback for
+      Description:
+        Basic usage of context.create_callback() to create a callback for
         external systems
       DurableConfig:
         RetentionPeriodInDays: 7
@@ -74,7 +75,8 @@ Resources:
     Properties:
       CodeUri: build/
       Handler: wait_for_callback.handler
-      Description: Usage of context.wait_for_callback() to wait for external system
+      Description:
+        Usage of context.wait_for_callback() to wait for external system
         responses
       DurableConfig:
         RetentionPeriodInDays: 7
@@ -84,7 +86,8 @@ Resources:
     Properties:
       CodeUri: build/
       Handler: run_in_child_context.handler
-      Description: Usage of context.run_in_child_context() to execute operations in
+      Description:
+        Usage of context.run_in_child_context() to execute operations in
         isolated contexts
       DurableConfig:
         RetentionPeriodInDays: 7
@@ -104,6 +107,42 @@ Resources:
       CodeUri: build/
       Handler: map_operations.handler
       Description: Processing collections using map-like durable operations
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  BlockExample:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: block_example.handler
+      Description: Nested child contexts demonstrating block operations
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  LoggerExample:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: logger_example.handler
+      Description: Demonstrating logger usage and enrichment in DurableContext
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  StepsWithRetry:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: steps_with_retry.handler
+      Description: Multiple steps with retry logic in a polling pattern
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  WaitForCondition:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: wait_for_condition.handler
+      Description: Polling pattern that waits for a condition to be met
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300

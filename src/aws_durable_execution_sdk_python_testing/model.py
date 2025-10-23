@@ -2,21 +2,29 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import datetime
+from dataclasses import dataclass, replace
 from typing import Any
 
 # Import existing types from the main SDK - REUSE EVERYTHING POSSIBLE
 from aws_durable_execution_sdk_python.lambda_service import (
+    CallbackDetails,
     CallbackOptions,
+    ChainedInvokeDetails,
     ChainedInvokeOptions,
+    ContextDetails,
     ContextOptions,
     ErrorObject,
+    ExecutionDetails,
     Operation,
     OperationAction,
+    OperationStatus,
     OperationSubType,
     OperationType,
     OperationUpdate,
+    StepDetails,
     StepOptions,
+    WaitDetails,
     WaitOptions,
 )
 from aws_durable_execution_sdk_python.types import (
@@ -156,11 +164,11 @@ class GetDurableExecutionResponse:
     durable_execution_name: str
     function_arn: str
     status: str
-    start_timestamp: float
+    start_timestamp: datetime.datetime
     input_payload: str | None = None
     result: str | None = None
     error: ErrorObject | None = None
-    end_timestamp: float | None = None
+    end_timestamp: datetime.datetime | None = None
     version: str | None = None
 
     @classmethod
@@ -213,8 +221,8 @@ class Execution:
     durable_execution_name: str
     function_arn: str
     status: str
-    start_timestamp: float
-    end_timestamp: float | None = None
+    start_timestamp: datetime.datetime
+    end_timestamp: datetime.datetime | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> Execution:
@@ -350,14 +358,14 @@ class StopDurableExecutionRequest:
 class StopDurableExecutionResponse:
     """Response from stopping a durable execution."""
 
-    end_timestamp: float
+    stop_timestamp: datetime.datetime
 
     @classmethod
     def from_dict(cls, data: dict) -> StopDurableExecutionResponse:
-        return cls(end_timestamp=data["EndTimestamp"])
+        return cls(stop_timestamp=data["StopTimestamp"])
 
     def to_dict(self) -> dict[str, Any]:
-        return {"EndTimestamp": self.end_timestamp}
+        return {"StopTimestamp": self.stop_timestamp}
 
 
 @dataclass(frozen=True)
@@ -676,7 +684,7 @@ class WaitStartedDetails:
     """Wait started event details."""
 
     duration: int | None = None
-    scheduled_end_timestamp: str | None = None
+    scheduled_end_timestamp: datetime.datetime | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> WaitStartedDetails:
@@ -1010,7 +1018,7 @@ class Event:
     """Event structure from Smithy model."""
 
     event_type: str
-    event_timestamp: str
+    event_timestamp: datetime.datetime
     sub_type: str | None = None
     event_id: int = 1
     operation_id: str | None = None
@@ -1263,6 +1271,453 @@ class Event:
                 self.callback_timed_out_details.to_dict()
             )
         return result
+
+
+@dataclass(frozen=True)
+class HistoryEventTypeConfig:
+    """Configuration for how to process a specific event type."""
+
+    operation_type: OperationType | None
+    operation_status: OperationStatus | None
+    is_start_event: bool
+    is_end_event: bool
+    has_result: bool  # Whether this event type contains result/error data
+
+
+# Mapping of event types to their processing configuration
+# This matches the TypeScript historyEventTypes constant
+HISTORY_EVENT_TYPES: dict[str, HistoryEventTypeConfig] = {
+    "ExecutionStarted": HistoryEventTypeConfig(
+        operation_type=OperationType.EXECUTION,
+        operation_status=OperationStatus.STARTED,
+        is_start_event=True,
+        is_end_event=False,
+        has_result=False,
+    ),
+    "ExecutionFailed": HistoryEventTypeConfig(
+        operation_type=OperationType.EXECUTION,
+        operation_status=OperationStatus.FAILED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=False,
+    ),
+    "ExecutionStopped": HistoryEventTypeConfig(
+        operation_type=OperationType.EXECUTION,
+        operation_status=OperationStatus.STOPPED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=False,
+    ),
+    "ExecutionSucceeded": HistoryEventTypeConfig(
+        operation_type=OperationType.EXECUTION,
+        operation_status=OperationStatus.SUCCEEDED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=False,
+    ),
+    "ExecutionTimedOut": HistoryEventTypeConfig(
+        operation_type=OperationType.EXECUTION,
+        operation_status=OperationStatus.TIMED_OUT,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=False,
+    ),
+    "CallbackStarted": HistoryEventTypeConfig(
+        operation_type=OperationType.CALLBACK,
+        operation_status=OperationStatus.STARTED,
+        is_start_event=True,
+        is_end_event=False,
+        has_result=False,
+    ),
+    "CallbackFailed": HistoryEventTypeConfig(
+        operation_type=OperationType.CALLBACK,
+        operation_status=OperationStatus.FAILED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "CallbackSucceeded": HistoryEventTypeConfig(
+        operation_type=OperationType.CALLBACK,
+        operation_status=OperationStatus.SUCCEEDED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "CallbackTimedOut": HistoryEventTypeConfig(
+        operation_type=OperationType.CALLBACK,
+        operation_status=OperationStatus.TIMED_OUT,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "ContextStarted": HistoryEventTypeConfig(
+        operation_type=OperationType.CONTEXT,
+        operation_status=OperationStatus.STARTED,
+        is_start_event=True,
+        is_end_event=False,
+        has_result=False,
+    ),
+    "ContextFailed": HistoryEventTypeConfig(
+        operation_type=OperationType.CONTEXT,
+        operation_status=OperationStatus.FAILED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "ContextSucceeded": HistoryEventTypeConfig(
+        operation_type=OperationType.CONTEXT,
+        operation_status=OperationStatus.SUCCEEDED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "ChainedInvokeStarted": HistoryEventTypeConfig(
+        operation_type=OperationType.CHAINED_INVOKE,
+        operation_status=OperationStatus.STARTED,
+        is_start_event=True,
+        is_end_event=False,
+        has_result=False,
+    ),
+    "ChainedInvokeFailed": HistoryEventTypeConfig(
+        operation_type=OperationType.CHAINED_INVOKE,
+        operation_status=OperationStatus.FAILED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "ChainedInvokeSucceeded": HistoryEventTypeConfig(
+        operation_type=OperationType.CHAINED_INVOKE,
+        operation_status=OperationStatus.SUCCEEDED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "ChainedInvokeTimedOut": HistoryEventTypeConfig(
+        operation_type=OperationType.CHAINED_INVOKE,
+        operation_status=OperationStatus.TIMED_OUT,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "ChainedInvokeCancelled": HistoryEventTypeConfig(
+        operation_type=OperationType.CHAINED_INVOKE,
+        operation_status=OperationStatus.CANCELLED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "StepStarted": HistoryEventTypeConfig(
+        operation_type=OperationType.STEP,
+        operation_status=OperationStatus.STARTED,
+        is_start_event=True,
+        is_end_event=False,
+        has_result=False,
+    ),
+    "StepFailed": HistoryEventTypeConfig(
+        operation_type=OperationType.STEP,
+        operation_status=OperationStatus.FAILED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "StepSucceeded": HistoryEventTypeConfig(
+        operation_type=OperationType.STEP,
+        operation_status=OperationStatus.SUCCEEDED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "WaitStarted": HistoryEventTypeConfig(
+        operation_type=OperationType.WAIT,
+        operation_status=OperationStatus.STARTED,
+        is_start_event=True,
+        is_end_event=False,
+        has_result=True,
+    ),
+    "WaitSucceeded": HistoryEventTypeConfig(
+        operation_type=OperationType.WAIT,
+        operation_status=OperationStatus.SUCCEEDED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    "WaitCancelled": HistoryEventTypeConfig(
+        operation_type=OperationType.WAIT,
+        operation_status=OperationStatus.CANCELLED,
+        is_start_event=False,
+        is_end_event=True,
+        has_result=True,
+    ),
+    # TODO: add support for populating invocation information from InvocationCompleted event
+    "InvocationCompleted": HistoryEventTypeConfig(
+        operation_type=None,
+        operation_status=None,
+        is_start_event=False,
+        is_end_event=False,
+        has_result=True,
+    ),
+}
+
+
+def events_to_operations(events: list[Event]) -> list[Operation]:
+    """Convert a list of history events into operations.
+
+    This function processes raw history events and groups them by operation ID,
+    creating comprehensive operation objects following the TypeScript pattern from
+    aws-durable-execution-sdk-js-testing.
+
+    Multiple events for the same operation_id are merged together, with each event
+    contributing its specific fields (e.g., CallbackStarted provides callback_id,
+    CallbackSucceeded provides result).
+
+    Args:
+        events: List of history events to process
+
+    Returns:
+        List of operations, one per unique operation ID
+
+    Raises:
+        ValueError: When required fields are missing from an event
+
+    Note:
+        InvocationCompleted events are currently skipped as they don't represent
+        operations. Future enhancement: populate invocation information from these
+        events (TODO).
+    """
+    operations_map: dict[str, Operation] = {}
+
+    for event in events:
+        if not event.event_type:
+            msg = "Missing required 'event_type' field in event"
+            raise ValueError(msg)
+
+        # Get event type configuration
+        event_config: HistoryEventTypeConfig | None = HISTORY_EVENT_TYPES.get(
+            event.event_type
+        )
+        if not event_config:
+            msg = f"Unknown event type: {event.event_type}"
+            raise ValueError(msg)
+
+        # TODO: add support for populating invocation information from InvocationCompleted event
+        if event.event_type == "InvocationCompleted":
+            continue
+
+        if not event.operation_id:
+            msg = f"Missing required 'operation_id' field in event {event.event_id}"
+            raise ValueError(msg)
+
+        # Get previous operation if it exists
+        previous_operation: Operation | None = operations_map.get(event.operation_id)
+
+        # Get operation type and status from configuration
+        operation_type: OperationType = (
+            event_config.operation_type or OperationType.EXECUTION
+        )
+        status: OperationStatus = (
+            event_config.operation_status or OperationStatus.PENDING
+        )
+
+        # Parse sub_type
+        sub_type: OperationSubType | None = None
+        if event.sub_type:
+            try:
+                sub_type = OperationSubType(event.sub_type)
+            except ValueError:
+                pass
+
+        # Create base operation
+        operation = Operation(
+            operation_id=event.operation_id,
+            operation_type=operation_type,
+            status=status,
+            name=event.name,
+            parent_id=event.parent_id,
+            sub_type=sub_type,
+            start_timestamp=datetime.datetime.now(tz=datetime.timezone.utc),
+        )
+
+        # Merge with previous operation if it exists
+        # Most fields are immutable, so they get preserved from previous events
+        if previous_operation:
+            operation = replace(
+                operation,
+                name=operation.name or previous_operation.name,
+                parent_id=operation.parent_id or previous_operation.parent_id,
+                sub_type=operation.sub_type or previous_operation.sub_type,
+                start_timestamp=previous_operation.start_timestamp,
+                end_timestamp=previous_operation.end_timestamp,
+                execution_details=previous_operation.execution_details,
+                context_details=previous_operation.context_details,
+                step_details=previous_operation.step_details,
+                wait_details=previous_operation.wait_details,
+                callback_details=previous_operation.callback_details,
+                chained_invoke_details=previous_operation.chained_invoke_details,
+            )
+
+        # Set timestamps based on event configuration
+        if event_config.is_start_event:
+            operation = replace(operation, start_timestamp=event.event_timestamp)
+        if event_config.is_end_event:
+            operation = replace(operation, end_timestamp=event.event_timestamp)
+
+        # Add operation-specific details incrementally
+        # Each event type contributes only the fields it has
+
+        # EXECUTION details
+        if (
+            operation_type == OperationType.EXECUTION
+            and event.execution_started_details
+            and event.execution_started_details.input
+        ):
+            operation = replace(
+                operation,
+                execution_details=ExecutionDetails(
+                    input_payload=event.execution_started_details.input.payload
+                ),
+            )
+
+        # CALLBACK details - merge callback_id, result, and error from different events
+        if operation_type == OperationType.CALLBACK:
+            existing_cb: CallbackDetails | None = operation.callback_details
+            callback_id: str = existing_cb.callback_id if existing_cb else ""
+            result: str | None = existing_cb.result if existing_cb else None
+            error: ErrorObject | None = existing_cb.error if existing_cb else None
+
+            # CallbackStarted provides callback_id
+            if event.callback_started_details:
+                callback_id = event.callback_started_details.callback_id or callback_id
+
+            # CallbackSucceeded provides result
+            if (
+                event.callback_succeeded_details
+                and event.callback_succeeded_details.result
+            ):
+                result = event.callback_succeeded_details.result.payload
+
+            # CallbackFailed provides error
+            if event.callback_failed_details and event.callback_failed_details.error:
+                error = event.callback_failed_details.error.payload
+
+            # CallbackTimedOut provides error
+            if (
+                event.callback_timed_out_details
+                and event.callback_timed_out_details.error
+            ):
+                error = event.callback_timed_out_details.error.payload
+
+            operation = replace(
+                operation,
+                callback_details=CallbackDetails(
+                    callback_id=callback_id,
+                    result=result,
+                    error=error,
+                ),
+            )
+
+        # STEP details - only update if this event type has result data
+        if operation_type == OperationType.STEP and event_config.has_result:
+            existing_step: StepDetails | None = operation.step_details
+            result_val: str | None = existing_step.result if existing_step else None
+            error_val: ErrorObject | None = (
+                existing_step.error if existing_step else None
+            )
+            attempt: int = existing_step.attempt if existing_step else 0
+            next_attempt_ts: datetime.datetime | None = (
+                existing_step.next_attempt_timestamp if existing_step else None
+            )
+
+            # StepSucceeded provides result
+            if event.step_succeeded_details:
+                if event.step_succeeded_details.result:
+                    result_val = event.step_succeeded_details.result.payload
+                if event.step_succeeded_details.retry_details:
+                    attempt = event.step_succeeded_details.retry_details.current_attempt
+
+            # StepFailed provides error and retry details
+            if event.step_failed_details:
+                if event.step_failed_details.error:
+                    error_val = event.step_failed_details.error.payload
+                if event.step_failed_details.retry_details:
+                    attempt = event.step_failed_details.retry_details.current_attempt
+                    if (
+                        event.step_failed_details.retry_details.next_attempt_delay_seconds
+                        is not None
+                    ):
+                        next_attempt_ts = event.event_timestamp + datetime.timedelta(
+                            seconds=event.step_failed_details.retry_details.next_attempt_delay_seconds
+                        )
+
+            operation = replace(
+                operation,
+                step_details=StepDetails(
+                    result=result_val,
+                    error=error_val,
+                    attempt=attempt,
+                    next_attempt_timestamp=next_attempt_ts,
+                ),
+            )
+
+        # WAIT details
+        if operation_type == OperationType.WAIT and event.wait_started_details:
+            operation = replace(
+                operation,
+                wait_details=WaitDetails(
+                    scheduled_timestamp=event.wait_started_details.scheduled_end_timestamp
+                ),
+            )
+
+        # CONTEXT details - only update if this event type has result data (matching TypeScript hasResult)
+        if operation_type == OperationType.CONTEXT and event_config.has_result:
+            if (
+                event.context_succeeded_details
+                and event.context_succeeded_details.result
+            ):
+                operation = replace(
+                    operation,
+                    context_details=ContextDetails(
+                        result=event.context_succeeded_details.result.payload,
+                        error=None,
+                    ),
+                )
+            elif event.context_failed_details and event.context_failed_details.error:
+                operation = replace(
+                    operation,
+                    context_details=ContextDetails(
+                        result=None,
+                        error=event.context_failed_details.error.payload,
+                    ),
+                )
+
+        # CHAINED_INVOKE details - only update if this event type has result data (matching TypeScript hasResult)
+        if operation_type == OperationType.CHAINED_INVOKE and event_config.has_result:
+            if (
+                event.chained_invoke_succeeded_details
+                and event.chained_invoke_succeeded_details.result
+            ):
+                operation = replace(
+                    operation,
+                    chained_invoke_details=ChainedInvokeDetails(
+                        result=event.chained_invoke_succeeded_details.result.payload,
+                        error=None,
+                    ),
+                )
+            elif (
+                event.chained_invoke_failed_details
+                and event.chained_invoke_failed_details.error
+            ):
+                operation = replace(
+                    operation,
+                    chained_invoke_details=ChainedInvokeDetails(
+                        result=None,
+                        error=event.chained_invoke_failed_details.error.payload,
+                    ),
+                )
+
+        # Store in map
+        operations_map[event.operation_id] = operation
+
+    return list(operations_map.values())
 
 
 @dataclass(frozen=True)

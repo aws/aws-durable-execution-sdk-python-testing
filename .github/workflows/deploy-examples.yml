@@ -71,6 +71,7 @@ jobs:
       run: hatch run examples:build
 
     - name: Deploy Lambda function - ${{ matrix.example.name }}
+      id: deploy
       env:
         AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT_BETA }}
@@ -88,13 +89,35 @@ jobs:
         echo "Deploying ${{ matrix.example.name }} as $FUNCTION_NAME"
         hatch run examples:deploy "${{ matrix.example.name }}" --function-name "$FUNCTION_NAME"
         
-        # $LATEST is also a qualified version        
-        QUALIFIED_FUNCTION_NAME="$FUNCTION_NAME:\$LATEST"
+        # $LATEST is also a qualified version
+        QUALIFIED_FUNCTION_NAME="${FUNCTION_NAME}:\$LATEST"
         
         # Store both names for later steps
         echo "FUNCTION_NAME=$FUNCTION_NAME" >> $GITHUB_ENV
         echo "QUALIFIED_FUNCTION_NAME=$QUALIFIED_FUNCTION_NAME" >> $GITHUB_ENV
         echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "DEPLOYED_FUNCTION_NAME=$FUNCTION_NAME" >> $GITHUB_OUTPUT
+        echo "QUALIFIED_FUNCTION_NAME=$QUALIFIED_FUNCTION_NAME" >> $GITHUB_OUTPUT
+
+    - name: Run Integration Tests - ${{ matrix.example.name }}
+      env:
+        AWS_REGION: ${{ env.AWS_REGION }}
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT_BETA }}
+        QUALIFIED_FUNCTION_NAME: ${{ env.QUALIFIED_FUNCTION_NAME }}
+        LAMBDA_FUNCTION_TEST_NAME: ${{ matrix.example.name }}
+      run: |
+        echo "Running integration tests for ${{ matrix.example.name }}"
+        echo "Function name: ${{ steps.deploy.outputs.DEPLOYED_FUNCTION_NAME }}"
+        echo "Qualified function name: ${QUALIFIED_FUNCTION_NAME}"
+        echo "AWS Region: ${AWS_REGION}"
+        echo "Lambda Endpoint: ${LAMBDA_ENDPOINT}"
+        
+        # Convert example name to test name: "Hello World" -> "test_hello_world"
+        TEST_NAME="test_$(echo "${{ matrix.example.name }}" | tr '[:upper:]' '[:lower:]' | tr ' ' '_')"
+        echo "Test name: ${TEST_NAME}"
+        
+        # Run integration tests
+        hatch run test:examples-integration
 
     - name: Invoke Lambda function - ${{ matrix.example.name }}
       env:

@@ -421,10 +421,10 @@ def test_stop_durable_execution_request_minimal():
 
 def test_stop_durable_execution_response_serialization():
     """Test StopDurableExecutionResponse from_dict/to_dict round-trip."""
-    data = {"EndTimestamp": "2023-01-01T00:01:00Z"}
+    data = {"StopTimestamp": "2023-01-01T00:01:00Z"}
 
     response_obj = StopDurableExecutionResponse.from_dict(data)
-    assert response_obj.end_timestamp == "2023-01-01T00:01:00Z"
+    assert response_obj.stop_timestamp == "2023-01-01T00:01:00Z"
 
     result_data = response_obj.to_dict()
     assert result_data == data
@@ -2931,3 +2931,678 @@ def test_checkpoint_updated_execution_state_with_next_marker():
         "NextMarker": "next-marker-123",
     }
     assert result_data == expected_data
+
+
+# Tests for events_to_operations function
+
+
+def test_events_to_operations_empty_list():
+    """Test events_to_operations with empty event list."""
+    from aws_durable_execution_sdk_python_testing.model import events_to_operations
+
+    operations = events_to_operations([])
+    assert operations == []
+
+
+def test_events_to_operations_execution_started():
+    """Test events_to_operations with ExecutionStarted event."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        OperationStatus,
+        OperationType,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        EventInput,
+        ExecutionStartedDetails,
+        events_to_operations,
+    )
+
+    event = Event(
+        event_type="ExecutionStarted",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id="exec-1",
+        execution_started_details=ExecutionStartedDetails(
+            input=EventInput(payload="test-input", truncated=False),
+            execution_timeout=300,
+        ),
+    )
+
+    operations = events_to_operations([event])
+
+    assert len(operations) == 1
+    assert operations[0].operation_id == "exec-1"
+    assert operations[0].operation_type == OperationType.EXECUTION
+    assert operations[0].status == OperationStatus.STARTED
+    assert operations[0].execution_details.input_payload == "test-input"
+
+
+def test_events_to_operations_callback_lifecycle():
+    """Test events_to_operations with complete callback lifecycle."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        OperationStatus,
+        OperationType,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        CallbackStartedDetails,
+        CallbackSucceededDetails,
+        Event,
+        EventResult,
+        events_to_operations,
+    )
+
+    started_event = Event(
+        event_type="CallbackStarted",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id="cb-1",
+        name="test-callback",
+        callback_started_details=CallbackStartedDetails(callback_id="callback-123"),
+    )
+
+    succeeded_event = Event(
+        event_type="CallbackSucceeded",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+        operation_id="cb-1",
+        callback_succeeded_details=CallbackSucceededDetails(
+            result=EventResult(payload="callback-result", truncated=False)
+        ),
+    )
+
+    operations = events_to_operations([started_event, succeeded_event])
+
+    assert len(operations) == 1
+    assert operations[0].operation_id == "cb-1"
+    assert operations[0].operation_type == OperationType.CALLBACK
+    assert operations[0].status == OperationStatus.SUCCEEDED
+    assert operations[0].name == "test-callback"
+    assert operations[0].callback_details.callback_id == "callback-123"
+    assert operations[0].callback_details.result == "callback-result"
+    assert operations[0].callback_details.error is None
+
+
+def test_events_to_operations_missing_event_type():
+    """Test events_to_operations raises error for missing event_type."""
+    import datetime
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        events_to_operations,
+    )
+
+    event = Event(
+        event_type=None,
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+    )
+
+    with pytest.raises(ValueError, match="Missing required 'event_type' field"):
+        events_to_operations([event])
+
+
+def test_events_to_operations_unknown_event_type():
+    """Test events_to_operations raises error for unknown event type."""
+    import datetime
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        events_to_operations,
+    )
+
+    event = Event(
+        event_type="UnknownEventType",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id="op-1",
+    )
+
+    with pytest.raises(ValueError, match="Unknown event type: UnknownEventType"):
+        events_to_operations([event])
+
+
+def test_events_to_operations_missing_operation_id():
+    """Test events_to_operations raises error for missing operation_id."""
+    import datetime
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        events_to_operations,
+    )
+
+    event = Event(
+        event_type="StepStarted",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id=None,
+    )
+
+    with pytest.raises(ValueError, match="Missing required 'operation_id' field"):
+        events_to_operations([event])
+
+
+def test_events_to_operations_step_with_retry():
+    """Test events_to_operations with step retry details."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        OperationStatus,
+        OperationType,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        EventResult,
+        RetryDetails,
+        StepSucceededDetails,
+        events_to_operations,
+    )
+
+    succeeded_event = Event(
+        event_type="StepSucceeded",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+        operation_id="step-1",
+        name="test-step",
+        step_succeeded_details=StepSucceededDetails(
+            result=EventResult(payload="step-result", truncated=False),
+            retry_details=RetryDetails(current_attempt=2),
+        ),
+    )
+
+    operations = events_to_operations([succeeded_event])
+
+    assert len(operations) == 1
+    assert operations[0].operation_type == OperationType.STEP
+    assert operations[0].status == OperationStatus.SUCCEEDED
+    assert operations[0].step_details.result == "step-result"
+    assert operations[0].step_details.attempt == 2
+
+
+def test_events_to_operations_step_failed_with_next_attempt():
+    """Test events_to_operations with failed step and next attempt timestamp."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        ErrorObject,
+        OperationStatus,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        EventError,
+        RetryDetails,
+        StepFailedDetails,
+        events_to_operations,
+    )
+
+    event_time = datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
+    failed_event = Event(
+        event_type="StepFailed",
+        event_timestamp=event_time,
+        operation_id="step-1",
+        step_failed_details=StepFailedDetails(
+            error=EventError(
+                payload=ErrorObject(
+                    message="step failed", type=None, data=None, stack_trace=None
+                )
+            ),
+            retry_details=RetryDetails(
+                current_attempt=1, next_attempt_delay_seconds=10
+            ),
+        ),
+    )
+
+    operations = events_to_operations([failed_event])
+
+    assert len(operations) == 1
+    assert operations[0].status == OperationStatus.FAILED
+    assert operations[0].step_details.error.message == "step failed"
+    assert operations[0].step_details.attempt == 1
+    expected_next_attempt = event_time + datetime.timedelta(seconds=10)
+    assert operations[0].step_details.next_attempt_timestamp == expected_next_attempt
+
+
+def test_events_to_operations_context_succeeded():
+    """Test events_to_operations with successful context."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        OperationStatus,
+        OperationType,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        ContextSucceededDetails,
+        Event,
+        EventResult,
+        events_to_operations,
+    )
+
+    succeeded_event = Event(
+        event_type="ContextSucceeded",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+        operation_id="ctx-1",
+        name="test-context",
+        context_succeeded_details=ContextSucceededDetails(
+            result=EventResult(payload="context-result", truncated=False)
+        ),
+    )
+
+    operations = events_to_operations([succeeded_event])
+
+    assert len(operations) == 1
+    assert operations[0].operation_type == OperationType.CONTEXT
+    assert operations[0].status == OperationStatus.SUCCEEDED
+    assert operations[0].context_details.result == "context-result"
+    assert operations[0].context_details.error is None
+
+
+def test_events_to_operations_chained_invoke_succeeded():
+    """Test events_to_operations with successful chained invoke."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        OperationStatus,
+        OperationType,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        ChainedInvokeSucceededDetails,
+        Event,
+        EventResult,
+        events_to_operations,
+    )
+
+    succeeded_event = Event(
+        event_type="ChainedInvokeSucceeded",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+        operation_id="invoke-1",
+        name="test-invoke",
+        chained_invoke_succeeded_details=ChainedInvokeSucceededDetails(
+            result=EventResult(payload="invoke-result", truncated=False)
+        ),
+    )
+
+    operations = events_to_operations([succeeded_event])
+
+    assert len(operations) == 1
+    assert operations[0].operation_type == OperationType.CHAINED_INVOKE
+    assert operations[0].status == OperationStatus.SUCCEEDED
+    assert operations[0].chained_invoke_details.result == "invoke-result"
+    assert operations[0].chained_invoke_details.error is None
+
+
+def test_events_to_operations_skips_invocation_completed():
+    """Test events_to_operations skips InvocationCompleted events."""
+    import datetime
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        events_to_operations,
+    )
+
+    invocation_event = Event(
+        event_type="InvocationCompleted",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id="invocation-1",
+    )
+
+    operations = events_to_operations([invocation_event])
+    assert len(operations) == 0
+
+
+def test_events_to_operations_callback_failed():
+    """Test events_to_operations with failed callback."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        ErrorObject,
+        OperationStatus,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        CallbackFailedDetails,
+        CallbackStartedDetails,
+        Event,
+        EventError,
+        events_to_operations,
+    )
+
+    started_event = Event(
+        event_type="CallbackStarted",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id="cb-1",
+        callback_started_details=CallbackStartedDetails(callback_id="callback-123"),
+    )
+
+    failed_event = Event(
+        event_type="CallbackFailed",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+        operation_id="cb-1",
+        callback_failed_details=CallbackFailedDetails(
+            error=EventError(
+                payload=ErrorObject(
+                    message="callback failed", type=None, data=None, stack_trace=None
+                )
+            )
+        ),
+    )
+
+    operations = events_to_operations([started_event, failed_event])
+
+    assert len(operations) == 1
+    assert operations[0].status == OperationStatus.FAILED
+    assert operations[0].callback_details.error.message == "callback failed"
+    assert operations[0].callback_details.result is None
+
+
+def test_events_to_operations_callback_timed_out():
+    """Test events_to_operations with timed out callback."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        ErrorObject,
+        OperationStatus,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        CallbackStartedDetails,
+        CallbackTimedOutDetails,
+        Event,
+        EventError,
+        events_to_operations,
+    )
+
+    started_event = Event(
+        event_type="CallbackStarted",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id="cb-1",
+        callback_started_details=CallbackStartedDetails(callback_id="callback-123"),
+    )
+
+    timed_out_event = Event(
+        event_type="CallbackTimedOut",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+        operation_id="cb-1",
+        callback_timed_out_details=CallbackTimedOutDetails(
+            error=EventError(
+                payload=ErrorObject(
+                    message="callback timed out", type=None, data=None, stack_trace=None
+                )
+            )
+        ),
+    )
+
+    operations = events_to_operations([started_event, timed_out_event])
+
+    assert len(operations) == 1
+    assert operations[0].status == OperationStatus.TIMED_OUT
+    assert operations[0].callback_details.error.message == "callback timed out"
+
+
+def test_events_to_operations_wait_started():
+    """Test events_to_operations with wait operation."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        OperationStatus,
+        OperationType,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        WaitStartedDetails,
+        events_to_operations,
+    )
+
+    scheduled_time = datetime.datetime(2023, 1, 1, 1, 0, 0, tzinfo=datetime.UTC)
+    wait_event = Event(
+        event_type="WaitStarted",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id="wait-1",
+        name="test-wait",
+        wait_started_details=WaitStartedDetails(
+            duration=3600, scheduled_end_timestamp=scheduled_time
+        ),
+    )
+
+    operations = events_to_operations([wait_event])
+
+    assert len(operations) == 1
+    assert operations[0].operation_type == OperationType.WAIT
+    assert operations[0].status == OperationStatus.STARTED
+    assert operations[0].wait_details.scheduled_timestamp == scheduled_time
+
+
+def test_events_to_operations_context_failed():
+    """Test events_to_operations with failed context."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        ErrorObject,
+        OperationStatus,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        ContextFailedDetails,
+        Event,
+        EventError,
+        events_to_operations,
+    )
+
+    failed_event = Event(
+        event_type="ContextFailed",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+        operation_id="ctx-1",
+        context_failed_details=ContextFailedDetails(
+            error=EventError(
+                payload=ErrorObject(
+                    message="context failed", type=None, data=None, stack_trace=None
+                )
+            )
+        ),
+    )
+
+    operations = events_to_operations([failed_event])
+
+    assert len(operations) == 1
+    assert operations[0].status == OperationStatus.FAILED
+    assert operations[0].context_details.error.message == "context failed"
+    assert operations[0].context_details.result is None
+
+
+def test_events_to_operations_chained_invoke_failed():
+    """Test events_to_operations with failed chained invoke."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        ErrorObject,
+        OperationStatus,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        ChainedInvokeFailedDetails,
+        Event,
+        EventError,
+        events_to_operations,
+    )
+
+    failed_event = Event(
+        event_type="ChainedInvokeFailed",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+        operation_id="invoke-1",
+        chained_invoke_failed_details=ChainedInvokeFailedDetails(
+            error=EventError(
+                payload=ErrorObject(
+                    message="invoke failed", type=None, data=None, stack_trace=None
+                )
+            )
+        ),
+    )
+
+    operations = events_to_operations([failed_event])
+
+    assert len(operations) == 1
+    assert operations[0].status == OperationStatus.FAILED
+    assert operations[0].chained_invoke_details.error.message == "invoke failed"
+    assert operations[0].chained_invoke_details.result is None
+
+
+def test_events_to_operations_multiple_operations():
+    """Test events_to_operations with multiple different operations."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.lambda_service import (
+        OperationStatus,
+        OperationType,
+    )
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        EventResult,
+        StepSucceededDetails,
+        events_to_operations,
+    )
+
+    events = [
+        Event(
+            event_type="StepStarted",
+            event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+            operation_id="step-1",
+            name="step-one",
+        ),
+        Event(
+            event_type="StepSucceeded",
+            event_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+            operation_id="step-1",
+            step_succeeded_details=StepSucceededDetails(
+                result=EventResult(payload="result-1", truncated=False)
+            ),
+        ),
+        Event(
+            event_type="WaitStarted",
+            event_timestamp=datetime.datetime(2023, 1, 1, 0, 2, 0, tzinfo=datetime.UTC),
+            operation_id="wait-1",
+            name="wait-one",
+        ),
+    ]
+
+    operations = events_to_operations(events)
+
+    assert len(operations) == 2
+    step_op = next(op for op in operations if op.operation_id == "step-1")
+    wait_op = next(op for op in operations if op.operation_id == "wait-1")
+
+    assert step_op.operation_type == OperationType.STEP
+    assert step_op.status == OperationStatus.SUCCEEDED
+    assert step_op.name == "step-one"
+
+    assert wait_op.operation_type == OperationType.WAIT
+    assert wait_op.status == OperationStatus.STARTED
+    assert wait_op.name == "wait-one"
+
+
+def test_events_to_operations_merges_timestamps():
+    """Test events_to_operations correctly merges start and end timestamps."""
+    import datetime
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        EventResult,
+        StepSucceededDetails,
+        events_to_operations,
+    )
+
+    start_time = datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
+    end_time = datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC)
+
+    events = [
+        Event(
+            event_type="StepStarted",
+            event_timestamp=start_time,
+            operation_id="step-1",
+        ),
+        Event(
+            event_type="StepSucceeded",
+            event_timestamp=end_time,
+            operation_id="step-1",
+            step_succeeded_details=StepSucceededDetails(
+                result=EventResult(payload="result", truncated=False)
+            ),
+        ),
+    ]
+
+    operations = events_to_operations(events)
+
+    assert len(operations) == 1
+    assert operations[0].start_timestamp == start_time
+    assert operations[0].end_timestamp == end_time
+
+
+def test_events_to_operations_preserves_parent_id():
+    """Test events_to_operations preserves parent_id from events."""
+    import datetime
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        events_to_operations,
+    )
+
+    event = Event(
+        event_type="StepStarted",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id="step-1",
+        parent_id="parent-ctx",
+        name="child-step",
+    )
+
+    operations = events_to_operations([event])
+
+    assert len(operations) == 1
+    assert operations[0].parent_id == "parent-ctx"
+
+
+def test_events_to_operations_preserves_sub_type():
+    """Test events_to_operations preserves sub_type from events."""
+    import datetime
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        events_to_operations,
+    )
+
+    event = Event(
+        event_type="StepStarted",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id="step-1",
+        sub_type="Step",
+    )
+
+    operations = events_to_operations([event])
+
+    assert len(operations) == 1
+    assert operations[0].sub_type is not None
+    assert operations[0].sub_type.value == "Step"
+
+
+def test_events_to_operations_invalid_sub_type():
+    """Test events_to_operations handles invalid sub_type gracefully."""
+    import datetime
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        events_to_operations,
+    )
+
+    event = Event(
+        event_type="StepStarted",
+        event_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        operation_id="step-1",
+        sub_type="INVALID_SUB_TYPE",
+    )
+
+    operations = events_to_operations([event])
+
+    assert len(operations) == 1
+    # Invalid sub_type should be ignored (set to None)
+    assert operations[0].sub_type is None

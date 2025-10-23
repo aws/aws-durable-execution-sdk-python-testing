@@ -15,7 +15,9 @@ from aws_durable_execution_sdk_python.retries import (
 
 
 @durable_step
-def unreliable_operation(_step_context: StepContext) -> str:
+def unreliable_operation(
+    _step_context: StepContext,
+) -> str:
     failure_threshold = 0.5
     if random() > failure_threshold:  # noqa: S311
         msg = "Random error occurred"

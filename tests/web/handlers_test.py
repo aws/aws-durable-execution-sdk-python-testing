@@ -870,7 +870,7 @@ def test_stop_durable_execution_handler_success():
     handler = StopDurableExecutionHandler(executor)
 
     # Mock the executor response
-    mock_response = StopDurableExecutionResponse(end_timestamp="2023-01-01T00:01:00Z")
+    mock_response = StopDurableExecutionResponse(stop_timestamp="2023-01-01T00:01:00Z")
     executor.stop_execution.return_value = mock_response
 
     # Create request with proper stop data
@@ -900,7 +900,7 @@ def test_stop_durable_execution_handler_success():
 
     # Verify response
     assert response.status_code == 200
-    assert response.body == {"EndTimestamp": "2023-01-01T00:01:00Z"}
+    assert response.body == {"StopTimestamp": "2023-01-01T00:01:00Z"}
 
     # Verify executor was called with correct parameters
     executor.stop_execution.assert_called_once()
