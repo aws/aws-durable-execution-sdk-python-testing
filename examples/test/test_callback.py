@@ -1,21 +1,26 @@
 """Tests for callback example."""
 
+import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
 
-from aws_durable_execution_sdk_python_testing.runner import (
-    DurableFunctionTestResult,
-    DurableFunctionTestRunner,
-)
 from src import callback
+from test.conftest import deserialize_operation_payload
 
 
-def test_callback():
+@pytest.mark.example
+@pytest.mark.durable_execution(
+    handler=callback.handler,
+    lambda_function_name="callback",
+)
+def test_callback(durable_runner):
     """Test callback example."""
-    with DurableFunctionTestRunner(handler=callback.handler) as runner:
-        result: DurableFunctionTestResult = runner.run(input="test", timeout=10)
+    with durable_runner:
+        result = durable_runner.run(input="test", timeout=10)
 
     assert result.status is InvocationStatus.SUCCEEDED
-    assert result.result.startswith("Callback created with ID:")
+    assert deserialize_operation_payload(result.result).startswith(
+        "Callback created with ID:"
+    )
 
     # Find the callback operation
     callback_ops = [

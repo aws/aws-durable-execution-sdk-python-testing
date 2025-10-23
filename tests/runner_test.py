@@ -110,7 +110,7 @@ def test_context_operation_from_svc_operation():
 
     assert ctx_op.operation_id == "ctx-id"
     assert ctx_op.operation_type is OperationType.CONTEXT
-    assert ctx_op.result == "test-result"
+    assert ctx_op.result == json.dumps("test-result")
     assert ctx_op.child_operations == []
 
 
@@ -318,7 +318,7 @@ def test_step_operation_from_svc_operation():
     assert step_op.operation_id == "step-id"
     assert step_op.operation_type is OperationType.STEP
     assert step_op.attempt == 2
-    assert step_op.result == "step-result"
+    assert step_op.result == json.dumps("step-result")
 
 
 def test_step_operation_wrong_type():
@@ -386,7 +386,7 @@ def test_callback_operation_from_svc_operation():
     assert callback_op.operation_id == "callback-id"
     assert callback_op.operation_type is OperationType.CALLBACK
     assert callback_op.callback_id == "cb-123"
-    assert callback_op.result == "callback-result"
+    assert callback_op.result == json.dumps("callback-result")
 
 
 def test_callback_operation_wrong_type():
@@ -420,7 +420,7 @@ def test_invoke_operation_from_svc_operation():
 
     assert invoke_op.operation_id == "invoke-id"
     assert invoke_op.operation_type is OperationType.CHAINED_INVOKE
-    assert invoke_op.result == "invoke-result"
+    assert invoke_op.result == json.dumps("invoke-result")
 
 
 def test_invoke_operation_wrong_type():
@@ -508,7 +508,7 @@ def test_durable_function_test_result_create():
     result = DurableFunctionTestResult.create(execution)
 
     assert result.status is InvocationStatus.SUCCEEDED
-    assert result.result == "test-result"
+    assert result.result == json.dumps("test-result")
     assert result.error is None
     assert len(result.operations) == 1  # EXECUTION operation filtered out
 
@@ -1024,3 +1024,577 @@ def test_durable_child_context_test_runner_init_with_args(
     # verify that handler is called with expected args when durable function is invoked
     durable_execution_func(Mock(), Mock())
     handler.assert_called_once_with(str_input, num=num_input)
+
+
+# Tests for DurableFunctionCloudTestRunner and from_execution_history
+
+
+def test_durable_function_test_result_from_execution_history():
+    """Test DurableFunctionTestResult.from_execution_history factory method."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.execution import InvocationStatus
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        EventResult,
+        GetDurableExecutionHistoryResponse,
+        GetDurableExecutionResponse,
+        StepSucceededDetails,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionTestResult,
+    )
+
+    execution_response = GetDurableExecutionResponse(
+        durable_execution_arn="arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        durable_execution_name="test-execution",
+        function_arn="arn:aws:lambda:us-east-1:123456789012:function:test",
+        status="SUCCEEDED",
+        start_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        end_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+        result="test-result",
+        error=None,
+    )
+
+    history_response = GetDurableExecutionHistoryResponse(
+        events=[
+            Event(
+                event_type="ExecutionStarted",
+                event_timestamp=datetime.datetime(
+                    2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC
+                ),
+                operation_id="exec-1",
+            ),
+            Event(
+                event_type="StepStarted",
+                event_timestamp=datetime.datetime(
+                    2023, 1, 1, 0, 0, 10, tzinfo=datetime.UTC
+                ),
+                operation_id="step-1",
+                name="test-step",
+            ),
+            Event(
+                event_type="StepSucceeded",
+                event_timestamp=datetime.datetime(
+                    2023, 1, 1, 0, 0, 20, tzinfo=datetime.UTC
+                ),
+                operation_id="step-1",
+                step_succeeded_details=StepSucceededDetails(
+                    result=EventResult(payload="step-result", truncated=False)
+                ),
+            ),
+        ]
+    )
+
+    result = DurableFunctionTestResult.from_execution_history(
+        execution_response, history_response
+    )
+
+    assert result.status == InvocationStatus.SUCCEEDED
+    assert result.result == "test-result"
+    assert result.error is None
+    assert len(result.operations) == 1
+    assert result.operations[0].name == "test-step"
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_init(mock_boto3):
+    """Test DurableFunctionCloudTestRunner initialization."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function",
+        region="us-west-2",
+        poll_interval=0.5,
+    )
+
+    assert runner.function_name == "test-function"
+    assert runner.region == "us-west-2"
+    assert runner.poll_interval == 0.5
+    mock_boto3.client.assert_called_once()
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_run_success(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.run with successful execution."""
+    from aws_durable_execution_sdk_python.execution import InvocationStatus
+
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.invoke.return_value = {
+        "StatusCode": 200,
+        "Payload": Mock(read=lambda: b'{"result": "success"}'),
+        "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+    }
+
+    mock_client.get_durable_execution.return_value = {
+        "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        "DurableExecutionName": "test-execution",
+        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test",
+        "Status": "SUCCEEDED",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
+        "Result": "test-result",
+    }
+
+    mock_client.get_durable_execution_history.return_value = {
+        "Events": [
+            {
+                "EventType": "ExecutionStarted",
+                "EventTimestamp": "2023-01-01T00:00:00Z",
+                "Id": "exec-1",
+            }
+        ]
+    }
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function", poll_interval=0.01
+    )
+
+    result = runner.run(input="test-input", timeout=10)
+
+    assert result.status == InvocationStatus.SUCCEEDED
+    assert result.result == "test-result"
+    mock_client.invoke.assert_called_once()
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_run_invoke_failure(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.run with invoke failure."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+    mock_client.invoke.side_effect = Exception("Invoke failed")
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Failed to invoke Lambda function"
+    ):
+        runner.run(input="test-input")
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+@patch("aws_durable_execution_sdk_python_testing.runner.time")
+def test_cloud_runner_wait_for_completion_timeout(mock_time, mock_boto3):
+    """Test DurableFunctionCloudTestRunner._wait_for_completion with timeout."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+    mock_time.time.side_effect = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+
+    mock_client.get_durable_execution.return_value = {
+        "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        "DurableExecutionName": "test-execution",
+        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test",
+        "Status": "RUNNING",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
+    }
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function", poll_interval=0.01
+    )
+
+    with pytest.raises(TimeoutError, match="Execution did not complete within"):
+        runner._wait_for_completion("test-arn", timeout=2)
+
+
+def test_durable_function_test_result_from_execution_history_with_exception():
+    """Test from_execution_history handles events_to_operations exception."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.execution import InvocationStatus
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        GetDurableExecutionHistoryResponse,
+        GetDurableExecutionResponse,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionTestResult,
+    )
+
+    execution_response = GetDurableExecutionResponse(
+        durable_execution_arn="arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        durable_execution_name="test-execution",
+        function_arn="arn:aws:lambda:us-east-1:123456789012:function:test",
+        status="SUCCEEDED",
+        start_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+    )
+
+    history_response = GetDurableExecutionHistoryResponse(
+        events=[
+            Event(
+                event_type="StepStarted",
+                event_timestamp=datetime.datetime(
+                    2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC
+                ),
+                operation_id=None,
+            )
+        ]
+    )
+
+    result = DurableFunctionTestResult.from_execution_history(
+        execution_response, history_response
+    )
+
+    assert result.status == InvocationStatus.SUCCEEDED
+    assert len(result.operations) == 0
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_completion_failed_status(mock_boto3):
+    """Test DurableFunctionCloudTestRunner._wait_for_completion with FAILED status."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.get_durable_execution.return_value = {
+        "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        "DurableExecutionName": "test-execution",
+        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test",
+        "Status": "FAILED",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
+        "Error": {"ErrorMessage": "execution failed"},
+    }
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    result = runner._wait_for_completion("test-arn", timeout=10)
+
+    assert result.status == "FAILED"
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_run_bad_status_code(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.run with bad HTTP status code."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.invoke.return_value = {
+        "StatusCode": 500,
+        "Payload": Mock(read=lambda: b"Internal Server Error"),
+    }
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Lambda invocation failed with status 500"
+    ):
+        runner.run(input="test-input")
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_run_function_error(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.run with function error."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.invoke.return_value = {
+        "StatusCode": 200,
+        "FunctionError": "Unhandled",
+        "Payload": Mock(read=lambda: b'{"errorMessage": "Function failed"}'),
+    }
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+
+    with pytest.raises(DurableFunctionsTestError, match="Lambda function failed"):
+        runner.run(input="test-input")
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_run_missing_execution_arn(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.run with missing execution ARN."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.invoke.return_value = {
+        "StatusCode": 200,
+        "Payload": Mock(read=lambda: b'{"result": "success"}'),
+    }
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="No DurableExecutionArn in response"
+    ):
+        runner.run(input="test-input")
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_completion_get_execution_failure(mock_boto3):
+    """Test DurableFunctionCloudTestRunner._wait_for_completion with API failure."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+    mock_client.get_durable_execution.side_effect = Exception("API error")
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Failed to get execution status"
+    ):
+        runner._wait_for_completion("test-arn", timeout=10)
+
+
+def test_durable_function_test_result_from_execution_history_filters_execution_type():
+    """Test from_execution_history filters out EXECUTION type operations."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.execution import InvocationStatus
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        GetDurableExecutionHistoryResponse,
+        GetDurableExecutionResponse,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionTestResult,
+    )
+
+    execution_response = GetDurableExecutionResponse(
+        durable_execution_arn="arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        durable_execution_name="test-execution",
+        function_arn="arn:aws:lambda:us-east-1:123456789012:function:test",
+        status="SUCCEEDED",
+        start_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+    )
+
+    history_response = GetDurableExecutionHistoryResponse(
+        events=[
+            Event(
+                event_type="ExecutionStarted",
+                event_timestamp=datetime.datetime(
+                    2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC
+                ),
+                operation_id="exec-1",
+            ),
+        ]
+    )
+
+    result = DurableFunctionTestResult.from_execution_history(
+        execution_response, history_response
+    )
+
+    assert len(result.operations) == 0
+
+
+def test_durable_function_test_result_from_execution_history_unknown_status():
+    """Test from_execution_history with unknown status defaults to FAILED."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.execution import InvocationStatus
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        GetDurableExecutionHistoryResponse,
+        GetDurableExecutionResponse,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionTestResult,
+    )
+
+    execution_response = GetDurableExecutionResponse(
+        durable_execution_arn="arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        durable_execution_name="test-execution",
+        function_arn="arn:aws:lambda:us-east-1:123456789012:function:test",
+        status="UNKNOWN_STATUS",
+        start_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+    )
+
+    history_response = GetDurableExecutionHistoryResponse(events=[])
+
+    result = DurableFunctionTestResult.from_execution_history(
+        execution_response, history_response
+    )
+
+    assert result.status == InvocationStatus.FAILED
+
+
+def test_durable_function_test_result_from_execution_history_with_parent_operations():
+    """Test from_execution_history filters operations with parent_id."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.execution import InvocationStatus
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        Event,
+        GetDurableExecutionHistoryResponse,
+        GetDurableExecutionResponse,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionTestResult,
+    )
+
+    execution_response = GetDurableExecutionResponse(
+        durable_execution_arn="arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        durable_execution_name="test-execution",
+        function_arn="arn:aws:lambda:us-east-1:123456789012:function:test",
+        status="SUCCEEDED",
+        start_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+    )
+
+    history_response = GetDurableExecutionHistoryResponse(
+        events=[
+            Event(
+                event_type="StepStarted",
+                event_timestamp=datetime.datetime(
+                    2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC
+                ),
+                operation_id="step-1",
+                name="parent-step",
+            ),
+            Event(
+                event_type="StepStarted",
+                event_timestamp=datetime.datetime(
+                    2023, 1, 1, 0, 0, 10, tzinfo=datetime.UTC
+                ),
+                operation_id="step-2",
+                name="child-step",
+                parent_id="step-1",
+            ),
+        ]
+    )
+
+    result = DurableFunctionTestResult.from_execution_history(
+        execution_response, history_response
+    )
+
+    assert len(result.operations) == 1
+    assert result.operations[0].name == "parent-step"
+
+
+def test_durable_function_test_result_from_execution_history_failed():
+    """Test from_execution_history with failed execution."""
+    import datetime
+
+    from aws_durable_execution_sdk_python.execution import InvocationStatus
+    from aws_durable_execution_sdk_python.lambda_service import ErrorObject
+
+    from aws_durable_execution_sdk_python_testing.model import (
+        GetDurableExecutionHistoryResponse,
+        GetDurableExecutionResponse,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionTestResult,
+    )
+
+    execution_response = GetDurableExecutionResponse(
+        durable_execution_arn="arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        durable_execution_name="test-execution",
+        function_arn="arn:aws:lambda:us-east-1:123456789012:function:test",
+        status="FAILED",
+        start_timestamp=datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        end_timestamp=datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC),
+        error=ErrorObject(
+            message="execution failed", type=None, data=None, stack_trace=None
+        ),
+    )
+
+    history_response = GetDurableExecutionHistoryResponse(events=[])
+
+    result = DurableFunctionTestResult.from_execution_history(
+        execution_response, history_response
+    )
+
+    assert result.status == InvocationStatus.FAILED
+    assert result.error.message == "execution failed"
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_completion_timed_out_status(mock_boto3):
+    """Test DurableFunctionCloudTestRunner._wait_for_completion with TIMED_OUT status."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.get_durable_execution.return_value = {
+        "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        "DurableExecutionName": "test-execution",
+        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test",
+        "Status": "TIMED_OUT",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
+    }
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    result = runner._wait_for_completion("test-arn", timeout=10)
+
+    assert result.status == "TIMED_OUT"
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_completion_aborted_status(mock_boto3):
+    """Test DurableFunctionCloudTestRunner._wait_for_completion with ABORTED status."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.get_durable_execution.return_value = {
+        "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        "DurableExecutionName": "test-execution",
+        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test",
+        "Status": "ABORTED",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
+    }
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    result = runner._wait_for_completion("test-arn", timeout=10)
+
+    assert result.status == "ABORTED"

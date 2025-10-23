@@ -1,24 +1,30 @@
 """Tests for map_operations example."""
 
+import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
+from aws_durable_execution_sdk_python.lambda_service import OperationType
 
-from aws_durable_execution_sdk_python_testing.runner import (
-    DurableFunctionTestResult,
-    DurableFunctionTestRunner,
-)
 from src import map_operations
+from test.conftest import deserialize_operation_payload
 
 
-def test_map_operations():
+@pytest.mark.example
+@pytest.mark.durable_execution(
+    handler=map_operations.handler,
+    lambda_function_name="map operations",
+)
+def test_map_operations(durable_runner):
     """Test map_operations example."""
-    with DurableFunctionTestRunner(handler=map_operations.handler) as runner:
-        result: DurableFunctionTestResult = runner.run(input="test", timeout=10)
+    with durable_runner:
+        result = durable_runner.run(input="test", timeout=10)
 
     assert result.status is InvocationStatus.SUCCEEDED
-    assert result.result == "Squared results: [1, 4, 9, 16, 25]"
+    assert deserialize_operation_payload(result.result) == [1, 4, 9, 16, 25]
 
     # Verify all five step operations exist
-    step_ops = [op for op in result.operations if op.operation_type.value == "STEP"]
+    step_ops = [
+        op for op in result.operations if op.operation_type == OperationType.STEP
+    ]
     assert len(step_ops) == 5
 
     step_names = {op.name for op in step_ops}

@@ -1,21 +1,24 @@
 """Tests for wait example."""
 
+import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
 
-from aws_durable_execution_sdk_python_testing.runner import (
-    DurableFunctionTestResult,
-    DurableFunctionTestRunner,
-)
 from src import wait
+from test.conftest import deserialize_operation_payload
 
 
-def test_wait():
+@pytest.mark.example
+@pytest.mark.durable_execution(
+    handler=wait.handler,
+    lambda_function_name="Wait State",
+)
+def test_wait(durable_runner):
     """Test wait example."""
-    with DurableFunctionTestRunner(handler=wait.handler) as runner:
-        result: DurableFunctionTestResult = runner.run(input="test", timeout=10)
+    with durable_runner:
+        result = durable_runner.run(input="test", timeout=10)
 
     assert result.status is InvocationStatus.SUCCEEDED
-    assert result.result == "Wait completed"
+    assert deserialize_operation_payload(result.result) == "Wait completed"
 
     # Find the wait operation (it should be the only non-execution operation)
     wait_ops = [op for op in result.operations if op.operation_type.value == "WAIT"]

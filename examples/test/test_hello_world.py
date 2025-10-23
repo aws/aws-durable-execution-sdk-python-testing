@@ -1,18 +1,21 @@
-"""Integration tests for example durable functions."""
+"""Integration tests for hello world example."""
 
+import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
 
-from aws_durable_execution_sdk_python_testing.runner import (
-    DurableFunctionTestResult,
-    DurableFunctionTestRunner,
-)
 from src import hello_world
+from test.conftest import deserialize_operation_payload
 
 
-def test_hello_world():
+@pytest.mark.example
+@pytest.mark.durable_execution(
+    handler=hello_world.handler,
+    lambda_function_name="hello world",
+)
+def test_hello_world(durable_runner):
     """Test hello world example."""
-    with DurableFunctionTestRunner(handler=hello_world.handler) as runner:
-        result: DurableFunctionTestResult = runner.run(input="test", timeout=10)
+    with durable_runner:
+        result = durable_runner.run(input="test", timeout=10)
 
     assert result.status is InvocationStatus.SUCCEEDED
-    assert result.result == "Hello World!"
+    assert deserialize_operation_payload(result.result) == "Hello World!"

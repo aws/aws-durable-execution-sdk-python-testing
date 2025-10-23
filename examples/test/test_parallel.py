@@ -1,24 +1,34 @@
 """Tests for parallel example."""
 
+import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
+from aws_durable_execution_sdk_python.lambda_service import OperationType
 
-from aws_durable_execution_sdk_python_testing.runner import (
-    DurableFunctionTestResult,
-    DurableFunctionTestRunner,
-)
 from src import parallel
+from test.conftest import deserialize_operation_payload
 
 
-def test_parallel():
+@pytest.mark.example
+@pytest.mark.durable_execution(
+    handler=parallel.handler,
+    lambda_function_name="Parallel Operations",
+)
+def test_parallel(durable_runner):
     """Test parallel example."""
-    with DurableFunctionTestRunner(handler=parallel.handler) as runner:
-        result: DurableFunctionTestResult = runner.run(input="test", timeout=10)
+    with durable_runner:
+        result = durable_runner.run(input="test", timeout=10)
 
     assert result.status is InvocationStatus.SUCCEEDED
-    assert result.result == "Results: Task 1 complete, Task 2 complete, Task 3 complete"
+    assert deserialize_operation_payload(result.result) == [
+        "Task 1 complete",
+        "Task 2 complete",
+        "Task 3 complete",
+    ]
 
     # Verify all three step operations exist
-    step_ops = [op for op in result.operations if op.operation_type.value == "STEP"]
+    step_ops = [
+        op for op in result.operations if op.operation_type == OperationType.STEP
+    ]
     assert len(step_ops) == 3
 
     step_names = {op.name for op in step_ops}

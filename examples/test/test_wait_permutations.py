@@ -1,21 +1,24 @@
 """Tests for wait operation permutations."""
 
+import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
 
-from aws_durable_execution_sdk_python_testing.runner import (
-    DurableFunctionTestResult,
-    DurableFunctionTestRunner,
-)
 from src import wait_with_name
+from test.conftest import deserialize_operation_payload
 
 
-def test_wait_with_name():
+@pytest.mark.example
+@pytest.mark.durable_execution(
+    handler=wait_with_name.handler,
+    lambda_function_name="wait with name",
+)
+def test_wait_with_name(durable_runner):
     """Test wait with explicit name."""
-    with DurableFunctionTestRunner(handler=wait_with_name.handler) as runner:
-        result: DurableFunctionTestResult = runner.run(input="test", timeout=10)
+    with durable_runner:
+        result = durable_runner.run(input="test", timeout=10)
 
     assert result.status is InvocationStatus.SUCCEEDED
-    assert result.result == "Wait with name completed"
+    assert deserialize_operation_payload(result.result) == "Wait with name completed"
 
     wait_ops = [op for op in result.operations if op.operation_type.value == "WAIT"]
     assert len(wait_ops) == 1

@@ -110,6 +110,50 @@
         "ExecutionTimeout": 300
       },
       "path": "./src/map_operations.py"
+    },
+    {
+      "name": "Block Example",
+      "description": "Nested child contexts demonstrating block operations",
+      "handler": "block_example.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/block_example.py"
+    },
+    {
+      "name": "Logger Example",
+      "description": "Demonstrating logger usage and enrichment in DurableContext",
+      "handler": "logger_example.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/logger_example.py"
+    },
+    {
+      "name": "Steps with Retry",
+      "description": "Multiple steps with retry logic in a polling pattern",
+      "handler": "steps_with_retry.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/steps_with_retry.py"
+    },
+    {
+      "name": "Wait for Condition",
+      "description": "Polling pattern that waits for a condition to be met",
+      "handler": "wait_for_condition.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_condition.py"
     }
   ]
 }
