@@ -2,7 +2,7 @@ from typing import Any
 
 from aws_durable_execution_sdk_python.config import WaitForCallbackConfig
 from aws_durable_execution_sdk_python.context import DurableContext
-from aws_durable_execution_sdk_python.execution import durable_handler
+from aws_durable_execution_sdk_python.execution import durable_execution
 
 
 def external_system_call(_callback_id: str) -> None:
@@ -11,7 +11,7 @@ def external_system_call(_callback_id: str) -> None:
     # passing the callback_id for the system to call back when done
 
 
-@durable_handler
+@durable_execution
 def handler(_event: Any, context: DurableContext) -> str:
     config = WaitForCallbackConfig(timeout_seconds=120, heartbeat_timeout_seconds=60)
 

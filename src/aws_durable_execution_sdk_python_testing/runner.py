@@ -19,7 +19,7 @@ import aws_durable_execution_sdk_python
 import boto3  # type: ignore
 from aws_durable_execution_sdk_python.execution import (
     InvocationStatus,
-    durable_handler,
+    durable_execution,
 )
 from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
@@ -533,8 +533,8 @@ class DurableChildContextTestRunner(DurableFunctionTestRunner):
         *args,
         **kwargs,
     ):
-        # wrap the durable context around a durable handler as a convenience to run directly
-        @durable_handler
+        # wrap the durable context around a durable execution handler as a convenience to run directly
+        @durable_execution
         def handler(event: Any, context: DurableContext):  # noqa: ARG001
             return context_function(*args, **kwargs)(context)
 

@@ -2,14 +2,14 @@ from typing import Any
 
 from aws_durable_execution_sdk_python.config import StepConfig
 from aws_durable_execution_sdk_python.context import DurableContext
-from aws_durable_execution_sdk_python.execution import durable_handler
+from aws_durable_execution_sdk_python.execution import durable_execution
 from aws_durable_execution_sdk_python.retries import (
     RetryStrategyConfig,
     create_retry_strategy,
 )
 
 
-@durable_handler
+@durable_execution
 def handler(_event: Any, context: DurableContext) -> str:
     # Step with exponential backoff retry strategy
     retry_config = RetryStrategyConfig(

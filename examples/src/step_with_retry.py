@@ -6,7 +6,7 @@ from aws_durable_execution_sdk_python.context import (
     DurableContext,
     durable_step,
 )
-from aws_durable_execution_sdk_python.execution import durable_handler
+from aws_durable_execution_sdk_python.execution import durable_execution
 from aws_durable_execution_sdk_python.retries import (
     RetryStrategyConfig,
     create_retry_strategy,
@@ -22,7 +22,7 @@ def unreliable_operation() -> str:
     return "Operation succeeded"
 
 
-@durable_handler
+@durable_execution
 def handler(_event: Any, context: DurableContext) -> str:
     retry_config = RetryStrategyConfig(
         max_attempts=3,

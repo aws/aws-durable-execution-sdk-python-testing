@@ -37,7 +37,7 @@ from durable_executions_python_language_sdk.context import (
     durable_step,
     durable_with_child_context,
 )
-from durable_executions_python_language_sdk.execution import durable_handler
+from durable_executions_python_language_sdk.execution import durable_execution
 
 @durable_step
 def one(a: int, b: int) -> str:
@@ -61,7 +61,7 @@ def two(ctx: DurableContext, a: int, b: int) -> str:
 def three(a: int, b: int) -> str:
     return f"{a} {b}"
 
-@durable_handler
+@durable_execution
 def function_under_test(event: Any, context: DurableContext) -> list[str]:
     results: list[str] = []
 

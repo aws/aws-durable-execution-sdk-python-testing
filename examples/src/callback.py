@@ -2,14 +2,14 @@ from typing import TYPE_CHECKING, Any
 
 from aws_durable_execution_sdk_python.config import CallbackConfig
 from aws_durable_execution_sdk_python.context import DurableContext
-from aws_durable_execution_sdk_python.execution import durable_handler
+from aws_durable_execution_sdk_python.execution import durable_execution
 
 
 if TYPE_CHECKING:
     from aws_durable_execution_sdk_python.types import Callback
 
 
-@durable_handler
+@durable_execution
 def handler(_event: Any, context: DurableContext) -> str:
     callback_config = CallbackConfig(timeout_seconds=120, heartbeat_timeout_seconds=60)
 

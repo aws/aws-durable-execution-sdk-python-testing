@@ -933,9 +933,9 @@ def test_durable_function_test_result_create_with_parent_operations():
 @patch("aws_durable_execution_sdk_python_testing.runner.InMemoryServiceClient")
 @patch("aws_durable_execution_sdk_python_testing.runner.InProcessInvoker")
 @patch("aws_durable_execution_sdk_python_testing.runner.Executor")
-@patch("aws_durable_execution_sdk_python_testing.runner.durable_handler")
+@patch("aws_durable_execution_sdk_python_testing.runner.durable_execution")
 def test_durable_context_test_runner_init(
-    mock_durable_handler,
+    mock_durable_execution_handler,
     mock_executor,
     mock_invoker,
     mock_client,
@@ -946,7 +946,7 @@ def test_durable_context_test_runner_init(
     """Test DurableContextTestRunner initialization."""
     handler = Mock()
     decorated_handler = Mock()
-    mock_durable_handler.return_value = decorated_handler
+    mock_durable_execution_handler.return_value = decorated_handler
 
     DurableChildContextTestRunner(handler)  # type: ignore
 
@@ -964,15 +964,15 @@ def test_durable_context_test_runner_init(
         mock_executor.return_value
     )
 
-    # Verify durable_handler was called (with internal lambda function)
-    mock_durable_handler.assert_called_once()
+    # Verify durable_execution was called (with internal lambda function)
+    mock_durable_execution_handler.assert_called_once()
 
     # Verify the lambda function calls our handler
-    durable_handler_func = mock_durable_handler.call_args.args[0]
-    assert callable(durable_handler_func)
+    durable_execution_func = mock_durable_execution_handler.call_args.args[0]
+    assert callable(durable_execution_func)
 
     # verify handler is called when durable function is invoked
-    durable_handler_func(Mock(), Mock())
+    durable_execution_func(Mock(), Mock())
     handler.assert_called_once()
 
 
@@ -982,9 +982,9 @@ def test_durable_context_test_runner_init(
 @patch("aws_durable_execution_sdk_python_testing.runner.InMemoryServiceClient")
 @patch("aws_durable_execution_sdk_python_testing.runner.InProcessInvoker")
 @patch("aws_durable_execution_sdk_python_testing.runner.Executor")
-@patch("aws_durable_execution_sdk_python_testing.runner.durable_handler")
+@patch("aws_durable_execution_sdk_python_testing.runner.durable_execution")
 def test_durable_child_context_test_runner_init_with_args(
-    mock_durable_handler,
+    mock_durable_execution_handler,
     mock_executor,
     mock_invoker,
     mock_client,
@@ -995,7 +995,7 @@ def test_durable_child_context_test_runner_init_with_args(
     """Test DurableChildContextTestRunner initialization with additional args."""
     handler = Mock()
     decorated_handler = Mock()
-    mock_durable_handler.return_value = decorated_handler
+    mock_durable_execution_handler.return_value = decorated_handler
 
     str_input = "a random string input"
     num_input = 10
@@ -1015,12 +1015,12 @@ def test_durable_child_context_test_runner_init_with_args(
         mock_executor.return_value
     )
 
-    # Verify durable_handler was called (with internal lambda function)
-    mock_durable_handler.assert_called_once()
+    # Verify durable_execution was called (with internal lambda function)
+    mock_durable_execution_handler.assert_called_once()
     # Verify the lambda function calls our handler
-    durable_handler_func = mock_durable_handler.call_args.args[0]
-    assert callable(durable_handler_func)
+    durable_execution_func = mock_durable_execution_handler.call_args.args[0]
+    assert callable(durable_execution_func)
 
     # verify that handler is called with expected args when durable function is invoked
-    durable_handler_func(Mock(), Mock())
+    durable_execution_func(Mock(), Mock())
     handler.assert_called_once_with(str_input, num=num_input)

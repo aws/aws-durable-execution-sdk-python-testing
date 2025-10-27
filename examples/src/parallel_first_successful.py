@@ -2,10 +2,10 @@ from typing import Any
 
 from aws_durable_execution_sdk_python.config import CompletionConfig, ParallelConfig
 from aws_durable_execution_sdk_python.context import DurableContext
-from aws_durable_execution_sdk_python.execution import durable_handler
+from aws_durable_execution_sdk_python.execution import durable_execution
 
 
-@durable_handler
+@durable_execution
 def handler(_event: Any, context: DurableContext) -> str:
     # Parallel execution with first_successful completion strategy
     config = ParallelConfig(completion_config=CompletionConfig.first_successful())

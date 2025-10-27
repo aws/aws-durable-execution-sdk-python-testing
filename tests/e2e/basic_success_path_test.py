@@ -7,7 +7,10 @@ from aws_durable_execution_sdk_python.context import (
     durable_step,
     durable_with_child_context,
 )
-from aws_durable_execution_sdk_python.execution import InvocationStatus, durable_handler
+from aws_durable_execution_sdk_python.execution import (
+    InvocationStatus,
+    durable_execution,
+)
 from aws_durable_execution_sdk_python.types import StepContext
 
 from aws_durable_execution_sdk_python_testing.runner import (
@@ -47,7 +50,7 @@ def test_basic_durable_function() -> None:
         # print("[DEBUG] three called")
         return f"{a} {b}"
 
-    @durable_handler
+    @durable_execution
     def function_under_test(event: Any, context: DurableContext) -> list[str]:
         results: list[str] = []
 
