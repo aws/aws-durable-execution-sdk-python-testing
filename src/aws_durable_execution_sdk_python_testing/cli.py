@@ -22,6 +22,7 @@ from urllib.parse import urljoin
 import aws_durable_execution_sdk_python
 import boto3  # type: ignore
 import requests
+from botocore.exceptions import ConnectionError  # type: ignore
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsLocalRunnerError,
@@ -384,8 +385,6 @@ class CliApp:
     def get_durable_execution_command(self, args: argparse.Namespace) -> int:
         """Execute the get-durable-execution command.
 
-        TODO: implement - this is incomplete
-
         Args:
             args: Parsed command line arguments
 
@@ -405,8 +404,28 @@ class CliApp:
             print(json.dumps(response, indent=2, default=str))  # noqa: T201
             return 0  # noqa: TRY300
 
+        except client.exceptions.InvalidParameterValueException as e:
+            print(f"Error: Invalid parameter - {e}", file=sys.stderr)  # noqa: T201
+            return 1
+        except client.exceptions.ResourceNotFoundException as e:
+            print(f"Error: Execution not found - {e}", file=sys.stderr)  # noqa: T201
+            return 1
+        except client.exceptions.TooManyRequestsException as e:
+            print(f"Error: Too many requests - {e}", file=sys.stderr)  # noqa: T201
+            return 1
+        except client.exceptions.ServiceException as e:
+            print(f"Error: Service error - {e}", file=sys.stderr)  # noqa: T201
+            return 1
+        except DurableFunctionsLocalRunnerError as e:
+            print(f"Error: Local runner error - {e}", file=sys.stderr)  # noqa: T201
+            return 1
+        except ConnectionError:
+            logger.exception(
+                "Error: Could not connect to the local runner server. Is it running?"
+            )
+            return 1
         except Exception:
-            logger.exception("General error")
+            logger.exception("Unexpected error in get-durable-execution command")
             return 1
 
     def get_durable_execution_history_command(self, args: argparse.Namespace) -> int:

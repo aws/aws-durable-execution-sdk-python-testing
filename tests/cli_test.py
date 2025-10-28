@@ -12,10 +12,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
+from botocore.exceptions import ConnectionError # type: ignore
 
 from aws_durable_execution_sdk_python_testing.cli import CliApp, CliConfig, main
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsLocalRunnerError,
+    InvalidParameterValueException,
+    ResourceNotFoundException,
+    ServiceException,
+    TooManyRequestsException,
 )
 
 
@@ -777,15 +782,25 @@ def test_get_durable_execution_command_handles_resource_not_found() -> None:
 
     with patch.object(app, "_create_boto3_client") as mock_create_client:
         mock_client = mock_create_client.return_value
-        mock_client.get_durable_execution.side_effect = Exception(
-            "ResourceNotFoundException: Execution not found"
+
+        mock_client.exceptions.ResourceNotFoundException = ResourceNotFoundException
+        mock_client.exceptions.InvalidParameterValueException = (
+            InvalidParameterValueException
+        )
+        mock_client.exceptions.TooManyRequestsException = TooManyRequestsException
+        mock_client.exceptions.ServiceException = ServiceException
+
+        mock_client.get_durable_execution.side_effect = ResourceNotFoundException(
+            "Resource not found"
         )
 
-        exit_code = app.get_durable_execution_command(
-            argparse.Namespace(durable_execution_arn="nonexistent-arn")
-        )
+        with patch("sys.stderr", new_callable=StringIO) as mock_stderr:
+            exit_code = app.get_durable_execution_command(
+                argparse.Namespace(durable_execution_arn="nonexistent-arn")
+            )
 
-        assert exit_code == 1
+            assert exit_code == 1
+            assert "Error: Execution not found" in mock_stderr.getvalue()
 
 
 def test_get_durable_execution_command_handles_invalid_parameter() -> None:
@@ -794,15 +809,79 @@ def test_get_durable_execution_command_handles_invalid_parameter() -> None:
 
     with patch.object(app, "_create_boto3_client") as mock_create_client:
         mock_client = mock_create_client.return_value
-        mock_client.get_durable_execution.side_effect = Exception(
-            "InvalidParameterValueException: Invalid ARN format"
+
+        mock_client.exceptions.ResourceNotFoundException = ResourceNotFoundException
+        mock_client.exceptions.InvalidParameterValueException = (
+            InvalidParameterValueException
+        )
+        mock_client.exceptions.TooManyRequestsException = TooManyRequestsException
+        mock_client.exceptions.ServiceException = ServiceException
+
+        mock_client.get_durable_execution.side_effect = InvalidParameterValueException(
+            "Invalid parameters"
         )
 
-        exit_code = app.get_durable_execution_command(
-            argparse.Namespace(durable_execution_arn="invalid-arn")
+        with patch("sys.stderr", new_callable=StringIO) as mock_stderr:
+            exit_code = app.get_durable_execution_command(
+                argparse.Namespace(durable_execution_arn="invalid-arn")
+            )
+
+            assert exit_code == 1
+            assert "Error: Invalid parameter" in mock_stderr.getvalue()
+
+
+def test_get_durable_execution_command_handles_too_many_requests() -> None:
+    """Test that get-durable-execution command handles InvalidParameterValueException."""
+    app = CliApp()
+
+    with patch.object(app, "_create_boto3_client") as mock_create_client:
+        mock_client = mock_create_client.return_value
+
+        mock_client.exceptions.ResourceNotFoundException = ResourceNotFoundException
+        mock_client.exceptions.InvalidParameterValueException = (
+            InvalidParameterValueException
+        )
+        mock_client.exceptions.TooManyRequestsException = TooManyRequestsException
+        mock_client.exceptions.ServiceException = ServiceException
+
+        mock_client.get_durable_execution.side_effect = TooManyRequestsException(
+            "Too many requests"
         )
 
-        assert exit_code == 1
+        with patch("sys.stderr", new_callable=StringIO) as mock_stderr:
+            exit_code = app.get_durable_execution_command(
+                argparse.Namespace(durable_execution_arn="my-arn")
+            )
+
+            assert exit_code == 1
+            assert "Error: Too many requests" in mock_stderr.getvalue()
+
+
+def test_get_durable_execution_command_handles_service_exception() -> None:
+    """Test that get-durable-execution command handles InvalidParameterValueException."""
+    app = CliApp()
+
+    with patch.object(app, "_create_boto3_client") as mock_create_client:
+        mock_client = mock_create_client.return_value
+
+        mock_client.exceptions.ResourceNotFoundException = ResourceNotFoundException
+        mock_client.exceptions.InvalidParameterValueException = (
+            InvalidParameterValueException
+        )
+        mock_client.exceptions.TooManyRequestsException = TooManyRequestsException
+        mock_client.exceptions.ServiceException = ServiceException
+
+        mock_client.get_durable_execution.side_effect = ServiceException(
+            "Service exception"
+        )
+
+        with patch("sys.stderr", new_callable=StringIO) as mock_stderr:
+            exit_code = app.get_durable_execution_command(
+                argparse.Namespace(durable_execution_arn="my-arn")
+            )
+
+            assert exit_code == 1
+            assert "Error: Service error" in mock_stderr.getvalue()
 
 
 def test_get_durable_execution_command_handles_connection_error() -> None:
@@ -811,15 +890,29 @@ def test_get_durable_execution_command_handles_connection_error() -> None:
 
     with patch.object(app, "_create_boto3_client") as mock_create_client:
         mock_client = mock_create_client.return_value
-        mock_client.get_durable_execution.side_effect = Exception(
-            "Could not connect to endpoint"
+
+        mock_client.exceptions.ResourceNotFoundException = ResourceNotFoundException
+        mock_client.exceptions.InvalidParameterValueException = (
+            InvalidParameterValueException
+        )
+        mock_client.exceptions.TooManyRequestsException = TooManyRequestsException
+        mock_client.exceptions.ServiceException = ServiceException
+
+        mock_client.get_durable_execution.side_effect = ConnectionError(
+            error="Mocked connection error"
         )
 
-        exit_code = app.get_durable_execution_command(
-            argparse.Namespace(durable_execution_arn="test-arn")
-        )
+        with patch(
+            "aws_durable_execution_sdk_python_testing.cli.logger"
+        ) as mock_logger:
+            exit_code = app.get_durable_execution_command(
+                argparse.Namespace(durable_execution_arn="my-arn")
+            )
 
-        assert exit_code == 1
+            assert exit_code == 1
+            mock_logger.exception.assert_called_once_with(
+                "Error: Could not connect to the local runner server. Is it running?"
+            )
 
 
 def test_get_durable_execution_history_command_uses_boto3_client() -> None:
@@ -987,15 +1080,27 @@ def test_get_durable_execution_command_handles_general_exception() -> None:
 
     with patch.object(app, "_create_boto3_client") as mock_create_client:
         mock_client = mock_create_client.return_value
+        mock_client.exceptions.ResourceNotFoundException = ResourceNotFoundException
+        mock_client.exceptions.InvalidParameterValueException = (
+            InvalidParameterValueException
+        )
+        mock_client.exceptions.TooManyRequestsException = TooManyRequestsException
+        mock_client.exceptions.ServiceException = ServiceException
         mock_client.get_durable_execution.side_effect = ValueError(
             "Some unexpected error"
         )
 
-        exit_code = app.get_durable_execution_command(
-            argparse.Namespace(durable_execution_arn="test-arn")
-        )
+        with patch(
+            "aws_durable_execution_sdk_python_testing.cli.logger"
+        ) as mock_logger:
+            exit_code = app.get_durable_execution_command(
+                argparse.Namespace(durable_execution_arn="my-arn")
+            )
 
-        assert exit_code == 1
+            assert exit_code == 1
+            mock_logger.exception.assert_called_once_with(
+                "Unexpected error in get-durable-execution command"
+            )
 
 
 def test_get_durable_execution_history_command_handles_general_exception() -> None:
