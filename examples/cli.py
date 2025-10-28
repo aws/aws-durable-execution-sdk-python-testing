@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import contextlib
 import json
 import logging
 import os
@@ -328,13 +327,22 @@ def retry_on_resource_conflict(func, *args, max_retries=5, **kwargs):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            if hasattr(e, 'response') and e.response.get('Error', {}).get('Code') == 'ResourceConflictException':
-                if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt  # Exponential backoff
-                    logger.info(f"ResourceConflictException on attempt {attempt + 1}, retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                    continue
+            if (
+                hasattr(e, "response")
+                and e.response.get("Error", {}).get("Code")
+                == "ResourceConflictException"
+                and attempt < max_retries - 1
+            ):
+                wait_time = 2**attempt  # Exponential backoff
+                logger.info(
+                    "ResourceConflictException on attempt %d, retrying in %ds...",
+                    attempt + 1,
+                    wait_time,
+                )
+                time.sleep(wait_time)
+                continue
             raise
+    return None
 
 
 def deploy_function(example_name: str, function_name: str | None = None):
@@ -388,12 +396,11 @@ def deploy_function(example_name: str, function_name: str | None = None):
         lambda_client.get_function(FunctionName=function_name)
         retry_on_resource_conflict(
             lambda_client.update_function_code,
-            FunctionName=function_name, 
-            ZipFile=zip_content
+            FunctionName=function_name,
+            ZipFile=zip_content,
         )
         retry_on_resource_conflict(
-            lambda_client.update_function_configuration,
-            **function_config
+            lambda_client.update_function_configuration, **function_config
         )
 
     except lambda_client.exceptions.ResourceNotFoundException:
@@ -401,7 +408,7 @@ def deploy_function(example_name: str, function_name: str | None = None):
 
     # Update invoke permission for worker account using put_resource_policy
     function_arn = f"arn:aws:lambda:{config['region']}:{config['account_id']}:function:{function_name}"
-    
+
     policy_document = {
         "Version": "2012-10-17",
         "Statement": [
@@ -410,14 +417,13 @@ def deploy_function(example_name: str, function_name: str | None = None):
                 "Effect": "Allow",
                 "Principal": {"AWS": config["invoke_account_id"]},
                 "Action": "lambda:InvokeFunction",
-                "Resource": f"{function_arn}:*"
+                "Resource": f"{function_arn}:*",
             }
-        ]
+        ],
     }
 
     lambda_client.put_resource_policy(
-        ResourceArn=function_arn,
-        Policy=json.dumps(policy_document)
+        ResourceArn=function_arn, Policy=json.dumps(policy_document)
     )
 
     logger.info("Function deployed successfully! %s", function_name)
