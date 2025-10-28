@@ -36,7 +36,7 @@ class Serializer(Protocol):
         Raises:
             InvalidParameterValueException: If serialization fails
         """
-        ...
+        ...  # pragma: no cover
 
 
 class Deserializer(Protocol):
@@ -54,7 +54,7 @@ class Deserializer(Protocol):
         Raises:
             InvalidParameterValueException: If deserialization fails
         """
-        ...
+        ...  # pragma: no cover
 
 
 class AwsRestJsonSerializer:

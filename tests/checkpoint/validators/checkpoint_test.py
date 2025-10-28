@@ -167,7 +167,12 @@ def test_validate_payload_sizes_error_within_limit():
 
 
 def test_validate_duplicate_operation_ids():
-    """Test validation fails with duplicate operation IDs."""
+    """Test validation allows duplicate operation IDs in same batch.
+
+    With background batching, the SDK can send multiple updates for the same
+    operation in a single batch (e.g., START followed by SUCCEED). This is
+    valid behavior and should be allowed.
+    """
     execution = _create_test_execution()
     updates = [
         OperationUpdate(
@@ -182,11 +187,8 @@ def test_validate_duplicate_operation_ids():
         ),
     ]
 
-    with pytest.raises(
-        InvalidParameterValueException,
-        match="Cannot update the same operation twice in a single request",
-    ):
-        CheckpointValidator.validate_input(updates, execution)
+    # Should not raise - duplicate operation IDs are allowed in batches
+    CheckpointValidator.validate_input(updates, execution)
 
 
 def test_validate_valid_parent_id_in_execution():
@@ -404,3 +406,304 @@ def test_validate_operation_status_transition_execution():
         )
     ]
     CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_inconsistent_operation_type():
+    """Test validation fails when operation type is inconsistent."""
+    execution = _create_test_execution()
+
+    # Add existing operation
+    step_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.STEP,
+        status=OperationStatus.STARTED,
+    )
+    execution.operations.append(step_op)
+
+    # Try to update with different type
+    updates = [
+        OperationUpdate(
+            operation_id="op-1",
+            operation_type=OperationType.CONTEXT,
+            action=OperationAction.SUCCEED,
+        )
+    ]
+
+    with pytest.raises(
+        InvalidParameterValueException, match="Inconsistent operation type"
+    ):
+        CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_inconsistent_operation_subtype():
+    """Test validation fails when operation subtype is inconsistent."""
+    execution = _create_test_execution()
+
+    # Add existing operation with subtype
+    from aws_durable_execution_sdk_python.lambda_service import OperationSubType
+
+    context_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.CONTEXT,
+        status=OperationStatus.STARTED,
+        sub_type=OperationSubType.PARALLEL,
+    )
+    execution.operations.append(context_op)
+
+    # Try to update with different subtype
+    updates = [
+        OperationUpdate(
+            operation_id="op-1",
+            operation_type=OperationType.CONTEXT,
+            action=OperationAction.SUCCEED,
+            sub_type=OperationSubType.MAP,
+        )
+    ]
+
+    with pytest.raises(
+        InvalidParameterValueException, match="Inconsistent operation subtype"
+    ):
+        CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_inconsistent_operation_name():
+    """Test validation fails when operation name is inconsistent."""
+    execution = _create_test_execution()
+
+    # Add existing operation with name
+    step_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.STEP,
+        status=OperationStatus.STARTED,
+        name="original_name",
+    )
+    execution.operations.append(step_op)
+
+    # Try to update with different name
+    updates = [
+        OperationUpdate(
+            operation_id="op-1",
+            operation_type=OperationType.STEP,
+            action=OperationAction.SUCCEED,
+            name="different_name",
+        )
+    ]
+
+    with pytest.raises(
+        InvalidParameterValueException, match="Inconsistent operation name"
+    ):
+        CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_inconsistent_parent_operation_id():
+    """Test validation fails when parent operation ID is inconsistent."""
+    execution = _create_test_execution()
+
+    # Add TWO context operations
+    context_op1 = Operation(
+        operation_id="context-1",
+        operation_type=OperationType.CONTEXT,
+        status=OperationStatus.STARTED,
+    )
+    execution.operations.append(context_op1)
+
+    context_op2 = Operation(
+        operation_id="context-2",
+        operation_type=OperationType.CONTEXT,
+        status=OperationStatus.STARTED,
+    )
+    execution.operations.append(context_op2)
+
+    # Add existing step with parent context-1
+    step_op = Operation(
+        operation_id="step-1",
+        operation_type=OperationType.STEP,
+        status=OperationStatus.STARTED,
+        parent_id="context-1",
+    )
+    execution.operations.append(step_op)
+
+    # Try to update with different parent context-2 (which exists, so passes parent validation)
+    updates = [
+        OperationUpdate(
+            operation_id="step-1",
+            operation_type=OperationType.STEP,
+            action=OperationAction.SUCCEED,
+            parent_id="context-2",
+        )
+    ]
+
+    with pytest.raises(
+        InvalidParameterValueException, match="Inconsistent parent operation id"
+    ):
+        CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_invalid_duplicate_wait_operations():
+    """Test validation fails with duplicate WAIT operations."""
+    execution = _create_test_execution()
+
+    # WAIT operations cannot have duplicate updates in same batch
+    updates = [
+        OperationUpdate(
+            operation_id="wait-1",
+            operation_type=OperationType.WAIT,
+            action=OperationAction.START,
+        ),
+        OperationUpdate(
+            operation_id="wait-1",
+            operation_type=OperationType.WAIT,
+            action=OperationAction.CANCEL,
+        ),
+    ]
+
+    with pytest.raises(
+        InvalidParameterValueException,
+        match="Cannot checkpoint multiple operations with the same ID",
+    ):
+        CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_invalid_duplicate_callback_operations():
+    """Test validation fails with duplicate CALLBACK operations."""
+    execution = _create_test_execution()
+
+    # CALLBACK operations cannot have duplicate updates in same batch
+    updates = [
+        OperationUpdate(
+            operation_id="callback-1",
+            operation_type=OperationType.CALLBACK,
+            action=OperationAction.START,
+        ),
+        OperationUpdate(
+            operation_id="callback-1",
+            operation_type=OperationType.CALLBACK,
+            action=OperationAction.SUCCEED,
+        ),
+    ]
+
+    with pytest.raises(
+        InvalidParameterValueException,
+        match="Cannot checkpoint multiple operations with the same ID",
+    ):
+        CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_invalid_duplicate_invoke_operations():
+    """Test validation fails with duplicate CHAINED_INVOKE operations."""
+    execution = _create_test_execution()
+
+    # CHAINED_INVOKE operations cannot have duplicate updates in same batch
+    updates = [
+        OperationUpdate(
+            operation_id="invoke-1",
+            operation_type=OperationType.CHAINED_INVOKE,
+            action=OperationAction.START,
+        ),
+        OperationUpdate(
+            operation_id="invoke-1",
+            operation_type=OperationType.CHAINED_INVOKE,
+            action=OperationAction.SUCCEED,
+        ),
+    ]
+
+    with pytest.raises(
+        InvalidParameterValueException,
+        match="Cannot checkpoint multiple operations with the same ID",
+    ):
+        CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_invalid_duplicate_execution_operations():
+    """Test validation fails with duplicate EXECUTION operations."""
+    execution = _create_test_execution()
+
+    # EXECUTION operations cannot have duplicate updates in same batch
+    # (though this is also caught by _validate_conflicting_execution_update)
+    updates = [
+        OperationUpdate(
+            operation_id="exec-1",
+            operation_type=OperationType.EXECUTION,
+            action=OperationAction.SUCCEED,
+        ),
+        OperationUpdate(
+            operation_id="exec-1",
+            operation_type=OperationType.EXECUTION,
+            action=OperationAction.SUCCEED,
+        ),
+    ]
+
+    with pytest.raises(InvalidParameterValueException):
+        CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_duplicate_context_start_then_succeed():
+    """Test validation allows CONTEXT START followed by SUCCEED."""
+    execution = _create_test_execution()
+
+    # CONTEXT operations can have START + non-START in same batch
+    updates = [
+        OperationUpdate(
+            operation_id="context-1",
+            operation_type=OperationType.CONTEXT,
+            action=OperationAction.START,
+        ),
+        OperationUpdate(
+            operation_id="context-1",
+            operation_type=OperationType.CONTEXT,
+            action=OperationAction.SUCCEED,
+        ),
+    ]
+
+    # Should not raise
+    CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_invalid_duplicate_context_non_start():
+    """Test validation fails with duplicate CONTEXT non-START operations."""
+    execution = _create_test_execution()
+
+    # CONTEXT operations cannot have duplicate non-START updates
+    updates = [
+        OperationUpdate(
+            operation_id="context-1",
+            operation_type=OperationType.CONTEXT,
+            action=OperationAction.SUCCEED,
+        ),
+        OperationUpdate(
+            operation_id="context-1",
+            operation_type=OperationType.CONTEXT,
+            action=OperationAction.SUCCEED,
+        ),
+    ]
+
+    with pytest.raises(
+        InvalidParameterValueException,
+        match="Cannot checkpoint multiple operations with the same ID",
+    ):
+        CheckpointValidator.validate_input(updates, execution)
+
+
+def test_validate_invalid_duplicate_step_non_start():
+    """Test validation fails with duplicate STEP non-START operations."""
+    execution = _create_test_execution()
+
+    # STEP operations cannot have duplicate non-START updates
+    updates = [
+        OperationUpdate(
+            operation_id="step-1",
+            operation_type=OperationType.STEP,
+            action=OperationAction.SUCCEED,
+        ),
+        OperationUpdate(
+            operation_id="step-1",
+            operation_type=OperationType.STEP,
+            action=OperationAction.SUCCEED,
+        ),
+    ]
+
+    with pytest.raises(
+        InvalidParameterValueException,
+        match="Cannot checkpoint multiple operations with the same ID",
+    ):
+        CheckpointValidator.validate_input(updates, execution)
