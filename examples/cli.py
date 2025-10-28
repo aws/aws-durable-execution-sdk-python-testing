@@ -7,6 +7,7 @@ import logging
 import os
 import shutil
 import sys
+import time
 import zipfile
 from pathlib import Path
 
@@ -321,6 +322,21 @@ def get_lambda_client():
     )
 
 
+def retry_on_resource_conflict(func, *args, max_retries=5, **kwargs):
+    """Retry function on ResourceConflictException."""
+    for attempt in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            if hasattr(e, 'response') and e.response.get('Error', {}).get('Code') == 'ResourceConflictException':
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # Exponential backoff
+                    logger.info(f"ResourceConflictException on attempt {attempt + 1}, retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+            raise
+
+
 def deploy_function(example_name: str, function_name: str | None = None):
     """Deploy function to AWS Lambda."""
     catalog = load_catalog()
@@ -370,10 +386,15 @@ def deploy_function(example_name: str, function_name: str | None = None):
 
     try:
         lambda_client.get_function(FunctionName=function_name)
-        lambda_client.update_function_code(
-            FunctionName=function_name, ZipFile=zip_content
+        retry_on_resource_conflict(
+            lambda_client.update_function_code,
+            FunctionName=function_name, 
+            ZipFile=zip_content
         )
-        lambda_client.update_function_configuration(**function_config)
+        retry_on_resource_conflict(
+            lambda_client.update_function_configuration,
+            **function_config
+        )
 
     except lambda_client.exceptions.ResourceNotFoundException:
         lambda_client.create_function(**function_config, Code={"ZipFile": zip_content})
