@@ -73,8 +73,8 @@ jobs:
     - name: Deploy Lambda function - ${{ matrix.example.name }}
       env:
         AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
-        INVOKE_ACCOUNT_ID: ${{ secrets.INVOKE_ACCOUNT_ID }}
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT_BETA }}
+        INVOKE_ACCOUNT_ID: ${{ secrets.INVOKE_ACCOUNT_ID_BETA }}
         KMS_KEY_ARN: ${{ secrets.KMS_KEY_ARN }}
       run: |
         # Build function name
@@ -98,7 +98,7 @@ jobs:
 
     - name: Invoke Lambda function - ${{ matrix.example.name }}
       env:
-        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT_BETA }}
       run: |
         echo "Testing qualified function: $QUALIFIED_FUNCTION_NAME"
         aws lambda invoke \
@@ -139,7 +139,7 @@ jobs:
 
     - name: Find Durable Execution - ${{ matrix.example.name }}
       env:
-        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT_BETA }}
       run: |
         echo "Listing durable executions for qualified function: $QUALIFIED_FUNCTION_NAME"
         aws lambda list-durable-executions-by-function \
@@ -159,7 +159,7 @@ jobs:
     - name: Get Durable Execution History - ${{ matrix.example.name }}
       if: env.EXECUTION_ARN != ''
       env:
-        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+        LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT_BETA }}
       run: |
         echo "Getting execution history for: $EXECUTION_ARN"
         aws lambda get-durable-execution-history \
@@ -174,7 +174,7 @@ jobs:
     # - name: Cleanup Lambda function
     #   if: always()
     #   env:
-    #     LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+    #     LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT_BETA }}
     #   run: |
     #     echo "Deleting function: $FUNCTION_NAME"
     #     aws lambda delete-function \
