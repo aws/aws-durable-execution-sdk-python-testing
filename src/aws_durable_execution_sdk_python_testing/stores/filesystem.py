@@ -26,7 +26,7 @@ def datetime_object_hook(obj):
     """JSON object hook to convert unix timestamps back to datetime objects."""
     if isinstance(obj, dict):
         for key, value in obj.items():
-            if isinstance(value, int | float) and key.endswith(("_timestamp", "_time")):
+            if isinstance(value, int | float) and key.endswith(("_timestamp", "_time", "Time", "Timestamp")):
                 try:  # noqa: SIM105
                     obj[key] = datetime.fromtimestamp(value, tz=UTC)
                 except (ValueError, OSError):
