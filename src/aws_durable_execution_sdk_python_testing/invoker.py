@@ -143,9 +143,8 @@ class LambdaInvoker(Invoker):
         function_name: str,
         input: DurableExecutionInvocationInput,
     ) -> DurableExecutionInvocationOutput:
-        # TODO: temporary method name pre-build - switch to `invoke` for final
         # TODO: wrap ResourceNotFoundException from lambda in ResourceNotFoundException from this lib
-        response = self.lambda_client.invoke20150331(
+        response = self.lambda_client.invoke(
             FunctionName=function_name,
             InvocationType="RequestResponse",  # Synchronous invocation
             Payload=json.dumps(input.to_dict(), default=str),
