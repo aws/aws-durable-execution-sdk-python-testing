@@ -602,7 +602,6 @@ class Executor(ExecutionObserver):
                 self._complete_workflow(
                     execution_arn, result=None, error=response.error
                 )
-                self._store.save(execution)
 
             case InvocationStatus.SUCCEEDED:
                 if response.error is not None:
@@ -614,7 +613,6 @@ class Executor(ExecutionObserver):
                 self._complete_workflow(
                     execution_arn, result=response.result, error=None
                 )
-                self._store.save(execution)
 
             case InvocationStatus.PENDING:
                 if not execution.has_pending_operations(execution):

@@ -162,7 +162,7 @@ def test_lambda_invoker_invoke_success():
         {"Status": "SUCCEEDED", "Result": "lambda-result"}
     ).encode("utf-8")
 
-    lambda_client.invoke20150331.return_value = {
+    lambda_client.invoke.return_value = {
         "StatusCode": 200,
         "Payload": mock_payload,
     }
@@ -183,7 +183,7 @@ def test_lambda_invoker_invoke_success():
     assert result.result == "lambda-result"
 
     # Verify lambda client was called correctly
-    lambda_client.invoke20150331.assert_called_once_with(
+    lambda_client.invoke.assert_called_once_with(
         FunctionName="test-function",
         InvocationType="RequestResponse",
         Payload=json.dumps(input_data.to_dict(), default=str),
@@ -196,7 +196,7 @@ def test_lambda_invoker_invoke_failure():
 
     # Mock failed response
     mock_payload = Mock()
-    lambda_client.invoke20150331.return_value = {
+    lambda_client.invoke.return_value = {
         "StatusCode": 500,
         "Payload": mock_payload,
     }
