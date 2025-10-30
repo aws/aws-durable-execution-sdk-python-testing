@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import datetime
+
 import pytest
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
@@ -62,6 +64,13 @@ from aws_durable_execution_sdk_python_testing.model import (
     WaitStartedDetails,
     WaitSucceededDetails,
 )
+
+
+# Test timestamp constants
+TIMESTAMP_2023_01_01_00_00 = datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
+TIMESTAMP_2023_01_01_00_01 = datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC)
+TIMESTAMP_2023_01_01_00_02 = datetime.datetime(2023, 1, 1, 0, 2, 0, tzinfo=datetime.UTC)
+TIMESTAMP_2023_01_02_00_00 = datetime.datetime(2023, 1, 2, 0, 0, 0, tzinfo=datetime.UTC)
 
 
 def test_start_durable_execution_input_serialization():
@@ -180,11 +189,11 @@ def test_get_durable_execution_response_serialization():
         "DurableExecutionName": "test-execution",
         "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
         "Status": "SUCCEEDED",
-        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "StartTimestamp": TIMESTAMP_2023_01_01_00_00,
         "InputPayload": "test-input",
         "Result": "test-result",
         "Error": {"ErrorMessage": "test error"},
-        "EndTimestamp": "2023-01-01T00:01:00Z",
+        "EndTimestamp": TIMESTAMP_2023_01_01_00_01,
         "Version": "1.0",
     }
 
@@ -199,11 +208,11 @@ def test_get_durable_execution_response_serialization():
         == "arn:aws:lambda:us-east-1:123456789012:function:my-function"
     )
     assert response_obj.status == "SUCCEEDED"
-    assert response_obj.start_timestamp == "2023-01-01T00:00:00Z"
+    assert response_obj.start_timestamp == TIMESTAMP_2023_01_01_00_00
     assert response_obj.input_payload == "test-input"
     assert response_obj.result == "test-result"
     assert response_obj.error.message == "test error"
-    assert response_obj.end_timestamp == "2023-01-01T00:01:00Z"
+    assert response_obj.end_timestamp == TIMESTAMP_2023_01_01_00_01
     assert response_obj.version == "1.0"
 
     result_data = response_obj.to_dict()
@@ -221,7 +230,7 @@ def test_get_durable_execution_response_minimal():
         "DurableExecutionName": "test-execution",
         "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
         "Status": "RUNNING",
-        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "StartTimestamp": TIMESTAMP_2023_01_01_00_00,
     }
 
     response_obj = GetDurableExecutionResponse.from_dict(data)
@@ -242,8 +251,8 @@ def test_list_durable_executions_request_serialization():
         "FunctionVersion": "$LATEST",
         "DurableExecutionName": "test-execution",
         "StatusFilter": ["RUNNING", "SUCCEEDED"],
-        "TimeAfter": "2023-01-01T00:00:00Z",
-        "TimeBefore": "2023-01-02T00:00:00Z",
+        "TimeAfter": TIMESTAMP_2023_01_01_00_00,
+        "TimeBefore": TIMESTAMP_2023_01_02_00_00,
         "Marker": "marker-123",
         "MaxItems": 10,
         "ReverseOrder": True,
@@ -254,8 +263,8 @@ def test_list_durable_executions_request_serialization():
     assert request_obj.function_version == "$LATEST"
     assert request_obj.durable_execution_name == "test-execution"
     assert request_obj.status_filter == ["RUNNING", "SUCCEEDED"]
-    assert request_obj.time_after == "2023-01-01T00:00:00Z"
-    assert request_obj.time_before == "2023-01-02T00:00:00Z"
+    assert request_obj.time_after == TIMESTAMP_2023_01_01_00_00
+    assert request_obj.time_before == TIMESTAMP_2023_01_02_00_00
     assert request_obj.marker == "marker-123"
     assert request_obj.max_items == 10
     assert request_obj.reverse_order is True
@@ -295,8 +304,8 @@ def test_durable_execution_summary_serialization():
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
         "DurableExecutionName": "test-execution",
         "Status": "SUCCEEDED",
-        "StartTimestamp": "2023-01-01T00:00:00Z",
-        "EndTimestamp": "2023-01-01T00:01:00Z",
+        "StartTimestamp": TIMESTAMP_2023_01_01_00_00,
+        "EndTimestamp": TIMESTAMP_2023_01_01_00_01,
     }
 
     summary_obj = Execution.from_dict(data)
@@ -306,8 +315,8 @@ def test_durable_execution_summary_serialization():
     )
     assert summary_obj.durable_execution_name == "test-execution"
     assert summary_obj.status == "SUCCEEDED"
-    assert summary_obj.start_timestamp == "2023-01-01T00:00:00Z"
-    assert summary_obj.end_timestamp == "2023-01-01T00:01:00Z"
+    assert summary_obj.start_timestamp == TIMESTAMP_2023_01_01_00_00
+    assert summary_obj.end_timestamp == TIMESTAMP_2023_01_01_00_01
 
     result_data = summary_obj.to_dict()
     assert result_data == data
@@ -323,7 +332,7 @@ def test_durable_execution_summary_no_end_timestamp():
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
         "DurableExecutionName": "test-execution",
         "Status": "RUNNING",
-        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "StartTimestamp": TIMESTAMP_2023_01_01_00_00,
     }
 
     summary_obj = Execution.from_dict(data)
@@ -341,14 +350,14 @@ def test_list_durable_executions_response_serialization():
                 "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test1",
                 "DurableExecutionName": "test-execution-1",
                 "Status": "SUCCEEDED",
-                "StartTimestamp": "2023-01-01T00:00:00Z",
-                "EndTimestamp": "2023-01-01T00:01:00Z",
+                "StartTimestamp": TIMESTAMP_2023_01_01_00_00,
+                "EndTimestamp": TIMESTAMP_2023_01_01_00_01,
             },
             {
                 "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test2",
                 "DurableExecutionName": "test-execution-2",
                 "Status": "RUNNING",
-                "StartTimestamp": "2023-01-01T00:02:00Z",
+                "StartTimestamp": TIMESTAMP_2023_01_01_00_02,
             },
         ],
         "NextMarker": "next-marker-123",
@@ -573,7 +582,7 @@ def test_execution_event_serialization():
     data = {
         "EventType": "ExecutionStarted",
         "EventId": 123,
-        "EventTimestamp": "2023-01-01T00:00:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_00,
         "SubType": "UserInitiated",
         "Id": "op-123",
         "Name": "test-operation",
@@ -587,7 +596,7 @@ def test_execution_event_serialization():
     event_obj = Event.from_dict(data)
     assert event_obj.event_type == "ExecutionStarted"
     assert event_obj.event_id == 123
-    assert event_obj.event_timestamp == "2023-01-01T00:00:00Z"
+    assert event_obj.event_timestamp == TIMESTAMP_2023_01_01_00_00
     assert event_obj.sub_type == "UserInitiated"
     assert event_obj.operation_id == "op-123"
     assert event_obj.name == "test-operation"
@@ -608,7 +617,7 @@ def test_execution_event_minimal():
     """Test Event with only required fields."""
     data = {
         "EventType": "ExecutionStarted",
-        "EventTimestamp": "2023-01-01T00:00:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_00,
     }
 
     event_obj = Event.from_dict(data)
@@ -623,7 +632,7 @@ def test_execution_event_minimal():
     # The result should include the default EventId
     expected_data = {
         "EventType": "ExecutionStarted",
-        "EventTimestamp": "2023-01-01T00:00:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_00,
         "EventId": 1,
     }
     assert result_data == expected_data
@@ -636,12 +645,12 @@ def test_get_durable_execution_history_response_serialization():
             {
                 "EventType": "ExecutionStarted",
                 "EventId": 1,
-                "EventTimestamp": "2023-01-01T00:00:00Z",
+                "EventTimestamp": TIMESTAMP_2023_01_01_00_00,
             },
             {
                 "EventType": "ExecutionSucceeded",
                 "EventId": 2,
-                "EventTimestamp": "2023-01-01T00:01:00Z",
+                "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
                 "ExecutionSucceededDetails": {
                     "Result": {"Payload": "success", "Truncated": False}
                 },
@@ -686,8 +695,8 @@ def test_list_durable_executions_by_function_request_serialization():
         "FunctionName": "my-function",
         "Qualifier": "$LATEST",
         "StatusFilter": ["RUNNING", "SUCCEEDED"],
-        "TimeAfter": "2023-01-01T00:00:00Z",
-        "TimeBefore": "2023-01-02T00:00:00Z",
+        "StartedAfter": TIMESTAMP_2023_01_01_00_00,
+        "StartedBefore": TIMESTAMP_2023_01_02_00_00,
         "Marker": "marker-123",
         "MaxItems": 10,
         "ReverseOrder": True,
@@ -697,8 +706,8 @@ def test_list_durable_executions_by_function_request_serialization():
     assert request_obj.function_name == "my-function"
     assert request_obj.qualifier == "$LATEST"
     assert request_obj.status_filter == ["RUNNING", "SUCCEEDED"]
-    assert request_obj.time_after == "2023-01-01T00:00:00Z"
-    assert request_obj.time_before == "2023-01-02T00:00:00Z"
+    assert request_obj.started_after == TIMESTAMP_2023_01_01_00_00
+    assert request_obj.started_before == TIMESTAMP_2023_01_02_00_00
     assert request_obj.marker == "marker-123"
     assert request_obj.max_items == 10
     assert request_obj.reverse_order is True
@@ -718,8 +727,8 @@ def test_list_durable_executions_by_function_request_minimal():
     request_obj = ListDurableExecutionsByFunctionRequest.from_dict(data)
     assert request_obj.qualifier is None
     assert request_obj.status_filter is None
-    assert request_obj.time_after is None
-    assert request_obj.time_before is None
+    assert request_obj.started_after is None
+    assert request_obj.started_before is None
     assert request_obj.marker is None
     assert request_obj.max_items == 0  # Default value from Smithy
     assert request_obj.reverse_order is None
@@ -738,8 +747,8 @@ def test_list_durable_executions_by_function_response_serialization():
                 "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test1",
                 "DurableExecutionName": "test-execution-1",
                 "Status": "SUCCEEDED",
-                "StartTimestamp": "2023-01-01T00:00:00Z",
-                "EndTimestamp": "2023-01-01T00:01:00Z",
+                "StartTimestamp": TIMESTAMP_2023_01_01_00_00,
+                "EndTimestamp": TIMESTAMP_2023_01_01_00_01,
             }
         ],
         "NextMarker": "next-marker-123",
@@ -1189,8 +1198,8 @@ def test_execution_backward_compatibility_empty_function_arn():
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
         "DurableExecutionName": "test-execution",
         "Status": "SUCCEEDED",
-        "StartTimestamp": "2023-01-01T00:00:00Z",
-        "EndTimestamp": "2023-01-01T00:01:00Z",
+        "StartTimestamp": TIMESTAMP_2023_01_01_00_00,
+        "EndTimestamp": TIMESTAMP_2023_01_01_00_01,
     }
 
     execution_obj = Execution.from_dict(data)
@@ -1204,8 +1213,8 @@ def test_execution_backward_compatibility_empty_function_arn():
         "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function:execution:test",
         "DurableExecutionName": "test-execution",
         "Status": "SUCCEEDED",
-        "StartTimestamp": "2023-01-01T00:00:00Z",
-        "EndTimestamp": "2023-01-01T00:01:00Z",
+        "StartTimestamp": TIMESTAMP_2023_01_01_00_00,
+        "EndTimestamp": TIMESTAMP_2023_01_01_00_01,
     }
     assert result_data == expected_data
 
@@ -1217,8 +1226,8 @@ def test_execution_with_function_arn():
         "DurableExecutionName": "test-execution",
         "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
         "Status": "SUCCEEDED",
-        "StartTimestamp": "2023-01-01T00:00:00Z",
-        "EndTimestamp": "2023-01-01T00:01:00Z",
+        "StartTimestamp": TIMESTAMP_2023_01_01_00_00,
+        "EndTimestamp": TIMESTAMP_2023_01_01_00_01,
     }
 
     execution_obj = Execution.from_dict(data)
@@ -1259,7 +1268,7 @@ def test_list_durable_executions_request_partial_fields():
         function_version=None,
         durable_execution_name="test-execution",
         status_filter=None,
-        time_after="2023-01-01T00:00:00Z",
+        time_after=TIMESTAMP_2023_01_01_00_00,
         time_before=None,
         marker="marker-123",
         max_items=10,
@@ -1270,7 +1279,7 @@ def test_list_durable_executions_request_partial_fields():
     expected_data = {
         "FunctionName": "my-function",
         "DurableExecutionName": "test-execution",
-        "TimeAfter": "2023-01-01T00:00:00Z",
+        "TimeAfter": TIMESTAMP_2023_01_01_00_00,
         "Marker": "marker-123",
         "MaxItems": 10,
     }
@@ -1657,12 +1666,12 @@ def test_wait_started_details_serialization():
     """Test WaitStartedDetails from_dict/to_dict round-trip."""
     data = {
         "Duration": 60,
-        "ScheduledEndTimestamp": "2023-01-01T00:01:00Z",
+        "ScheduledEndTimestamp": TIMESTAMP_2023_01_01_00_01,
     }
 
     details = WaitStartedDetails.from_dict(data)
     assert details.duration == 60
-    assert details.scheduled_end_timestamp == "2023-01-01T00:01:00Z"
+    assert details.scheduled_end_timestamp == TIMESTAMP_2023_01_01_00_01
 
     result_data = details.to_dict()
     assert result_data == data
@@ -2121,7 +2130,7 @@ def test_event_with_execution_succeeded_details():
     """Test Event with ExecutionSucceededDetails."""
     data = {
         "EventType": "ExecutionSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ExecutionSucceededDetails": {
             "Result": {"Payload": "success", "Truncated": False}
         },
@@ -2135,7 +2144,7 @@ def test_event_with_execution_succeeded_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ExecutionSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,  # Default value
         "ExecutionSucceededDetails": {
             "Result": {"Payload": "success", "Truncated": False}
@@ -2148,7 +2157,7 @@ def test_event_with_execution_failed_details():
     """Test Event with ExecutionFailedDetails."""
     data = {
         "EventType": "ExecutionFailed",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ExecutionFailedDetails": {
             "Error": {
                 "Payload": {"ErrorMessage": "execution failed"},
@@ -2167,7 +2176,7 @@ def test_event_with_execution_failed_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ExecutionFailed",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ExecutionFailedDetails": {
             "Error": {
@@ -2183,7 +2192,7 @@ def test_event_with_execution_timed_out_details():
     """Test Event with ExecutionTimedOutDetails."""
     data = {
         "EventType": "ExecutionTimedOut",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ExecutionTimedOutDetails": {
             "Error": {
                 "Payload": {"ErrorMessage": "execution timed out"},
@@ -2203,7 +2212,7 @@ def test_event_with_execution_timed_out_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ExecutionTimedOut",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ExecutionTimedOutDetails": {
             "Error": {
@@ -2219,7 +2228,7 @@ def test_event_with_execution_stopped_details():
     """Test Event with ExecutionStoppedDetails."""
     data = {
         "EventType": "ExecutionStopped",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ExecutionStoppedDetails": {
             "Error": {
                 "Payload": {"ErrorMessage": "execution stopped"},
@@ -2238,7 +2247,7 @@ def test_event_with_execution_stopped_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ExecutionStopped",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ExecutionStoppedDetails": {
             "Error": {
@@ -2256,7 +2265,7 @@ def test_event_with_context_started_details():
     # we need to provide a non-empty dict or test without the key
     data = {
         "EventType": "ContextStarted",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ContextStartedDetails": {"dummy": "value"},  # Non-empty to be truthy
     }
 
@@ -2267,7 +2276,7 @@ def test_event_with_context_started_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ContextStarted",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ContextStartedDetails": {},  # to_dict() returns empty dict
     }
@@ -2278,7 +2287,7 @@ def test_event_with_context_succeeded_details():
     """Test Event with ContextSucceededDetails."""
     data = {
         "EventType": "ContextSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ContextSucceededDetails": {
             "Result": {"Payload": "context result", "Truncated": False}
         },
@@ -2292,7 +2301,7 @@ def test_event_with_context_succeeded_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ContextSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ContextSucceededDetails": {
             "Result": {"Payload": "context result", "Truncated": False}
@@ -2305,7 +2314,7 @@ def test_event_with_context_failed_details():
     """Test Event with ContextFailedDetails."""
     data = {
         "EventType": "ContextFailed",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ContextFailedDetails": {
             "Error": {"Payload": {"ErrorMessage": "context failed"}, "Truncated": False}
         },
@@ -2319,7 +2328,7 @@ def test_event_with_context_failed_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ContextFailed",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ContextFailedDetails": {
             "Error": {"Payload": {"ErrorMessage": "context failed"}, "Truncated": False}
@@ -2332,10 +2341,10 @@ def test_event_with_wait_started_details():
     """Test Event with WaitStartedDetails."""
     data = {
         "EventType": "WaitStarted",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "WaitStartedDetails": {
             "Duration": 60,
-            "ScheduledEndTimestamp": "2023-01-01T00:02:00Z",
+            "ScheduledEndTimestamp": TIMESTAMP_2023_01_01_00_02,
         },
     }
 
@@ -2347,11 +2356,11 @@ def test_event_with_wait_started_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "WaitStarted",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "WaitStartedDetails": {
             "Duration": 60,
-            "ScheduledEndTimestamp": "2023-01-01T00:02:00Z",
+            "ScheduledEndTimestamp": TIMESTAMP_2023_01_01_00_02,
         },
     }
     assert result_data == expected_data
@@ -2361,7 +2370,7 @@ def test_event_with_wait_succeeded_details():
     """Test Event with WaitSucceededDetails."""
     data = {
         "EventType": "WaitSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "WaitSucceededDetails": {"Duration": 60},
     }
 
@@ -2373,7 +2382,7 @@ def test_event_with_wait_succeeded_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "WaitSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "WaitSucceededDetails": {"Duration": 60},
     }
@@ -2384,7 +2393,7 @@ def test_event_with_wait_cancelled_details():
     """Test Event with WaitCancelledDetails."""
     data = {
         "EventType": "WaitCancelled",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "WaitCancelledDetails": {
             "Error": {"Payload": {"ErrorMessage": "wait cancelled"}, "Truncated": False}
         },
@@ -2398,7 +2407,7 @@ def test_event_with_wait_cancelled_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "WaitCancelled",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "WaitCancelledDetails": {
             "Error": {"Payload": {"ErrorMessage": "wait cancelled"}, "Truncated": False}
@@ -2413,7 +2422,7 @@ def test_event_with_step_started_details():
     # we need to provide a non-empty dict or test without the key
     data = {
         "EventType": "StepStarted",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "StepStartedDetails": {"dummy": "value"},  # Non-empty to be truthy
     }
 
@@ -2424,7 +2433,7 @@ def test_event_with_step_started_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "StepStarted",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "StepStartedDetails": {},  # to_dict() returns empty dict
     }
@@ -2435,7 +2444,7 @@ def test_event_with_step_succeeded_details():
     """Test Event with StepSucceededDetails."""
     data = {
         "EventType": "StepSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "StepSucceededDetails": {
             "Result": {"Payload": "step result", "Truncated": False},
             "RetryDetails": {"CurrentAttempt": 1},
@@ -2450,7 +2459,7 @@ def test_event_with_step_succeeded_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "StepSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "StepSucceededDetails": {
             "Result": {"Payload": "step result", "Truncated": False},
@@ -2464,7 +2473,7 @@ def test_event_with_step_failed_details():
     """Test Event with StepFailedDetails."""
     data = {
         "EventType": "StepFailed",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "StepFailedDetails": {
             "Error": {"Payload": {"ErrorMessage": "step failed"}, "Truncated": False},
             "RetryDetails": {"CurrentAttempt": 2, "NextAttemptDelaySeconds": 30},
@@ -2479,7 +2488,7 @@ def test_event_with_step_failed_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "StepFailed",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "StepFailedDetails": {
             "Error": {"Payload": {"ErrorMessage": "step failed"}, "Truncated": False},
@@ -2493,7 +2502,7 @@ def test_event_with_invoke_started_details():
     """Test Event with ChainedInvokeStartedDetails."""
     data = {
         "EventType": "ChainedInvokeStarted",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ChainedInvokeStartedDetails": {
             "Input": {"Payload": "invoke input", "Truncated": False},
             "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:target",
@@ -2508,7 +2517,7 @@ def test_event_with_invoke_started_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ChainedInvokeStarted",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ChainedInvokeStartedDetails": {
             "Input": {"Payload": "invoke input", "Truncated": False},
@@ -2522,7 +2531,7 @@ def test_event_with_invoke_succeeded_details():
     """Test Event with ChainedInvokeSucceededDetails."""
     data = {
         "EventType": "ChainedInvokeSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ChainedInvokeSucceededDetails": {
             "Result": {"Payload": "invoke result", "Truncated": False}
         },
@@ -2536,7 +2545,7 @@ def test_event_with_invoke_succeeded_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ChainedInvokeSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ChainedInvokeSucceededDetails": {
             "Result": {"Payload": "invoke result", "Truncated": False}
@@ -2549,7 +2558,7 @@ def test_event_with_invoke_failed_details():
     """Test Event with ChainedInvokeFailedDetails."""
     data = {
         "EventType": "ChainedInvokeFailed",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ChainedInvokeFailedDetails": {
             "Error": {"Payload": {"ErrorMessage": "invoke failed"}, "Truncated": False}
         },
@@ -2565,7 +2574,7 @@ def test_event_with_invoke_failed_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ChainedInvokeFailed",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ChainedInvokeFailedDetails": {
             "Error": {"Payload": {"ErrorMessage": "invoke failed"}, "Truncated": False}
@@ -2578,7 +2587,7 @@ def test_event_with_invoke_timed_out_details():
     """Test Event with ChainedInvokeTimedOutDetails."""
     data = {
         "EventType": "ChainedInvokeTimedOut",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ChainedInvokeTimedOutDetails": {
             "Error": {
                 "Payload": {"ErrorMessage": "invoke timed out"},
@@ -2598,7 +2607,7 @@ def test_event_with_invoke_timed_out_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ChainedInvokeTimedOut",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ChainedInvokeTimedOutDetails": {
             "Error": {
@@ -2614,7 +2623,7 @@ def test_event_with_invoke_stopped_details():
     """Test Event with ChainedInvokeStoppedDetails."""
     data = {
         "EventType": "ChainedInvokeStopped",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "ChainedInvokeStoppedDetails": {
             "Error": {"Payload": {"ErrorMessage": "invoke stopped"}, "Truncated": False}
         },
@@ -2631,7 +2640,7 @@ def test_event_with_invoke_stopped_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "ChainedInvokeStopped",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "ChainedInvokeStoppedDetails": {
             "Error": {"Payload": {"ErrorMessage": "invoke stopped"}, "Truncated": False}
@@ -2644,7 +2653,7 @@ def test_event_with_callback_started_details():
     """Test Event with CallbackStartedDetails."""
     data = {
         "EventType": "CallbackStarted",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "CallbackStartedDetails": {
             "CallbackId": "callback-123",
             "HeartbeatTimeout": 60,
@@ -2660,7 +2669,7 @@ def test_event_with_callback_started_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "CallbackStarted",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "CallbackStartedDetails": {
             "CallbackId": "callback-123",
@@ -2675,7 +2684,7 @@ def test_event_with_callback_succeeded_details():
     """Test Event with CallbackSucceededDetails."""
     data = {
         "EventType": "CallbackSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "CallbackSucceededDetails": {
             "Result": {"Payload": "callback result", "Truncated": False}
         },
@@ -2689,7 +2698,7 @@ def test_event_with_callback_succeeded_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "CallbackSucceeded",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "CallbackSucceededDetails": {
             "Result": {"Payload": "callback result", "Truncated": False}
@@ -2702,7 +2711,7 @@ def test_event_with_callback_failed_details():
     """Test Event with CallbackFailedDetails."""
     data = {
         "EventType": "CallbackFailed",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "CallbackFailedDetails": {
             "Error": {
                 "Payload": {"ErrorMessage": "callback failed"},
@@ -2719,7 +2728,7 @@ def test_event_with_callback_failed_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "CallbackFailed",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "CallbackFailedDetails": {
             "Error": {
@@ -2735,7 +2744,7 @@ def test_event_with_callback_timed_out_details():
     """Test Event with CallbackTimedOutDetails."""
     data = {
         "EventType": "CallbackTimedOut",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "CallbackTimedOutDetails": {
             "Error": {
                 "Payload": {"ErrorMessage": "callback timed out"},
@@ -2755,7 +2764,7 @@ def test_event_with_callback_timed_out_details():
     result_data = event_obj.to_dict()
     expected_data = {
         "EventType": "CallbackTimedOut",
-        "EventTimestamp": "2023-01-01T00:01:00Z",
+        "EventTimestamp": TIMESTAMP_2023_01_01_00_01,
         "EventId": 1,
         "CallbackTimedOutDetails": {
             "Error": {
@@ -2812,8 +2821,8 @@ def test_list_durable_executions_by_function_request_all_optional_fields():
         function_name="my-function",
         qualifier=None,
         status_filter=None,
-        time_after=None,
-        time_before=None,
+        started_after=None,
+        started_before=None,
         marker=None,
         max_items=None,
         reverse_order=None,
@@ -2832,8 +2841,8 @@ def test_list_durable_executions_by_function_request_partial_fields():
         function_name="my-function",
         qualifier="$LATEST",
         status_filter=["RUNNING"],
-        time_after=None,
-        time_before="2023-01-02T00:00:00Z",
+        started_after=None,
+        started_before=TIMESTAMP_2023_01_02_00_00,
         marker=None,
         max_items=15,
         reverse_order=True,
@@ -2844,7 +2853,7 @@ def test_list_durable_executions_by_function_request_partial_fields():
         "FunctionName": "my-function",
         "Qualifier": "$LATEST",
         "StatusFilter": ["RUNNING"],
-        "TimeBefore": "2023-01-02T00:00:00Z",
+        "StartedBefore": TIMESTAMP_2023_01_02_00_00,
         "MaxItems": 15,
         "ReverseOrder": True,
     }
@@ -2890,8 +2899,8 @@ def test_list_durable_executions_by_function_request_with_durable_execution_name
         qualifier=None,
         durable_execution_name="specific-execution",
         status_filter=None,
-        time_after=None,
-        time_before=None,
+        started_after=None,
+        started_before=None,
         marker=None,
         max_items=None,
         reverse_order=None,
@@ -3371,7 +3380,7 @@ def test_events_to_operations_wait_started():
     assert len(operations) == 1
     assert operations[0].operation_type == OperationType.WAIT
     assert operations[0].status == OperationStatus.STARTED
-    assert operations[0].wait_details.scheduled_timestamp == scheduled_time
+    assert operations[0].wait_details.scheduled_end_timestamp == scheduled_time
 
 
 def test_events_to_operations_context_failed():

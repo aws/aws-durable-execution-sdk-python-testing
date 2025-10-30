@@ -1663,7 +1663,7 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
             operation = replace(
                 operation,
                 wait_details=WaitDetails(
-                    scheduled_timestamp=event.wait_started_details.scheduled_end_timestamp
+                    scheduled_end_timestamp=event.wait_started_details.scheduled_end_timestamp
                 ),
             )
 
@@ -1783,8 +1783,8 @@ class ListDurableExecutionsByFunctionRequest:
     qualifier: str | None = None
     durable_execution_name: str | None = None
     status_filter: list[str] | None = None
-    time_after: str | None = None
-    time_before: str | None = None
+    started_after: str | None = None
+    started_before: str | None = None
     marker: str | None = None
     max_items: int = 0
     reverse_order: bool | None = None
@@ -1796,8 +1796,8 @@ class ListDurableExecutionsByFunctionRequest:
             qualifier=data.get("Qualifier"),
             durable_execution_name=data.get("DurableExecutionName"),
             status_filter=data.get("StatusFilter"),
-            time_after=data.get("TimeAfter"),
-            time_before=data.get("TimeBefore"),
+            started_after=data.get("StartedAfter"),
+            started_before=data.get("StartedBefore"),
             marker=data.get("Marker"),
             max_items=data.get("MaxItems", 0),
             reverse_order=data.get("ReverseOrder"),
@@ -1811,10 +1811,10 @@ class ListDurableExecutionsByFunctionRequest:
             result["DurableExecutionName"] = self.durable_execution_name
         if self.status_filter is not None:
             result["StatusFilter"] = self.status_filter
-        if self.time_after is not None:
-            result["TimeAfter"] = self.time_after
-        if self.time_before is not None:
-            result["TimeBefore"] = self.time_before
+        if self.started_after is not None:
+            result["StartedAfter"] = self.started_after
+        if self.started_before is not None:
+            result["StartedBefore"] = self.started_before
         if self.marker is not None:
             result["Marker"] = self.marker
         if self.max_items is not None:

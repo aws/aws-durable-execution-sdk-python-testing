@@ -67,7 +67,7 @@ def test_process_start_action():
     assert result.status == OperationStatus.STARTED
     assert result.name == "test-wait"
     assert result.wait_details is not None
-    assert result.wait_details.scheduled_timestamp > datetime.now(UTC)
+    assert result.wait_details.scheduled_end_timestamp > datetime.now(UTC)
 
     assert len(notifier.wait_timer_calls) == 1
     assert notifier.wait_timer_calls[0] == (execution_arn, "wait-123", 30)
@@ -269,7 +269,7 @@ def test_wait_details_created_correctly():
     before_time = datetime.now(UTC)
     result = processor.process(update, None, notifier, execution_arn)
 
-    assert result.wait_details.scheduled_timestamp > before_time
+    assert result.wait_details.scheduled_end_timestamp > before_time
 
 
 def test_no_completed_or_failed_calls():
