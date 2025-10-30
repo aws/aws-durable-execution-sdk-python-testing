@@ -266,7 +266,7 @@ class StepOperation(ContextOperation):
 
 @dataclass(frozen=True)
 class WaitOperation(Operation):
-    scheduled_timestamp: datetime.datetime | None = None
+    scheduled_end_timestamp: datetime.datetime | None = None
 
     @staticmethod
     def from_svc_operation(
@@ -285,8 +285,8 @@ class WaitOperation(Operation):
             sub_type=operation.sub_type,
             start_timestamp=operation.start_timestamp,
             end_timestamp=operation.end_timestamp,
-            scheduled_timestamp=(
-                operation.wait_details.scheduled_timestamp
+            scheduled_end_timestamp=(
+                operation.wait_details.scheduled_end_timestamp
                 if operation.wait_details
                 else None
             ),

@@ -24,4 +24,4 @@ def test_wait(durable_runner):
     wait_ops = [op for op in result.operations if op.operation_type.value == "WAIT"]
     assert len(wait_ops) == 1
     wait_op = wait_ops[0]
-    assert wait_op.scheduled_timestamp is not None
+    assert wait_op.scheduled_end_timestamp is not None

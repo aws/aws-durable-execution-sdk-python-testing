@@ -578,9 +578,9 @@ class ListDurableExecutionsByFunctionHandler(EndpointHandler):
             if status_filter := self._parse_query_param(request, "statusFilter"):
                 query_params["StatusFilter"] = [status_filter]  # Convert to list
             if time_after := self._parse_query_param(request, "timeAfter"):
-                query_params["TimeAfter"] = time_after
+                query_params["StartedAfter"] = time_after
             if time_before := self._parse_query_param(request, "timeBefore"):
-                query_params["TimeBefore"] = time_before
+                query_params["StartedBefore"] = time_before
             if marker := self._parse_query_param(request, "marker"):
                 query_params["Marker"] = marker
             if max_items_str := self._parse_query_param(request, "maxItems"):
@@ -608,8 +608,8 @@ class ListDurableExecutionsByFunctionHandler(EndpointHandler):
                     status_filter=list_request.status_filter[0]
                     if list_request.status_filter
                     else None,
-                    time_after=list_request.time_after,
-                    time_before=list_request.time_before,
+                    time_after=list_request.started_after,
+                    time_before=list_request.started_before,
                     marker=list_request.marker,
                     max_items=list_request.max_items
                     if list_request.max_items > 0

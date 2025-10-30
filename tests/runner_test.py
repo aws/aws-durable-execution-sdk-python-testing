@@ -339,7 +339,7 @@ def test_step_operation_wrong_type():
 def test_wait_operation_from_svc_operation():
     """Test WaitOperation creation from service operation."""
     scheduled_time = datetime.datetime.now(tz=datetime.UTC)
-    wait_details = WaitDetails(scheduled_timestamp=scheduled_time)
+    wait_details = WaitDetails(scheduled_end_timestamp=scheduled_time)
     svc_op = SvcOperation(
         operation_id="wait-id",
         operation_type=OperationType.WAIT,
@@ -351,7 +351,7 @@ def test_wait_operation_from_svc_operation():
 
     assert wait_op.operation_id == "wait-id"
     assert wait_op.operation_type is OperationType.WAIT
-    assert wait_op.scheduled_timestamp == scheduled_time
+    assert wait_op.scheduled_end_timestamp == scheduled_time
 
 
 def test_wait_operation_wrong_type():

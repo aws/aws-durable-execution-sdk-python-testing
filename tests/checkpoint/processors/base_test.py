@@ -320,7 +320,7 @@ def test_create_wait_details_with_current_operation():
     processor = MockProcessor()
     scheduled_time = datetime.datetime.now(tz=datetime.UTC)
     current_op = Mock()
-    current_op.wait_details = WaitDetails(scheduled_timestamp=scheduled_time)
+    current_op.wait_details = WaitDetails(scheduled_end_timestamp=scheduled_time)
 
     wait_options = WaitOptions(wait_seconds=30)
     update = OperationUpdate(
@@ -333,7 +333,7 @@ def test_create_wait_details_with_current_operation():
     result = processor.create_wait_details(update, current_op)
 
     assert isinstance(result, WaitDetails)
-    assert result.scheduled_timestamp == scheduled_time
+    assert result.scheduled_end_timestamp == scheduled_time
 
 
 def test_create_wait_details_without_current_operation():
@@ -349,7 +349,7 @@ def test_create_wait_details_without_current_operation():
     result = processor.create_wait_details(update, None)
 
     assert isinstance(result, WaitDetails)
-    assert result.scheduled_timestamp > datetime.datetime.now(tz=datetime.UTC)
+    assert result.scheduled_end_timestamp > datetime.datetime.now(tz=datetime.UTC)
 
 
 def test_create_wait_details_non_wait_type():

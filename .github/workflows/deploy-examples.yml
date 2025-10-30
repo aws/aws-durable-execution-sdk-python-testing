@@ -86,6 +86,16 @@ jobs:
           FUNCTION_NAME="${EXAMPLE_NAME_CLEAN}-Python"
         fi
         
+        # Clean up existing function if present to avoid conflicts
+        echo "Cleaning up existing function if present..."
+        aws lambda delete-function \
+          --function-name "$FUNCTION_NAME" \
+          --endpoint-url "$LAMBDA_ENDPOINT" \
+          --region "$AWS_REGION" 2>/dev/null || echo "No existing function to clean up"
+        
+        # Give AWS time to process the deletion
+        sleep 5
+        
         echo "Deploying ${{ matrix.example.name }} as $FUNCTION_NAME"
         hatch run examples:deploy "${{ matrix.example.name }}" --function-name "$FUNCTION_NAME"
         
@@ -118,6 +128,10 @@ jobs:
         
         # Run integration tests
         hatch run test:examples-integration
+
+        # Wait for function to be ready
+        echo "Waiting for function to be active..."
+        aws lambda wait function-active --function-name "$QUALIFIED_FUNCTION_NAME" --endpoint-url "$LAMBDA_ENDPOINT" --region "$AWS_REGION"
 
     - name: Invoke Lambda function - ${{ matrix.example.name }}
       env:

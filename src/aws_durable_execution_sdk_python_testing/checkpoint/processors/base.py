@@ -122,12 +122,14 @@ class OperationProcessor:
         """Create WaitDetails from OperationUpdate."""
         if update.operation_type == OperationType.WAIT and update.wait_options:
             if current_operation and current_operation.wait_details:
-                scheduled_timestamp = current_operation.wait_details.scheduled_timestamp
+                scheduled_end_timestamp = (
+                    current_operation.wait_details.scheduled_end_timestamp
+                )
             else:
-                scheduled_timestamp = datetime.datetime.now(
+                scheduled_end_timestamp = datetime.datetime.now(
                     tz=datetime.UTC
                 ) + timedelta(seconds=update.wait_options.wait_seconds)
-            return WaitDetails(scheduled_timestamp=scheduled_timestamp)
+            return WaitDetails(scheduled_end_timestamp=scheduled_end_timestamp)
         return None
 
     def _translate_update_to_operation(
