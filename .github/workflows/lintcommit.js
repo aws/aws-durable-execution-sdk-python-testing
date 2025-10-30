@@ -56,8 +56,6 @@ function validateTitle(title) {
     return `invalid type "${type}"`;
   } else if (!scope && typeScope.includes("(")) {
     return `must be formatted like type(scope):`;
-  } else if (!scope && ["feat", "fix"].includes(type)) {
-    return `"${type}" type must include a scope (example: "${type}(testing-sdk)")`;
   } else if (scope && scope.length > 30) {
     return "invalid scope (must be <=30 chars)";
   } else if (scope && /[^- a-z0-9]+/.test(scope)) {
@@ -66,8 +64,8 @@ function validateTitle(title) {
     return `invalid scope "${scope}" (valid scopes are ${Array.from(scopes).join(", ")})`;
   } else if (subject.length === 0) {
     return "empty subject";
-  } else if (subject.length > 100) {
-    return "invalid subject (must be <=100 chars)";
+  } else if (subject.length > 50) {
+    return "invalid subject (must be <=50 chars)";
   }
 
   return undefined;
@@ -97,7 +95,7 @@ Invalid pull request title: \`${title}\`
 * Expected format: \`type(scope): subject...\`
     * type: one of (${Array.from(types).join(", ")})
     * scope: optional, lowercase, <30 chars
-    * subject: must be <100 chars
+    * subject: must be <50 chars
 * Hint: *close and re-open the PR* to re-trigger CI (after fixing the PR title).
 `
     : `Pull request title matches the expected format`;
@@ -121,7 +119,7 @@ function _test() {
     "chore: update dependencies": undefined,
     "ci: configure CI/CD": undefined,
     "config: update configuration files": undefined,
-    "deps: bump the aws-sdk group across 1 directory with 5 updates": undefined,
+    "deps: bump aws-sdk group with 5 updates": undefined,
     "docs: update documentation": undefined,
     "feat(testing-sdk): add new feature": undefined,
     "feat(testing-sdk):": "empty subject",
@@ -130,12 +128,12 @@ function _test() {
     "feat(foo: sujet": 'invalid type "feat(foo"',
     "feat(Q Foo Bar): bar":
       'invalid scope (must be lowercase, ascii only): "Q Foo Bar"',
-    "feat(testing-sdk): bar": undefined,
+    "feat(examples): bar": undefined,
     "feat(testing-sdk): x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x ":
-      "invalid subject (must be <=100 chars)",
-    "feat: foo": '"feat" type must include a scope (example: "feat(testing-sdk)")',
-    "fix: foo": '"fix" type must include a scope (example: "fix(testing-sdk)")',
-    "fix(testing-sdk): resolve issue": undefined,
+      "invalid subject (must be <=50 chars)",
+    "feat: foo": undefined,
+    "fix: foo": undefined,
+    "fix(examples): resolve issue": undefined,
     "foo (scope): bar": 'type contains whitespace: "foo "',
     "invalid title": "missing colon (:) char",
     "perf: optimize performance": undefined,
