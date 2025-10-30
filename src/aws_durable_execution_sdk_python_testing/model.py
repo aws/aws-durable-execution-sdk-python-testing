@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+
+if TYPE_CHECKING:
+    import datetime
 
 # Import existing types from the main SDK - REUSE EVERYTHING POSSIBLE
 from aws_durable_execution_sdk_python.lambda_service import (
@@ -156,11 +160,11 @@ class GetDurableExecutionResponse:
     durable_execution_name: str
     function_arn: str
     status: str
-    start_timestamp: float
+    start_timestamp: datetime.datetime
     input_payload: str | None = None
     result: str | None = None
     error: ErrorObject | None = None
-    end_timestamp: float | None = None
+    end_timestamp: datetime.datetime | None = None
     version: str | None = None
 
     @classmethod
@@ -213,8 +217,8 @@ class Execution:
     durable_execution_name: str
     function_arn: str
     status: str
-    start_timestamp: float
-    end_timestamp: float | None = None
+    start_timestamp: datetime.datetime
+    end_timestamp: datetime.datetime | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> Execution:
@@ -350,14 +354,14 @@ class StopDurableExecutionRequest:
 class StopDurableExecutionResponse:
     """Response from stopping a durable execution."""
 
-    end_timestamp: float
+    stop_timestamp: datetime.datetime
 
     @classmethod
     def from_dict(cls, data: dict) -> StopDurableExecutionResponse:
-        return cls(end_timestamp=data["EndTimestamp"])
+        return cls(stop_timestamp=data["StopTimestamp"])
 
     def to_dict(self) -> dict[str, Any]:
-        return {"EndTimestamp": self.end_timestamp}
+        return {"StopTimestamp": self.stop_timestamp}
 
 
 @dataclass(frozen=True)
@@ -676,7 +680,7 @@ class WaitStartedDetails:
     """Wait started event details."""
 
     duration: int | None = None
-    scheduled_end_timestamp: str | None = None
+    scheduled_end_timestamp: datetime.datetime | None = None  # Already correct!
 
     @classmethod
     def from_dict(cls, data: dict) -> WaitStartedDetails:
@@ -1010,7 +1014,7 @@ class Event:
     """Event structure from Smithy model."""
 
     event_type: str
-    event_timestamp: str
+    event_timestamp: datetime.datetime
     sub_type: str | None = None
     event_id: int = 1
     operation_id: str | None = None
@@ -1328,8 +1332,8 @@ class ListDurableExecutionsByFunctionRequest:
     qualifier: str | None = None
     durable_execution_name: str | None = None
     status_filter: list[str] | None = None
-    time_after: str | None = None
-    time_before: str | None = None
+    started_after: str | None = None
+    started_before: str | None = None
     marker: str | None = None
     max_items: int = 0
     reverse_order: bool | None = None
@@ -1341,8 +1345,8 @@ class ListDurableExecutionsByFunctionRequest:
             qualifier=data.get("Qualifier"),
             durable_execution_name=data.get("DurableExecutionName"),
             status_filter=data.get("StatusFilter"),
-            time_after=data.get("TimeAfter"),
-            time_before=data.get("TimeBefore"),
+            started_after=data.get("StartedAfter"),
+            started_before=data.get("StartedBefore"),
             marker=data.get("Marker"),
             max_items=data.get("MaxItems", 0),
             reverse_order=data.get("ReverseOrder"),
@@ -1356,10 +1360,10 @@ class ListDurableExecutionsByFunctionRequest:
             result["DurableExecutionName"] = self.durable_execution_name
         if self.status_filter is not None:
             result["StatusFilter"] = self.status_filter
-        if self.time_after is not None:
-            result["TimeAfter"] = self.time_after
-        if self.time_before is not None:
-            result["TimeBefore"] = self.time_before
+        if self.started_after is not None:
+            result["StartedAfter"] = self.started_after
+        if self.started_before is not None:
+            result["StartedBefore"] = self.started_before
         if self.marker is not None:
             result["Marker"] = self.marker
         if self.max_items is not None:

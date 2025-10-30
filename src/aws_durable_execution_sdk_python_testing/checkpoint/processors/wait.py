@@ -41,12 +41,14 @@ class WaitProcessor(OperationProcessor):
                 wait_seconds = (
                     update.wait_options.wait_seconds if update.wait_options else 0
                 )
-                scheduled_timestamp = datetime.now(UTC) + timedelta(
+                scheduled_end_timestamp = datetime.now(UTC) + timedelta(
                     seconds=wait_seconds
                 )
 
                 # Create WaitDetails with scheduled timestamp
-                wait_details = WaitDetails(scheduled_timestamp=scheduled_timestamp)
+                wait_details = WaitDetails(
+                    scheduled_end_timestamp=scheduled_end_timestamp
+                )
 
                 # Create new operation with wait details
                 wait_operation = Operation(
