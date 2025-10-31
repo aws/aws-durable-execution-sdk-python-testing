@@ -646,6 +646,8 @@ class Executor(ExecutionObserver):
                     self._invoker.create_invocation_input(execution=execution)
                 )
 
+                self._store.save(execution)
+
                 response: DurableExecutionInvocationOutput = self._invoker.invoke(
                     execution.start_input.function_name, invocation_input
                 )
