@@ -360,7 +360,7 @@ class Executor(ExecutionObserver):
         execution = self.get_execution(execution_arn)
 
         # TODO: Validate checkpoint token if provided
-        if checkpoint_token and checkpoint_token not in execution.used_tokens:
+        if checkpoint_token and checkpoint_token in execution.used_tokens:
             msg: str = f"Invalid checkpoint token: {checkpoint_token}"
             raise InvalidParameterValueException(msg)
 
@@ -469,7 +469,7 @@ class Executor(ExecutionObserver):
         execution = self.get_execution(execution_arn)
 
         # Validate checkpoint token
-        if checkpoint_token not in execution.used_tokens:
+        if checkpoint_token in execution.used_tokens:
             msg: str = f"Invalid checkpoint token: {checkpoint_token}"
             raise InvalidParameterValueException(msg)
 

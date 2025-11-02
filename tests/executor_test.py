@@ -1916,7 +1916,7 @@ def test_get_execution_state(executor, mock_store):
 
     mock_store.load.return_value = mock_execution
 
-    result = executor.get_execution_state("test-arn", checkpoint_token="token1")  # noqa: S106
+    result = executor.get_execution_state("test-arn", checkpoint_token="token3")  # noqa: S106
 
     assert len(result.operations) == 2
     assert result.next_marker is None
@@ -1932,7 +1932,7 @@ def test_get_execution_state_invalid_token(executor, mock_store):
     with pytest.raises(
         InvalidParameterValueException, match="Invalid checkpoint token"
     ):
-        executor.get_execution_state("test-arn", checkpoint_token="invalid-token")  # noqa: S106
+        executor.get_execution_state("test-arn", checkpoint_token="token1")  # noqa: S106
 
 
 def test_get_execution_history(executor, mock_store):
@@ -1954,7 +1954,7 @@ def test_checkpoint_execution(executor, mock_store):
     mock_execution.get_new_checkpoint_token.return_value = "new-token"
     mock_store.load.return_value = mock_execution
 
-    result = executor.checkpoint_execution("test-arn", "token1")
+    result = executor.checkpoint_execution("test-arn", "new-token")
 
     assert result.checkpoint_token == "new-token"  # noqa: S105
     assert result.new_execution_state is None
@@ -1971,7 +1971,7 @@ def test_checkpoint_execution_invalid_token(executor, mock_store):
     with pytest.raises(
         InvalidParameterValueException, match="Invalid checkpoint token"
     ):
-        executor.checkpoint_execution("test-arn", "invalid-token")
+        executor.checkpoint_execution("test-arn", "token1")
 
 
 # Callback method tests
