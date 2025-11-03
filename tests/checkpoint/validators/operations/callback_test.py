@@ -47,21 +47,6 @@ def test_validate_start_action_with_existing_state():
         CallbackOperationValidator.validate(current_state, update)
 
 
-def test_validate_cancel_action_with_started_state():
-    """Test CANCEL action with STARTED state."""
-    current_state = Operation(
-        operation_id="test-id",
-        operation_type=OperationType.CALLBACK,
-        status=OperationStatus.STARTED,
-    )
-    update = OperationUpdate(
-        operation_id="test-id",
-        operation_type=OperationType.CALLBACK,
-        action=OperationAction.CANCEL,
-    )
-    CallbackOperationValidator.validate(current_state, update)
-
-
 def test_validate_cancel_action_with_no_current_state():
     """Test CANCEL action with no current state raises error."""
     update = OperationUpdate(
@@ -72,7 +57,7 @@ def test_validate_cancel_action_with_no_current_state():
 
     with pytest.raises(
         InvalidParameterValueException,
-        match="Cannot cancel a CALLBACK that does not exist or has already completed",
+        match="Invalid action for CALLBACK operation.",
     ):
         CallbackOperationValidator.validate(None, update)
 
@@ -92,7 +77,7 @@ def test_validate_cancel_action_with_completed_state():
 
     with pytest.raises(
         InvalidParameterValueException,
-        match="Cannot cancel a CALLBACK that does not exist or has already completed",
+        match="Invalid action for CALLBACK operation.",
     ):
         CallbackOperationValidator.validate(current_state, update)
 
@@ -105,5 +90,7 @@ def test_validate_invalid_action():
         action=OperationAction.SUCCEED,
     )
 
-    with pytest.raises(InvalidParameterValueException, match="Invalid CALLBACK action"):
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid action for CALLBACK operation."
+    ):
         CallbackOperationValidator.validate(None, update)

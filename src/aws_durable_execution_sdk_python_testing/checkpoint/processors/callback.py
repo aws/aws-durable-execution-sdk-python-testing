@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING
 
 from aws_durable_execution_sdk_python.lambda_service import (
@@ -9,15 +10,16 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationAction,
     OperationStatus,
     OperationUpdate,
+    CallbackDetails,
+    OperationType,
 )
-
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.base import (
     OperationProcessor,
 )
 from aws_durable_execution_sdk_python_testing.exceptions import (
     InvalidParameterValueException,
 )
-
+from aws_durable_execution_sdk_python_testing.token import CallbackToken
 
 if TYPE_CHECKING:
     from aws_durable_execution_sdk_python_testing.observer import ExecutionNotifier
@@ -36,14 +38,46 @@ class CallbackProcessor(OperationProcessor):
         """Process CALLBACK operation update with scheduler integration for activities."""
         match update.action:
             case OperationAction.START:
-                # TODO: create CallbackToken (see token module). Add Observer/Notifier for on_callback_created possibly,
-                # but token might well have enough so don't need to maintain token list on execution itself
-                return self._translate_update_to_operation(
-                    update=update,
-                    current_operation=current_op,
-                    status=OperationStatus.STARTED,
+                callback_token: CallbackToken = CallbackToken(
+                    execution_arn=execution_arn,
+                    operation_id=update.operation_id,
                 )
+
+                notifier.notify_callback_created(
+                    execution_arn=execution_arn,
+                    operation_id=update.operation_id,
+                    callback_token=callback_token,
+                )
+
+                callback_id: str = callback_token.to_str()
+
+                callback_details: CallbackDetails | None = (
+                    CallbackDetails(
+                        callback_id=callback_id,
+                        result=update.payload,
+                        error=update.error,
+                    )
+                    if update.operation_type == OperationType.CALLBACK
+                    else None
+                )
+                status: OperationStatus = OperationStatus.STARTED
+                start_time: datetime.datetime | None = self._get_start_time(current_op)
+                end_time: datetime.datetime | None = self._get_end_time(
+                    current_op, status
+                )
+                operation: Operation = Operation(
+                    operation_id=update.operation_id,
+                    parent_id=update.parent_id,
+                    name=update.name,
+                    start_timestamp=start_time,
+                    end_timestamp=end_time,
+                    operation_type=update.operation_type,
+                    status=status,
+                    sub_type=update.sub_type,
+                    callback_details=callback_details,
+                )
+
+                return operation
             case _:
                 msg: str = "Invalid action for CALLBACK operation."
-
                 raise InvalidParameterValueException(msg)

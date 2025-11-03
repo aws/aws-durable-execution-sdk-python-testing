@@ -13,6 +13,7 @@ from aws_durable_execution_sdk_python.execution import (
     InvocationStatus,
 )
 from aws_durable_execution_sdk_python.lambda_service import (
+    CallbackTimeoutType,
     ErrorObject,
     Operation,
     OperationUpdate,
@@ -51,6 +52,7 @@ from aws_durable_execution_sdk_python_testing.model import (
     Execution as ExecutionSummary,
 )
 from aws_durable_execution_sdk_python_testing.observer import ExecutionObserver
+from aws_durable_execution_sdk_python_testing.token import CallbackToken
 
 
 if TYPE_CHECKING:
@@ -82,6 +84,10 @@ class Executor(ExecutionObserver):
         self._invoker = invoker
         self._checkpoint_processor = checkpoint_processor
         self._completion_events: dict[str, Event] = {}
+        self._callback_timeouts: dict[str, Event] = {}  # callback_id -> timeout event
+        self._callback_heartbeats: dict[
+            str, Event
+        ] = {}  # callback_id -> heartbeat event
 
     def start_execution(
         self,
@@ -613,7 +619,7 @@ class Executor(ExecutionObserver):
     def send_callback_success(
         self,
         callback_id: str,
-        result: bytes | None = None,  # noqa: ARG002
+        result: bytes | None = None,
     ) -> SendDurableExecutionCallbackSuccessResponse:
         """Send callback success response.
 
@@ -632,16 +638,23 @@ class Executor(ExecutionObserver):
             msg: str = "callback_id is required"
             raise InvalidParameterValueException(msg)
 
-        # TODO: Implement actual callback success logic
-        # This would involve finding the callback operation and completing it
-        logger.info("Callback success sent for callback_id: %s", callback_id)
+        try:
+            callback_token = CallbackToken.from_str(callback_id)
+            execution = self.get_execution(callback_token.execution_arn)
+            execution.complete_callback_success(callback_id, result)
+            self._store.update(execution)
+            self._cleanup_callback_timeouts(callback_id)
+            logger.info("Callback success completed for callback_id: %s", callback_id)
+        except Exception as e:
+            msg = f"Failed to process callback success: {e}"
+            raise ResourceNotFoundException(msg) from e
 
         return SendDurableExecutionCallbackSuccessResponse()
 
     def send_callback_failure(
         self,
         callback_id: str,
-        error: ErrorObject | None = None,  # noqa: ARG002
+        error: ErrorObject | None = None,
     ) -> SendDurableExecutionCallbackFailureResponse:
         """Send callback failure response.
 
@@ -660,9 +673,18 @@ class Executor(ExecutionObserver):
             msg: str = "callback_id is required"
             raise InvalidParameterValueException(msg)
 
-        # TODO: Implement actual callback failure logic
-        # This would involve finding the callback operation and failing it
-        logger.info("Callback failure sent for callback_id: %s", callback_id)
+        callback_error: ErrorObject = error or ErrorObject.from_message("")
+
+        try:
+            callback_token: CallbackToken = CallbackToken.from_str(callback_id)
+            execution: Execution = self.get_execution(callback_token.execution_arn)
+            execution.complete_callback_failure(callback_id, callback_error)
+            self._store.update(execution)
+            self._cleanup_callback_timeouts(callback_id)
+            logger.info("Callback failure completed for callback_id: %s", callback_id)
+        except Exception as e:
+            msg = f"Failed to process callback failure: {e}"
+            raise ResourceNotFoundException(msg) from e
 
         return SendDurableExecutionCallbackFailureResponse()
 
@@ -685,9 +707,24 @@ class Executor(ExecutionObserver):
             msg: str = "callback_id is required"
             raise InvalidParameterValueException(msg)
 
-        # TODO: Implement actual callback heartbeat logic
-        # This would involve updating the callback timeout
-        logger.info("Callback heartbeat sent for callback_id: %s", callback_id)
+        try:
+            callback_token: CallbackToken = CallbackToken.from_str(callback_id)
+            execution: Execution = self.get_execution(callback_token.execution_arn)
+
+            # Find callback operation to verify it exists and is active
+            _, operation = execution.find_callback_operation(callback_id)
+            if operation.status != OperationStatus.STARTED:
+                msg = f"Callback {callback_id} is not active"
+                raise ResourceNotFoundException(msg)
+
+            # Reset heartbeat timeout if configured
+            self._reset_callback_heartbeat_timeout(
+                callback_id, execution.durable_execution_arn
+            )
+            logger.info("Callback heartbeat processed for callback_id: %s", callback_id)
+        except Exception as e:
+            msg = f"Failed to process callback heartbeat: {e}"
+            raise ResourceNotFoundException(msg) from e
 
         return SendDurableExecutionCallbackHeartbeatResponse()
 
@@ -1001,4 +1038,197 @@ class Executor(ExecutionObserver):
             retry_handler, delay=delay, completion_event=completion_event
         )
 
+    def on_callback_created(
+        self, execution_arn: str, operation_id: str, callback_token: CallbackToken
+    ) -> None:
+        """Handle callback creation. Observer method triggered by notifier."""
+        callback_id = callback_token.to_str()
+        logger.debug(
+            "[%s] Callback created for operation %s with callback_id: %s",
+            execution_arn,
+            operation_id,
+            callback_id,
+        )
+
+        # Schedule callback timeouts if configured
+        self._schedule_callback_timeouts(execution_arn, operation_id, callback_id)
+
     # endregion ExecutionObserver
+
+    # region Callback Timeouts
+    def _schedule_callback_timeouts(
+        self, execution_arn: str, operation_id: str, callback_id: str
+    ) -> None:
+        """Schedule callback timeout and heartbeat timeout if configured."""
+        try:
+            execution = self.get_execution(execution_arn)
+            _, operation = execution.find_operation(operation_id)
+
+            if not operation.callback_details:
+                return
+
+            # Find the callback options from the operation update that created this callback
+            # We need to look at the checkpoint updates to find the original callback options
+            callback_options = None
+            for update in execution.updates:
+                if (
+                    update.operation_id == operation_id
+                    and update.callback_options
+                    and update.action.value == "START"
+                ):
+                    callback_options = update.callback_options
+                    break
+
+            if not callback_options:
+                return
+
+            completion_event = self._completion_events.get(execution_arn)
+
+            # Schedule main timeout if configured
+            if callback_options.timeout_seconds > 0:
+
+                def timeout_handler():
+                    self._on_callback_timeout(execution_arn, callback_id)
+
+                timeout_event = self._scheduler.create_event()
+                self._callback_timeouts[callback_id] = timeout_event
+                self._scheduler.call_later(
+                    timeout_handler,
+                    delay=callback_options.timeout_seconds,
+                    completion_event=completion_event,
+                )
+
+            # Schedule heartbeat timeout if configured
+            if callback_options.heartbeat_timeout_seconds > 0:
+
+                def heartbeat_timeout_handler():
+                    self._on_callback_heartbeat_timeout(execution_arn, callback_id)
+
+                heartbeat_event = self._scheduler.create_event()
+                self._callback_heartbeats[callback_id] = heartbeat_event
+                self._scheduler.call_later(
+                    heartbeat_timeout_handler,
+                    delay=callback_options.heartbeat_timeout_seconds,
+                    completion_event=completion_event,
+                )
+
+        except Exception:
+            logger.exception(
+                "[%s] Error scheduling callback timeouts for %s",
+                execution_arn,
+                callback_id,
+            )
+
+    def _reset_callback_heartbeat_timeout(
+        self, callback_id: str, execution_arn: str
+    ) -> None:
+        """Reset the heartbeat timeout for a callback."""
+        # Cancel existing heartbeat timeout
+        if heartbeat_event := self._callback_heartbeats.get(callback_id):
+            heartbeat_event.remove()
+            del self._callback_heartbeats[callback_id]
+
+        # Find callback options to reschedule heartbeat timeout
+        try:
+            callback_token = CallbackToken.from_str(callback_id)
+            execution = self.get_execution(callback_token.execution_arn)
+
+            # Find callback options from updates
+            callback_options = None
+            for update in execution.updates:
+                if (
+                    update.operation_id == callback_token.operation_id
+                    and update.callback_options
+                    and update.action.value == "START"
+                ):
+                    callback_options = update.callback_options
+                    break
+
+            if callback_options and callback_options.heartbeat_timeout_seconds > 0:
+
+                def heartbeat_timeout_handler():
+                    self._on_callback_heartbeat_timeout(execution_arn, callback_id)
+
+                completion_event = self._completion_events.get(execution_arn)
+                heartbeat_event = self._scheduler.create_event()
+                self._callback_heartbeats[callback_id] = heartbeat_event
+                self._scheduler.call_later(
+                    heartbeat_timeout_handler,
+                    delay=callback_options.heartbeat_timeout_seconds,
+                    completion_event=completion_event,
+                )
+        except Exception:
+            logger.exception(
+                "[%s] Error resetting callback heartbeat timeout for %s",
+                execution_arn,
+                callback_id,
+            )
+
+    def _cleanup_callback_timeouts(self, callback_id: str) -> None:
+        """Clean up timeout events for a completed callback."""
+        # Clean up main timeout
+        if timeout_event := self._callback_timeouts.get(callback_id):
+            timeout_event.remove()
+            del self._callback_timeouts[callback_id]
+
+        # Clean up heartbeat timeout
+        if heartbeat_event := self._callback_heartbeats.get(callback_id):
+            heartbeat_event.remove()
+            del self._callback_heartbeats[callback_id]
+
+    def _on_callback_timeout(self, execution_arn: str, callback_id: str) -> None:
+        """Handle callback timeout."""
+        try:
+            callback_token = CallbackToken.from_str(callback_id)
+            execution = self.get_execution(callback_token.execution_arn)
+
+            if execution.is_complete:
+                return
+
+            # Fail the callback with timeout error
+            timeout_error = ErrorObject.from_message(
+                f"Callback timed out: {CallbackTimeoutType.TIMEOUT.value}"
+            )
+            execution.complete_callback_failure(callback_id, timeout_error)
+            self._store.update(execution)
+            self._invoke_execution(execution_arn)
+
+            logger.warning("[%s] Callback %s timed out", execution_arn, callback_id)
+        except Exception:
+            logger.exception(
+                "[%s] Error processing callback timeout for %s",
+                execution_arn,
+                callback_id,
+            )
+
+    def _on_callback_heartbeat_timeout(
+        self, execution_arn: str, callback_id: str
+    ) -> None:
+        """Handle callback heartbeat timeout."""
+        try:
+            callback_token = CallbackToken.from_str(callback_id)
+            execution = self.get_execution(callback_token.execution_arn)
+
+            if execution.is_complete:
+                return
+
+            # Fail the callback with heartbeat timeout error
+
+            heartbeat_error = ErrorObject.from_message(
+                f"Callback heartbeat timed out: {CallbackTimeoutType.HEARTBEAT.value}"
+            )
+            execution.complete_callback_failure(callback_id, heartbeat_error)
+            self._store.update(execution)
+            self._invoke_execution(execution_arn)
+
+            logger.warning(
+                "[%s] Callback %s heartbeat timed out", execution_arn, callback_id
+            )
+        except Exception:
+            logger.exception(
+                "[%s] Error processing callback heartbeat timeout for %s",
+                execution_arn,
+                callback_id,
+            )
+
+    # endregion Callback Timeouts

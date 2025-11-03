@@ -17,7 +17,6 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
 VALID_ACTIONS_FOR_CALLBACK = frozenset(
     [
         OperationAction.START,
-        OperationAction.CANCEL,
     ]
 )
 
@@ -41,14 +40,6 @@ class CallbackOperationValidator:
                         "Cannot start a CALLBACK that already exist."
                     )
                     raise InvalidParameterValueException(msg_callback_exists)
-            case OperationAction.CANCEL:
-                if (
-                    current_state is None
-                    or current_state.status
-                    not in CallbackOperationValidator._ALLOWED_STATUS_TO_CANCEL
-                ):
-                    msg_callback_cancel: str = "Cannot cancel a CALLBACK that does not exist or has already completed."
-                    raise InvalidParameterValueException(msg_callback_cancel)
             case _:
-                msg_callback_invalid: str = "Invalid CALLBACK action."
-                raise InvalidParameterValueException(msg_callback_invalid)
+                msg: str = "Invalid action for CALLBACK operation."
+                raise InvalidParameterValueException(msg)

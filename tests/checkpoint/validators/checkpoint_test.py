@@ -353,27 +353,6 @@ def test_validate_operation_status_transition_wait():
     CheckpointValidator.validate_input(updates, execution)
 
 
-def test_validate_operation_status_transition_callback():
-    """Test validation calls callback validator for CALLBACK operations."""
-    execution = _create_test_execution()
-
-    callback_op = Operation(
-        operation_id="callback-1",
-        operation_type=OperationType.CALLBACK,
-        status=OperationStatus.STARTED,
-    )
-    execution.operations.append(callback_op)
-
-    updates = [
-        OperationUpdate(
-            operation_id="callback-1",
-            operation_type=OperationType.CALLBACK,
-            action=OperationAction.CANCEL,
-        )
-    ]
-    CheckpointValidator.validate_input(updates, execution)
-
-
 def test_validate_operation_status_transition_invoke():
     """Test validation calls invoke validator for INVOKE operations."""
     execution = _create_test_execution()

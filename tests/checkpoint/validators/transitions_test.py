@@ -51,7 +51,6 @@ def test_validate_callback_valid_actions():
     """Test valid actions for CALLBACK operations."""
     valid_actions = [
         OperationAction.START,
-        OperationAction.CANCEL,
     ]
     for action in valid_actions:
         ValidActionsByOperationTypeValidator.validate(OperationType.CALLBACK, action)

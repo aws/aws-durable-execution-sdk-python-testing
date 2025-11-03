@@ -1,7 +1,7 @@
 """Unit tests for execution module."""
 
-from datetime import UTC, datetime
-from unittest.mock import patch
+from datetime import datetime, timezone
+from unittest.mock import patch, Mock
 
 import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
@@ -11,9 +11,13 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationStatus,
     OperationType,
     StepDetails,
+    CallbackDetails,
 )
 
-from aws_durable_execution_sdk_python_testing.exceptions import IllegalStateException
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    IllegalStateException,
+    InvalidParameterValueException,
+)
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
 
@@ -68,7 +72,7 @@ def test_execution_new(mock_uuid4):
 @patch("aws_durable_execution_sdk_python_testing.execution.datetime")
 def test_execution_start(mock_datetime):
     """Test Execution.start method."""
-    mock_now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
+    mock_now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     mock_datetime.now.return_value = mock_now
 
     start_input = StartDurableExecutionInput(
@@ -168,7 +172,7 @@ def test_get_navigable_operations():
             operation_id="op1",
             parent_id=None,
             name="test",
-            start_timestamp=datetime.now(UTC),
+            start_timestamp=datetime.now(timezone.utc),
             operation_type=OperationType.EXECUTION,
             status=OperationStatus.STARTED,
         )
@@ -194,7 +198,7 @@ def test_get_assertable_operations():
         operation_id="exec-op",
         parent_id=None,
         name="execution",
-        start_timestamp=datetime.now(UTC),
+        start_timestamp=datetime.now(timezone.utc),
         operation_type=OperationType.EXECUTION,
         status=OperationStatus.STARTED,
     )
@@ -202,7 +206,7 @@ def test_get_assertable_operations():
         operation_id="step-op",
         parent_id=None,
         name="step",
-        start_timestamp=datetime.now(UTC),
+        start_timestamp=datetime.now(timezone.utc),
         operation_type=OperationType.STEP,
         status=OperationStatus.STARTED,
     )
@@ -230,7 +234,7 @@ def test_has_pending_operations_with_pending_step():
             operation_id="op1",
             parent_id=None,
             name="test",
-            start_timestamp=datetime.now(UTC),
+            start_timestamp=datetime.now(timezone.utc),
             operation_type=OperationType.STEP,
             status=OperationStatus.PENDING,
         )
@@ -257,7 +261,7 @@ def test_has_pending_operations_with_started_wait():
             operation_id="op1",
             parent_id=None,
             name="test",
-            start_timestamp=datetime.now(UTC),
+            start_timestamp=datetime.now(timezone.utc),
             operation_type=OperationType.WAIT,
             status=OperationStatus.STARTED,
         )
@@ -284,7 +288,7 @@ def test_has_pending_operations_with_started_callback():
             operation_id="op1",
             parent_id=None,
             name="test",
-            start_timestamp=datetime.now(UTC),
+            start_timestamp=datetime.now(timezone.utc),
             operation_type=OperationType.CALLBACK,
             status=OperationStatus.STARTED,
         )
@@ -311,7 +315,7 @@ def test_has_pending_operations_with_started_invoke():
             operation_id="op1",
             parent_id=None,
             name="test",
-            start_timestamp=datetime.now(UTC),
+            start_timestamp=datetime.now(timezone.utc),
             operation_type=OperationType.CHAINED_INVOKE,
             status=OperationStatus.STARTED,
         )
@@ -338,7 +342,7 @@ def test_has_pending_operations_no_pending():
             operation_id="op1",
             parent_id=None,
             name="test",
-            start_timestamp=datetime.now(UTC),
+            start_timestamp=datetime.now(timezone.utc),
             operation_type=OperationType.STEP,
             status=OperationStatus.SUCCEEDED,
         )
@@ -422,7 +426,7 @@ def test_find_operation_exists():
         operation_id="test-op-id",
         parent_id=None,
         name="test",
-        start_timestamp=datetime.now(UTC),
+        start_timestamp=datetime.now(timezone.utc),
         operation_type=OperationType.STEP,
         status=OperationStatus.STARTED,
     )
@@ -455,7 +459,7 @@ def test_find_operation_not_exists():
 @patch("aws_durable_execution_sdk_python_testing.execution.datetime")
 def test_complete_wait_success(mock_datetime):
     """Test complete_wait method successful completion."""
-    mock_now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
+    mock_now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     mock_datetime.now.return_value = mock_now
 
     start_input = StartDurableExecutionInput(
@@ -470,7 +474,7 @@ def test_complete_wait_success(mock_datetime):
         operation_id="wait-op-id",
         parent_id=None,
         name="test-wait",
-        start_timestamp=datetime.now(UTC),
+        start_timestamp=datetime.now(timezone.utc),
         operation_type=OperationType.WAIT,
         status=OperationStatus.STARTED,
     )
@@ -498,7 +502,7 @@ def test_complete_wait_wrong_status():
         operation_id="wait-op-id",
         parent_id=None,
         name="test-wait",
-        start_timestamp=datetime.now(UTC),
+        start_timestamp=datetime.now(timezone.utc),
         operation_type=OperationType.WAIT,
         status=OperationStatus.SUCCEEDED,
     )
@@ -524,7 +528,7 @@ def test_complete_wait_wrong_type():
         operation_id="step-op-id",
         parent_id=None,
         name="test-step",
-        start_timestamp=datetime.now(UTC),
+        start_timestamp=datetime.now(timezone.utc),
         operation_type=OperationType.STEP,
         status=OperationStatus.STARTED,
     )
@@ -545,14 +549,14 @@ def test_complete_retry_success():
         execution_retention_period_days=7,
     )
     step_details = StepDetails(
-        next_attempt_timestamp=str(datetime.now(UTC)),
+        next_attempt_timestamp=str(datetime.now(timezone.utc)),
         attempt=1,
     )
     operation = Operation(
         operation_id="step-op-id",
         parent_id=None,
         name="test-step",
-        start_timestamp=datetime.now(UTC),
+        start_timestamp=datetime.now(timezone.utc),
         operation_type=OperationType.STEP,
         status=OperationStatus.PENDING,
         step_details=step_details,
@@ -581,7 +585,7 @@ def test_complete_retry_no_step_details():
         operation_id="step-op-id",
         parent_id=None,
         name="test-step",
-        start_timestamp=datetime.now(UTC),
+        start_timestamp=datetime.now(timezone.utc),
         operation_type=OperationType.STEP,
         status=OperationStatus.PENDING,
     )
@@ -608,7 +612,7 @@ def test_complete_retry_wrong_status():
         operation_id="step-op-id",
         parent_id=None,
         name="test-step",
-        start_timestamp=datetime.now(UTC),
+        start_timestamp=datetime.now(timezone.utc),
         operation_type=OperationType.STEP,
         status=OperationStatus.STARTED,
     )
@@ -634,7 +638,7 @@ def test_complete_retry_wrong_type():
         operation_id="wait-op-id",
         parent_id=None,
         name="test-wait",
-        start_timestamp=datetime.now(UTC),
+        start_timestamp=datetime.now(timezone.utc),
         operation_type=OperationType.WAIT,
         status=OperationStatus.PENDING,
     )
@@ -642,3 +646,231 @@ def test_complete_retry_wrong_type():
 
     with pytest.raises(IllegalStateException, match="Expected STEP operation"):
         execution.complete_retry("wait-op-id")
+
+
+def test_complete_retry_with_step_details():
+    """Test complete_retry with operation that has step_details."""
+    step_details = StepDetails(
+        attempt=1, next_attempt_timestamp=datetime.now(timezone.utc)
+    )
+    step_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.STEP,
+        status=OperationStatus.PENDING,
+        step_details=step_details,
+    )
+
+    execution = Execution("test-arn", Mock(), [step_op])
+
+    result = execution.complete_retry("op-1")
+    assert result.status == OperationStatus.READY
+    assert result.step_details.next_attempt_timestamp is None
+
+
+def test_complete_retry_without_step_details():
+    """Test complete_retry with operation that has no step_details."""
+    step_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.STEP,
+        status=OperationStatus.PENDING,
+        step_details=None,  # No step details
+    )
+
+    execution = Execution("test-arn", Mock(), [step_op])
+
+    result = execution.complete_retry("op-1")
+    assert result.status == OperationStatus.READY
+    assert result.step_details is None
+
+
+# endregion retry
+
+
+def test_from_dict_with_none_result():
+    """Test from_dict with None result."""
+    data = {
+        "DurableExecutionArn": "test-arn",
+        "StartInput": {"function_name": "test"},
+        "Operations": [],
+        "Updates": [],
+        "UsedTokens": [],
+        "TokenSequence": 0,
+        "IsComplete": False,
+        "Result": None,  # None result
+        "ConsecutiveFailedInvocationAttempts": 0,
+        "CloseStatus": None,
+    }
+
+    with patch(
+        "aws_durable_execution_sdk_python_testing.model.StartDurableExecutionInput.from_dict"
+    ) as mock_from_dict:
+        mock_from_dict.return_value = Mock()
+        execution = Execution.from_dict(data)
+        assert execution.result is None
+
+
+# region callback
+def test_find_callback_operation_not_found():
+    """Test find_callback_operation raises exception when callback not found."""
+    execution = Execution("test-arn", Mock(), [])
+
+    with pytest.raises(
+        IllegalStateException,
+        match="Callback operation with callback_id \\[nonexistent\\] not found",
+    ):
+        execution.find_callback_operation("nonexistent")
+
+
+def test_complete_callback_success_not_started():
+    """Test complete_callback_success raises exception when callback not in STARTED state."""
+    # Create callback operation in wrong state
+    callback_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.CALLBACK,
+        status=OperationStatus.SUCCEEDED,  # Wrong state
+        callback_details=CallbackDetails(callback_id="test-id"),
+    )
+
+    execution = Execution("test-arn", Mock(), [callback_op])
+
+    with pytest.raises(
+        IllegalStateException,
+        match="Callback operation \\[test-id\\] is not in STARTED state",
+    ):
+        execution.complete_callback_success("test-id")
+
+
+def test_complete_callback_failure_not_started():
+    """Test complete_callback_failure raises exception when callback not in STARTED state."""
+    # Create callback operation in wrong state
+    callback_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.CALLBACK,
+        status=OperationStatus.FAILED,  # Wrong state
+        callback_details=CallbackDetails(callback_id="test-id"),
+    )
+
+    execution = Execution("test-arn", Mock(), [callback_op])
+    error = ErrorObject.from_message("test error")
+
+    with pytest.raises(
+        IllegalStateException,
+        match="Callback operation \\[test-id\\] is not in STARTED state",
+    ):
+        execution.complete_callback_failure("test-id", error)
+
+
+def test_complete_callback_success_no_callback_details():
+    """Test complete_callback_success with operation that has no callback_details."""
+    callback_details = CallbackDetails(callback_id="test-id")
+    callback_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.CALLBACK,
+        status=OperationStatus.STARTED,
+        callback_details=callback_details,
+    )
+
+    execution = Execution("test-arn", Mock(), [callback_op])
+
+    # Test with None result
+    result = execution.complete_callback_success("test-id", None)
+    assert result.status == OperationStatus.SUCCEEDED
+
+
+def test_complete_callback_failure_no_callback_details():
+    """Test complete_callback_failure with operation that has no callback_details."""
+    callback_details = CallbackDetails(callback_id="test-id")
+    callback_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.CALLBACK,
+        status=OperationStatus.STARTED,
+        callback_details=callback_details,
+    )
+
+    execution = Execution("test-arn", Mock(), [callback_op])
+    error = ErrorObject.from_message("test error")
+
+    # Test with actual callback details
+    result = execution.complete_callback_failure("test-id", error)
+    assert result.status == OperationStatus.FAILED
+
+
+# region callback - details
+
+
+def test_complete_callback_success_with_none_callback_details():
+    """Test complete_callback_success when operation has None callback_details."""
+    callback_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.CALLBACK,
+        status=OperationStatus.STARTED,
+        callback_details=None,  # None callback details
+    )
+
+    execution = Execution("test-arn", Mock(), [callback_op])
+
+    # Mock find_callback_operation to return this operation
+    execution.find_callback_operation = Mock(return_value=(0, callback_op))
+
+    result = execution.complete_callback_success("test-id", b"result")
+    assert result.status == OperationStatus.SUCCEEDED
+    assert result.callback_details is None
+
+
+def test_complete_callback_failure_with_none_callback_details():
+    """Test complete_callback_failure when operation has None callback_details."""
+    callback_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.CALLBACK,
+        status=OperationStatus.STARTED,
+        callback_details=None,  # None callback details
+    )
+
+    execution = Execution("test-arn", Mock(), [callback_op])
+    error = ErrorObject.from_message("test error")
+
+    # Mock find_callback_operation to return this operation
+    execution.find_callback_operation = Mock(return_value=(0, callback_op))
+
+    result = execution.complete_callback_failure("test-id", error)
+    assert result.status == OperationStatus.FAILED
+    assert result.callback_details is None
+
+
+def test_complete_callback_success_with_bytes_result():
+    """Test complete_callback_success with bytes result that gets decoded."""
+    callback_details = CallbackDetails(callback_id="test-id")
+    callback_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.CALLBACK,
+        status=OperationStatus.STARTED,
+        callback_details=callback_details,
+    )
+
+    execution = Execution("test-arn", Mock(), [callback_op])
+
+    result = execution.complete_callback_success("test-id", b"test result")
+    assert result.status == OperationStatus.SUCCEEDED
+    assert result.callback_details.result == "test result"
+
+
+def test_complete_callback_success_with_none_result():
+    """Test complete_callback_success with None result."""
+    callback_details = CallbackDetails(callback_id="test-id")
+    callback_op = Operation(
+        operation_id="op-1",
+        operation_type=OperationType.CALLBACK,
+        status=OperationStatus.STARTED,
+        callback_details=callback_details,
+    )
+
+    execution = Execution("test-arn", Mock(), [callback_op])
+
+    result = execution.complete_callback_success("test-id", None)
+    assert result.status == OperationStatus.SUCCEEDED
+    assert result.callback_details.result is None
+
+
+# endregion callback -details
+
+# endregion callback

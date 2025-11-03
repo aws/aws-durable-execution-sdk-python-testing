@@ -6,6 +6,7 @@ import threading
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from aws_durable_execution_sdk_python_testing.token import CallbackToken
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -35,6 +36,12 @@ class ExecutionObserver(ABC):
         self, execution_arn: str, operation_id: str, delay: float
     ) -> None:
         """Called when step retry scheduled."""
+
+    @abstractmethod
+    def on_callback_created(
+        self, execution_arn: str, operation_id: str, callback_token: CallbackToken
+    ) -> None:
+        """Called when callback is created."""
 
 
 class ExecutionNotifier:
@@ -89,6 +96,17 @@ class ExecutionNotifier:
             execution_arn=execution_arn,
             operation_id=operation_id,
             delay=delay,
+        )
+
+    def notify_callback_created(
+        self, execution_arn: str, operation_id: str, callback_token: CallbackToken
+    ) -> None:
+        """Notify observers about callback creation."""
+        self._notify_observers(
+            ExecutionObserver.on_callback_created,
+            execution_arn=execution_arn,
+            operation_id=operation_id,
+            callback_token=callback_token,
         )
 
     # endregion event emitters

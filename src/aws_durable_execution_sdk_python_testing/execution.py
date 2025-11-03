@@ -28,7 +28,10 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
 from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
 )
-from aws_durable_execution_sdk_python_testing.token import CheckpointToken
+from aws_durable_execution_sdk_python_testing.token import (
+    CheckpointToken,
+    CallbackToken,
+)
 
 
 class Execution:
@@ -203,6 +206,18 @@ class Execution:
         msg: str = f"Attempting to update state of an Operation [{operation_id}] that doesn't exist"
         raise IllegalStateException(msg)
 
+    def find_callback_operation(self, callback_id: str) -> tuple[int, Operation]:
+        """Find callback operation by callback_id, return index and operation."""
+        for i, operation in enumerate(self.operations):
+            if (
+                operation.operation_type == OperationType.CALLBACK
+                and operation.callback_details
+                and operation.callback_details.callback_id == callback_id
+            ):
+                return i, operation
+        msg: str = f"Callback operation with callback_id [{callback_id}] not found"
+        raise IllegalStateException(msg)
+
     def complete_wait(self, operation_id: str) -> Operation:
         """Complete WAIT operation when timer fires."""
         index, operation = self.find_operation(operation_id)
@@ -260,3 +275,55 @@ class Execution:
             # Assign
             self.operations[index] = updated_operation
             return updated_operation
+
+    def complete_callback_success(
+        self, callback_id: str, result: bytes | None = None
+    ) -> Operation:
+        """Complete CALLBACK operation with success."""
+        index, operation = self.find_callback_operation(callback_id)
+        if operation.status != OperationStatus.STARTED:
+            msg: str = f"Callback operation [{callback_id}] is not in STARTED state"
+            raise IllegalStateException(msg)
+
+        with self._state_lock:
+            self._token_sequence += 1
+            updated_callback_details = None
+            if operation.callback_details:
+                updated_callback_details = replace(
+                    operation.callback_details,
+                    result=result.decode() if result else None,
+                )
+
+            self.operations[index] = replace(
+                operation,
+                status=OperationStatus.SUCCEEDED,
+                end_timestamp=datetime.now(UTC),
+                callback_details=updated_callback_details,
+            )
+            return self.operations[index]
+
+    def complete_callback_failure(
+        self, callback_id: str, error: ErrorObject
+    ) -> Operation:
+        """Complete CALLBACK operation with failure."""
+        index, operation = self.find_callback_operation(callback_id)
+
+        if operation.status != OperationStatus.STARTED:
+            msg: str = f"Callback operation [{callback_id}] is not in STARTED state"
+            raise IllegalStateException(msg)
+
+        with self._state_lock:
+            self._token_sequence += 1
+            updated_callback_details = None
+            if operation.callback_details:
+                updated_callback_details = replace(
+                    operation.callback_details, error=error
+                )
+
+            self.operations[index] = replace(
+                operation,
+                status=OperationStatus.FAILED,
+                end_timestamp=datetime.now(UTC),
+                callback_details=updated_callback_details,
+            )
+            return self.operations[index]

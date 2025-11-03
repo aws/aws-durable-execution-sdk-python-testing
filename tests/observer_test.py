@@ -11,6 +11,7 @@ from aws_durable_execution_sdk_python_testing.observer import (
     ExecutionNotifier,
     ExecutionObserver,
 )
+from aws_durable_execution_sdk_python_testing.token import CallbackToken
 
 
 class MockExecutionObserver(ExecutionObserver):
@@ -21,6 +22,7 @@ class MockExecutionObserver(ExecutionObserver):
         self.on_failed_calls = []
         self.on_wait_timer_scheduled_calls = []
         self.on_step_retry_scheduled_calls = []
+        self.on_callback_created_calls = []
 
     def on_completed(self, execution_arn: str, result: str | None = None) -> None:
         self.on_completed_calls.append((execution_arn, result))
@@ -37,6 +39,13 @@ class MockExecutionObserver(ExecutionObserver):
         self, execution_arn: str, operation_id: str, delay: float
     ) -> None:
         self.on_step_retry_scheduled_calls.append((execution_arn, operation_id, delay))
+
+    def on_callback_created(
+        self, execution_arn: str, operation_id: str, callback_token: CallbackToken
+    ) -> None:
+        self.on_callback_created_calls.append(
+            (execution_arn, operation_id, callback_token)
+        )
 
 
 def test_execution_notifier_init():
