@@ -2,7 +2,7 @@
 
 import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
-from aws_durable_execution_sdk_python.lambda_service import OperationType
+from aws_durable_execution_sdk_python.lambda_service import OperationStatus
 
 from src.parallel import parallel
 from test.conftest import deserialize_operation_payload
@@ -14,22 +14,25 @@ from test.conftest import deserialize_operation_payload
     lambda_function_name="Parallel Operations",
 )
 def test_parallel(durable_runner):
-    """Test parallel example."""
+    """Test parallel example using context.parallel()."""
     with durable_runner:
         result = durable_runner.run(input="test", timeout=10)
 
     assert result.status is InvocationStatus.SUCCEEDED
     assert deserialize_operation_payload(result.result) == [
-        "Task 1 complete",
-        "Task 2 complete",
-        "Task 3 complete",
+        "task 1 completed",
+        "task 2 completed",
+        "task 3 completed after wait",
     ]
 
-    # Verify all three step operations exist
-    step_ops = [
-        op for op in result.operations if op.operation_type == OperationType.STEP
-    ]
-    assert len(step_ops) == 3
+    # Get the parallel operation (CONTEXT type with PARALLEL subtype)
+    parallel_op = result.get_context("parallel_operation")
+    assert parallel_op is not None
+    assert parallel_op.status is OperationStatus.SUCCEEDED
 
-    step_names = {op.name for op in step_ops}
-    assert step_names == {"task1", "task2", "task3"}
+    # Verify all three child operations exist
+    assert len(parallel_op.child_operations) == 3
+
+    # Verify all children succeeded
+    for child in parallel_op.child_operations:
+        assert child.status is OperationStatus.SUCCEEDED
