@@ -1,17 +1,26 @@
-"""Example demonstrating parallel-like operations for concurrent execution."""
+"""Example demonstrating parallel operations for concurrent execution."""
 
 from typing import Any
 
+from aws_durable_execution_sdk_python.config import ParallelConfig
 from aws_durable_execution_sdk_python.context import DurableContext
 from aws_durable_execution_sdk_python.execution import durable_execution
 
 
 @durable_execution
 def handler(_event: Any, context: DurableContext) -> list[str]:
-    # Execute multiple operations
-    task1 = context.step(lambda _: "Task 1 complete", name="task1")
-    task2 = context.step(lambda _: "Task 2 complete", name="task2")
-    task3 = context.step(lambda _: "Task 3 complete", name="task3")
+    """Execute multiple operations in parallel using context.parallel()."""
 
-    # All tasks execute concurrently and results are collected
-    return [task1, task2, task3]
+    # Use context.parallel() to execute functions concurrently and extract results immediately
+    return context.parallel(
+        functions=[
+            lambda ctx: ctx.step(lambda _: "task 1 completed", name="task1"),
+            lambda ctx: ctx.step(lambda _: "task 2 completed", name="task2"),
+            lambda ctx: (
+                ctx.wait(1, name="wait_in_task3"),
+                "task 3 completed after wait",
+            )[1],
+        ],
+        name="parallel_operation",
+        config=ParallelConfig(max_concurrency=2),
+    ).get_results()

@@ -146,3 +146,93 @@ Resources:
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
+  MapWithMaxConcurrency:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: map_with_max_concurrency.handler
+      Description: Map operation with maxConcurrency limit
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  MapWithMinSuccessful:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: map_with_min_successful.handler
+      Description: Map operation with min_successful completion config
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  MapWithFailureTolerance:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: map_with_failure_tolerance.handler
+      Description: Map operation with failure tolerance
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  ParallelWithMaxConcurrency:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: parallel_with_max_concurrency.handler
+      Description: Parallel operation with maxConcurrency limit
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  ParallelWithWait:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: parallel_with_wait.handler
+      Description: Parallel operation with wait operations in branches
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  ParallelWithFailureTolerance:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: parallel_with_failure_tolerance.handler
+      Description: Parallel operation with failure tolerance
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  MapWithCustomSerDes:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: map_with_custom_serdes.handler
+      Description: Map operation with custom item-level serialization
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  MapWithBatchSerDes:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: map_with_batch_serdes.handler
+      Description: Map operation with custom batch-level serialization
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  ParallelWithCustomSerDes:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: parallel_with_custom_serdes.handler
+      Description: Parallel operation with custom item-level serialization
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  ParallelWithBatchSerDes:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: parallel_with_batch_serdes.handler
+      Description: Parallel operation with custom batch-level serialization
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
