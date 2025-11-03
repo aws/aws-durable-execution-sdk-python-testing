@@ -192,7 +192,11 @@ def test_lambda_invoker_invoke_success():
 
 def test_lambda_invoker_invoke_failure():
     """Test lambda invocation failure."""
-    lambda_client = Mock()
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+
+    lambda_client, _ = _create_mock_lambda_client_with_exceptions()
 
     # Mock failed response
     mock_payload = Mock()
@@ -211,7 +215,8 @@ def test_lambda_invoker_invoke_failure():
     )
 
     with pytest.raises(
-        Exception, match="Lambda invocation failed with status code: 500"
+        DurableFunctionsTestError,
+        match="Lambda invocation failed with status code: 500",
     ):
         invoker.invoke("test-function", input_data)
 
@@ -266,3 +271,363 @@ def test_lambda_invoker_create_invocation_input_with_operations():
     assert isinstance(invocation_input, DurableExecutionInvocationInput)
     assert len(invocation_input.initial_execution_state.operations) > 0
     assert invocation_input.initial_execution_state.next_marker == ""
+
+
+def test_lambda_invoker_invoke_empty_function_name():
+    """Test lambda invocation with empty function name."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        InvalidParameterValueException,
+    )
+
+    lambda_client = Mock()
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    with pytest.raises(
+        InvalidParameterValueException, match="Function name is required"
+    ):
+        invoker.invoke("", input_data)
+
+
+def test_lambda_invoker_invoke_whitespace_function_name():
+    """Test lambda invocation with whitespace-only function name."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        InvalidParameterValueException,
+    )
+
+    lambda_client = Mock()
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    with pytest.raises(
+        InvalidParameterValueException, match="Function name is required"
+    ):
+        invoker.invoke("   ", input_data)
+
+
+def test_lambda_invoker_invoke_status_202():
+    """Test lambda invocation with status code 202."""
+    lambda_client = Mock()
+
+    mock_payload = Mock()
+    mock_payload.read.return_value = json.dumps(
+        {"Status": "SUCCEEDED", "Result": "async-result"}
+    ).encode("utf-8")
+
+    lambda_client.invoke.return_value = {
+        "StatusCode": 202,
+        "Payload": mock_payload,
+    }
+
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    result = invoker.invoke("test-function", input_data)
+    assert isinstance(result, DurableExecutionInvocationOutput)
+
+
+def test_lambda_invoker_invoke_function_error():
+    """Test lambda invocation with function error."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+
+    lambda_client, _ = _create_mock_lambda_client_with_exceptions()
+
+    mock_payload = Mock()
+    mock_payload.read.return_value = b'{"errorMessage": "Function failed"}'
+
+    lambda_client.invoke.return_value = {
+        "StatusCode": 200,
+        "FunctionError": "Unhandled",
+        "Payload": mock_payload,
+    }
+
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Lambda invocation failed with status 200"
+    ):
+        invoker.invoke("test-function", input_data)
+
+
+def _create_mock_lambda_client_with_exceptions():
+    """Helper to create mock lambda client with all exception types."""
+    lambda_client = Mock()
+
+    class MockException(Exception):
+        pass
+
+    exceptions_mock = Mock()
+    for exc_name in [
+        "ResourceNotFoundException",
+        "InvalidParameterValueException",
+        "TooManyRequestsException",
+        "ServiceException",
+        "ResourceConflictException",
+        "InvalidRequestContentException",
+        "RequestTooLargeException",
+        "UnsupportedMediaTypeException",
+        "InvalidRuntimeException",
+        "InvalidZipFileException",
+        "ResourceNotReadyException",
+        "SnapStartTimeoutException",
+        "SnapStartNotReadyException",
+        "SnapStartException",
+        "RecursiveInvocationException",
+        "InvalidSecurityGroupIDException",
+        "EC2ThrottledException",
+        "EFSMountConnectivityException",
+        "SubnetIPAddressLimitReachedException",
+        "EC2UnexpectedException",
+        "InvalidSubnetIDException",
+        "EC2AccessDeniedException",
+        "EFSIOException",
+        "ENILimitReachedException",
+        "EFSMountTimeoutException",
+        "EFSMountFailureException",
+        "KMSAccessDeniedException",
+        "KMSDisabledException",
+        "KMSNotFoundException",
+        "KMSInvalidStateException",
+    ]:
+        setattr(exceptions_mock, exc_name, MockException)
+
+    lambda_client.exceptions = exceptions_mock
+    return lambda_client, MockException
+
+
+def test_lambda_invoker_invoke_resource_not_found():
+    """Test lambda invocation with ResourceNotFoundException."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        ResourceNotFoundException,
+    )
+
+    lambda_client, _ = _create_mock_lambda_client_with_exceptions()
+
+    # Create specific exception for ResourceNotFoundException
+    class MockResourceNotFoundException(Exception):
+        pass
+
+    lambda_client.exceptions.ResourceNotFoundException = MockResourceNotFoundException
+
+    lambda_client.invoke.side_effect = MockResourceNotFoundException(
+        "Function not found"
+    )
+
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    with pytest.raises(
+        ResourceNotFoundException, match="Function not found: test-function"
+    ):
+        invoker.invoke("test-function", input_data)
+
+
+def test_lambda_invoker_invoke_invalid_parameter():
+    """Test lambda invocation with InvalidParameterValueException."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        InvalidParameterValueException,
+    )
+
+    lambda_client, MockException = _create_mock_lambda_client_with_exceptions()
+
+    # Override specific exception for this test
+    class MockInvalidParameterValueException(Exception):
+        pass
+
+    lambda_client.exceptions.InvalidParameterValueException = (
+        MockInvalidParameterValueException
+    )
+
+    lambda_client.invoke.side_effect = MockInvalidParameterValueException(
+        "Invalid param"
+    )
+
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    with pytest.raises(InvalidParameterValueException, match="Invalid parameter"):
+        invoker.invoke("test-function", input_data)
+
+
+def test_lambda_invoker_invoke_service_exception():
+    """Test lambda invocation with ServiceException."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+
+    lambda_client, _ = _create_mock_lambda_client_with_exceptions()
+
+    # Create specific exception for ServiceException
+    class MockServiceException(Exception):
+        pass
+
+    lambda_client.exceptions.ServiceException = MockServiceException
+
+    lambda_client.invoke.side_effect = MockServiceException("Service error")
+
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    with pytest.raises(DurableFunctionsTestError, match="Lambda invocation failed"):
+        invoker.invoke("test-function", input_data)
+
+
+def test_lambda_invoker_invoke_ec2_exception():
+    """Test lambda invocation with EC2 exception."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+
+    lambda_client, _ = _create_mock_lambda_client_with_exceptions()
+
+    # Create specific exception for EC2AccessDeniedException
+    class MockEC2Exception(Exception):
+        pass
+
+    lambda_client.exceptions.EC2AccessDeniedException = MockEC2Exception
+
+    lambda_client.invoke.side_effect = MockEC2Exception("Access denied")
+
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    with pytest.raises(DurableFunctionsTestError, match="Lambda infrastructure error"):
+        invoker.invoke("test-function", input_data)
+
+
+def test_lambda_invoker_invoke_kms_exception():
+    """Test lambda invocation with KMS exception."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+
+    lambda_client, _ = _create_mock_lambda_client_with_exceptions()
+
+    # Create specific exception for KMSAccessDeniedException
+    class MockKMSException(Exception):
+        pass
+
+    lambda_client.exceptions.KMSAccessDeniedException = MockKMSException
+
+    lambda_client.invoke.side_effect = MockKMSException("KMS access denied")
+
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    with pytest.raises(DurableFunctionsTestError, match="Lambda KMS error"):
+        invoker.invoke("test-function", input_data)
+
+
+def test_lambda_invoker_invoke_durable_execution_already_started():
+    """Test lambda invocation with DurableExecutionAlreadyStartedException."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+
+    lambda_client, _ = _create_mock_lambda_client_with_exceptions()
+
+    class MockDurableExecutionAlreadyStartedException(Exception):
+        pass
+
+    MockDurableExecutionAlreadyStartedException.__name__ = (
+        "DurableExecutionAlreadyStartedException"
+    )
+
+    lambda_client.invoke.side_effect = MockDurableExecutionAlreadyStartedException(
+        "Already started"
+    )
+
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Durable execution already started"
+    ):
+        invoker.invoke("test-function", input_data)
+
+
+def test_lambda_invoker_invoke_unexpected_exception():
+    """Test lambda invocation with unexpected exception."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+
+    lambda_client, _ = _create_mock_lambda_client_with_exceptions()
+    lambda_client.invoke.side_effect = RuntimeError("Unexpected error")
+
+    invoker = LambdaInvoker(lambda_client)
+
+    input_data = DurableExecutionInvocationInput(
+        durable_execution_arn="test-arn",
+        checkpoint_token="test-token",
+        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        is_local_runner=False,
+    )
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Unexpected error during Lambda invocation"
+    ):
+        invoker.invoke("test-function", input_data)
