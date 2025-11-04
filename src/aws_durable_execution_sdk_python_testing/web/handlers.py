@@ -81,21 +81,26 @@ class EndpointHandler(ABC):
             HTTPResponse: The HTTP response to send to the client
         """
 
-    def _parse_json_body(self, request: HTTPRequest) -> dict[str, Any]:
+    def _parse_json_body(
+        self, request: HTTPRequest, required: bool = True
+    ) -> dict[str, Any]:
         """Parse JSON body from HTTP request with validation.
 
         Args:
             request: The HTTP request containing the JSON body
+            required: Whether the request body is required
 
         Returns:
-            dict: The parsed JSON data
+            dict: The parsed JSON data, or empty dict if not required and missing
 
         Raises:
-            InvalidParameterValueException: If the request body is empty or invalid JSON
+            InvalidParameterValueException: If the request body is required but empty or invalid JSON
         """
         if not request.body:
-            msg = "Request body is required"
-            raise InvalidParameterValueException(msg)
+            if required:
+                msg = "Request body is required"
+                raise InvalidParameterValueException(msg)
+            return {}
 
         # Handle both dict and bytes body types
         if isinstance(request.body, dict):
@@ -690,7 +695,7 @@ class SendDurableExecutionCallbackFailureHandler(EndpointHandler):
             callback_route = cast(CallbackFailureRoute, parsed_route)
             callback_id: str = callback_route.callback_id
 
-            body_data: dict[str, Any] = self._parse_json_body(request)
+            body_data: dict[str, Any] = self._parse_json_body(request, required=False)
             callback_request: SendDurableExecutionCallbackFailureRequest = (
                 SendDurableExecutionCallbackFailureRequest.from_dict(
                     body_data, callback_id
@@ -734,10 +739,7 @@ class SendDurableExecutionCallbackHeartbeatHandler(EndpointHandler):
             HTTPResponse: The HTTP response to send to the client
         """
         try:
-            # Parse request body for validation but heartbeat doesn't use the data
-            body_data: dict[str, Any] = self._parse_json_body(request)
-            SendDurableExecutionCallbackHeartbeatRequest.from_dict(body_data)
-
+            # Heartbeat requests don't have a body, only callback_id from URL
             callback_route = cast(CallbackHeartbeatRoute, parsed_route)
             callback_id: str = callback_route.callback_id
 

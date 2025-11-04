@@ -2173,10 +2173,8 @@ def test_send_durable_execution_callback_failure_handler_empty_body():
     )
 
     response = handler.handle(callback_route, request)
-    # Handler returns 400 for empty body with AWS-compliant format
-    assert response.status_code == 400
-    assert response.body["Type"] == "InvalidParameterValueException"
-    assert "Request body is required" in response.body["message"]
+    # Handler should accept empty body for failure requests
+    assert response.status_code == 200
 
 
 def test_send_durable_execution_callback_heartbeat_handler():
@@ -2221,24 +2219,22 @@ def test_send_durable_execution_callback_heartbeat_handler_empty_body():
     executor = Mock()
     handler = SendDurableExecutionCallbackHeartbeatHandler(executor)
 
+    base_route = Route.from_string(
+        "/2025-12-01/durable-execution-callbacks/test-id/heartbeat"
+    )
+    callback_route = CallbackHeartbeatRoute.from_route(base_route)
+
     request = HTTPRequest(
         method="POST",
-        path=Route.from_string(
-            "/2025-12-01/durable-execution-callbacks/test-id/heartbeat"
-        ),
+        path=callback_route,
         headers={},
         query_params={},
         body={},
     )
 
-    response = handler.handle(
-        Route.from_string("/2025-12-01/durable-execution-callbacks/test-id/heartbeat"),
-        request,
-    )
-    # Handler returns 400 for empty body with AWS-compliant format
-    assert response.status_code == 400
-    assert response.body["Type"] == "InvalidParameterValueException"
-    assert "Request body is required" in response.body["message"]
+    response = handler.handle(callback_route, request)
+    # Handler should accept empty body for heartbeat requests
+    assert response.status_code == 200
 
 
 def test_health_handler():
