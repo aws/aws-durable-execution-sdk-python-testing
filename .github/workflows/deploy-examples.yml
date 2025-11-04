@@ -75,7 +75,6 @@ jobs:
       env:
         AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT_BETA }}
-        INVOKE_ACCOUNT_ID: ${{ secrets.INVOKE_ACCOUNT_ID_BETA }}
         KMS_KEY_ARN: ${{ secrets.KMS_KEY_ARN }}
       run: |
         # Build function name

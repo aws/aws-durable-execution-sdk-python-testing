@@ -66,7 +66,9 @@ def build_examples():
 
     # Copy example functions
     logger.info("Copying examples from %s", src_dir)
-    shutil.copytree(src_dir, build_dir / "src")
+    for file_path in src_dir.rglob("*"):
+        if file_path.is_file():
+            shutil.copy2(file_path, build_dir / file_path.name)
 
     logger.info("Build completed successfully")
     return True
@@ -296,13 +298,10 @@ def get_aws_config():
         "region": os.getenv("AWS_REGION", "us-west-2"),
         "lambda_endpoint": os.getenv("LAMBDA_ENDPOINT"),
         "account_id": os.getenv("AWS_ACCOUNT_ID"),
-        "invoke_account_id": os.getenv("INVOKE_ACCOUNT_ID"),
         "kms_key_arn": os.getenv("KMS_KEY_ARN"),
     }
 
-    if not all(
-        [config["account_id"], config["lambda_endpoint"], config["invoke_account_id"]]
-    ):
+    if not all([config["account_id"], config["lambda_endpoint"]]):
         msg = "Missing required environment variables"
         raise ValueError(msg)
 
@@ -405,26 +404,6 @@ def deploy_function(example_name: str, function_name: str | None = None):
 
     except lambda_client.exceptions.ResourceNotFoundException:
         lambda_client.create_function(**function_config, Code={"ZipFile": zip_content})
-
-    # Update invoke permission for worker account using put_resource_policy
-    function_arn = f"arn:aws:lambda:{config['region']}:{config['account_id']}:function:{function_name}"
-
-    policy_document = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Sid": "dex-invoke-permission",
-                "Effect": "Allow",
-                "Principal": {"AWS": config["invoke_account_id"]},
-                "Action": "lambda:InvokeFunction",
-                "Resource": f"{function_arn}:*",
-            }
-        ],
-    }
-
-    lambda_client.put_resource_policy(
-        ResourceArn=function_arn, Policy=json.dumps(policy_document)
-    )
 
     logger.info("Function deployed successfully! %s", function_name)
     return True

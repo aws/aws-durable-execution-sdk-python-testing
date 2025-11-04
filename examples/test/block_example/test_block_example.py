@@ -3,7 +3,7 @@
 import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
 
-from src import block_example
+from src.block_example import block_example
 from test.conftest import deserialize_operation_payload
 
 
