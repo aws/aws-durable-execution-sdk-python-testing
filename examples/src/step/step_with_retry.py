@@ -1,4 +1,4 @@
-from random import random
+from itertools import count
 from typing import Any
 
 from aws_durable_execution_sdk_python.config import StepConfig
@@ -14,13 +14,19 @@ from aws_durable_execution_sdk_python.retries import (
 )
 
 
+# Counter for deterministic behavior across retries
+_attempts = count(1)  # starts from 1
+
+
 @durable_step
 def unreliable_operation(
     _step_context: StepContext,
 ) -> str:
-    failure_threshold = 0.5
-    if random() > failure_threshold:  # noqa: S311
-        msg = "Random error occurred"
+    # Use counter for deterministic behavior
+    # Will fail on first attempt, succeed on second
+    attempt = next(_attempts)
+    if attempt < 2:
+        msg = f"Attempt {attempt} failed"
         raise RuntimeError(msg)
     return "Operation succeeded"
 

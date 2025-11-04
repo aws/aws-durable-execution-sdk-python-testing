@@ -230,6 +230,7 @@ def test_process_succeed_action_with_current_operation():
 
     current_op = Mock()
     current_op.start_timestamp = datetime.now(UTC)
+    current_op.step_details = StepDetails()
 
     update = OperationUpdate(
         operation_id="step-123",
@@ -243,6 +244,7 @@ def test_process_succeed_action_with_current_operation():
 
     assert result.start_timestamp == current_op.start_timestamp
     assert result.status == OperationStatus.SUCCEEDED
+    assert result.step_details.attempt == 1
 
 
 def test_process_fail_action():
@@ -274,6 +276,7 @@ def test_process_fail_action_with_current_operation():
 
     current_op = Mock()
     current_op.start_timestamp = datetime.now(UTC)
+    current_op.step_details = StepDetails()
 
     error = ErrorObject.from_message("step failed")
     update = OperationUpdate(
@@ -288,6 +291,7 @@ def test_process_fail_action_with_current_operation():
 
     assert result.start_timestamp == current_op.start_timestamp
     assert result.status == OperationStatus.FAILED
+    assert result.step_details.attempt == 1
 
 
 def test_process_invalid_action():
