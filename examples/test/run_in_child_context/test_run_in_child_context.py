@@ -3,7 +3,7 @@
 import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
 
-from src import run_in_child_context
+from src.run_in_child_context import run_in_child_context
 from test.conftest import deserialize_operation_payload
 
 

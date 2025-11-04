@@ -21,7 +21,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/step.py"
+      "path": "./src/step/step.py"
     },
     {
       "name": "Step with Name",
@@ -32,7 +32,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/step_with_name.py"
+      "path": "./src/step/step_with_name.py"
     },
     {
       "name": "Step with Retry",
@@ -43,7 +43,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/step_with_retry.py"
+      "path": "./src/step/step_with_retry.py"
     },
     {
       "name": "Wait State",
@@ -54,7 +54,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/wait.py"
+      "path": "./src/wait/wait.py"
     },
     {
       "name": "Callback",
@@ -65,7 +65,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/callback.py"
+      "path": "./src/callback/callback.py"
     },
     {
       "name": "Wait for Callback",
@@ -76,7 +76,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/wait_for_callback.py"
+      "path": "./src/wait_for_callback/wait_for_callback.py"
     },
     {
       "name": "Run in Child Context",
@@ -87,7 +87,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/run_in_child_context.py"
+      "path": "./src/run_in_child_context/run_in_child_context.py"
     },
     {
       "name": "Parallel Operations",
@@ -98,7 +98,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/parallel.py"
+      "path": "./src/parallel/parallel.py"
     },
     {
       "name": "Map Operations",
@@ -109,7 +109,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/map_operations.py"
+      "path": "./src/map/map_operations.py"
     },
     {
       "name": "Block Example",
@@ -120,7 +120,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/block_example.py"
+      "path": "./src/block_example/block_example.py"
     },
     {
       "name": "Logger Example",
@@ -131,7 +131,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/logger_example.py"
+      "path": "./src/logger_example/logger_example.py"
     },
     {
       "name": "Steps with Retry",
@@ -142,7 +142,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/steps_with_retry.py"
+      "path": "./src/step/steps_with_retry.py"
     },
     {
       "name": "Wait for Condition",
@@ -153,7 +153,7 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
-      "path": "./src/wait_for_condition.py"
+      "path": "./src/wait_for_condition/wait_for_condition.py"
     }
   ]
 }

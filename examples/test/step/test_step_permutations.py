@@ -4,7 +4,7 @@ import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
 from aws_durable_execution_sdk_python.lambda_service import OperationType
 
-from src import step_no_name, step_with_exponential_backoff, step_with_name
+from src.step import step_no_name, step_with_exponential_backoff, step_with_name
 from test.conftest import deserialize_operation_payload
 
 

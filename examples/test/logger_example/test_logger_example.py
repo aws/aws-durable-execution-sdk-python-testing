@@ -4,7 +4,7 @@ import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
 from aws_durable_execution_sdk_python.lambda_service import OperationType
 
-from src import logger_example
+from src.logger_example import logger_example
 from test.conftest import deserialize_operation_payload
 
 

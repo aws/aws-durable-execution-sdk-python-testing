@@ -30,5 +30,7 @@ dist/
 .idea
 .env
 
+.durable_executions
+
 examples/build/*
 examples/*.zip

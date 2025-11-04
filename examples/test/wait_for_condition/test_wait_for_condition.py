@@ -4,7 +4,7 @@ import pytest
 from aws_durable_execution_sdk_python.execution import InvocationStatus
 from aws_durable_execution_sdk_python.lambda_service import OperationType
 
-from src import wait_for_condition
+from src.wait_for_condition import wait_for_condition
 from test.conftest import deserialize_operation_payload
 
 
