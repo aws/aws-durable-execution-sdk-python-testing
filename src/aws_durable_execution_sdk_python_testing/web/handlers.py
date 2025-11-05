@@ -81,25 +81,36 @@ class EndpointHandler(ABC):
             HTTPResponse: The HTTP response to send to the client
         """
 
-    def _parse_json_body(
-        self, request: HTTPRequest, required: bool = True
-    ) -> dict[str, Any]:
+    def _parse_json_body(self, request: HTTPRequest) -> dict[str, Any]:
         """Parse JSON body from HTTP request with validation.
 
         Args:
             request: The HTTP request containing the JSON body
-            required: Whether the request body is required
 
         Returns:
-            dict: The parsed JSON data, or empty dict if not required and missing
+            dict: The parsed JSON data
 
         Raises:
-            InvalidParameterValueException: If the request body is required but empty or invalid JSON
+            InvalidParameterValueException: If the request body is empty
         """
         if not request.body:
-            if required:
-                msg = "Request body is required"
-                raise InvalidParameterValueException(msg)
+            msg = "Request body is required"
+            raise InvalidParameterValueException(msg)
+        return self._parse_json_body_optional(request)
+
+    def _parse_json_body_optional(self, request: HTTPRequest) -> dict[str, Any]:
+        """Parse JSON body from HTTP request with validation.
+
+        Args:
+            request: The HTTP request containing the JSON body
+
+        Returns:
+            dict: The parsed JSON data
+
+        Raises:
+            InvalidParameterValueException: If the request body is invalid JSON
+        """
+        if not request.body:
             return {}
 
         # Handle both dict and bytes body types
@@ -695,7 +706,7 @@ class SendDurableExecutionCallbackFailureHandler(EndpointHandler):
             callback_route = cast(CallbackFailureRoute, parsed_route)
             callback_id: str = callback_route.callback_id
 
-            body_data: dict[str, Any] = self._parse_json_body(request, required=False)
+            body_data: dict[str, Any] = self._parse_json_body_optional(request)
             callback_request: SendDurableExecutionCallbackFailureRequest = (
                 SendDurableExecutionCallbackFailureRequest.from_dict(
                     body_data, callback_id
