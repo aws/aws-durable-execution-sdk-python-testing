@@ -57,6 +57,17 @@
       "path": "./src/wait/wait.py"
     },
     {
+      "name": "Multiple Wait",
+      "description": "Usage of demonstrating multiple sequential wait operations.",
+      "handler": "multiple_wait.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait/multiple_wait.py"
+    },
+    {
       "name": "Callback",
       "description": "Basic usage of context.create_callback() to create a callback for external systems",
       "handler": "callback.handler",
@@ -154,6 +165,28 @@
         "ExecutionTimeout": 300
       },
       "path": "./src/wait_for_condition/wait_for_condition.py"
+    },
+    {
+      "name": "Run in Child Context Large Data",
+      "description": "Usage of context.run_in_child_context() to execute operations in isolated contexts with large data",
+      "handler": "run_in_child_context_large_data.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/run_in_child_context/run_in_child_context_large_data.py"
+    },
+    {
+      "name": "Simple Execution",
+      "description": "Simple execution without durable execution",
+      "handler": "simple_execution.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/simple_execution/simple_execution.py"
     }
   ]
 }
