@@ -1,6 +1,7 @@
 """Unit tests for executor module."""
 
 import asyncio
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
@@ -142,7 +143,26 @@ def test_start_execution(
         result = executor.start_execution(start_input)
 
     # Test observable behavior through public API
-    mock_execution_class.new.assert_called_once_with(input=start_input)
+    # The executor should generate an invocation_id if not provided
+    call_args = mock_execution_class.new.call_args
+    actual_input = call_args.kwargs["input"]
+
+    # Verify all fields match except invocation_id should be generated
+    assert actual_input.account_id == start_input.account_id
+    assert actual_input.function_name == start_input.function_name
+    assert actual_input.function_qualifier == start_input.function_qualifier
+    assert actual_input.execution_name == start_input.execution_name
+    assert (
+        actual_input.execution_timeout_seconds == start_input.execution_timeout_seconds
+    )
+    assert (
+        actual_input.execution_retention_period_days
+        == start_input.execution_retention_period_days
+    )
+    assert actual_input.invocation_id is not None  # Should be generated
+    assert actual_input.trace_fields == start_input.trace_fields
+    assert actual_input.tenant_id == start_input.tenant_id
+    assert actual_input.input == start_input.input
     mock_execution.start.assert_called_once()
     mock_store.save.assert_called_once_with(mock_execution)
     mock_scheduler.create_event.assert_called_once()
@@ -157,7 +177,39 @@ def test_start_execution(
     mock_event.wait.assert_called_once_with(1)
 
 
-def test_get_execution(executor, mock_store):
+@patch("aws_durable_execution_sdk_python_testing.executor.Execution")
+def test_start_execution_with_provided_invocation_id(
+    mock_execution_class, executor, mock_store, mock_scheduler
+):
+    # Create input with invocation_id already provided
+    provided_invocation_id = "user-provided-id-123"
+    start_input = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="test-function",
+        function_qualifier="$LATEST",
+        execution_name="test-execution",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+        invocation_id=provided_invocation_id,
+    )
+
+    mock_execution = Mock()
+    mock_execution.durable_execution_arn = "test-arn"
+    mock_execution_class.new.return_value = mock_execution
+    mock_event = Mock()
+    mock_scheduler.create_event.return_value = mock_event
+
+    with patch.object(executor, "_invoke_execution") as mock_invoke:
+        result = executor.start_execution(start_input)
+
+    # Should use the provided invocation_id unchanged
+    mock_execution_class.new.assert_called_once_with(input=start_input)
+    mock_execution.start.assert_called_once()
+    mock_store.save.assert_called_once_with(mock_execution)
+    mock_scheduler.create_event.assert_called_once()
+    mock_invoke.assert_called_once_with("test-arn")
+    assert result.execution_arn == "test-arn"
+
     mock_execution = Mock()
     mock_store.load.return_value = mock_execution
 
