@@ -260,6 +260,27 @@ def test_http_request_from_bytes_standard_json() -> None:
     assert request.body == test_data
 
 
+def test_http_get_request_from_bytes_ignore_body() -> None:
+    """Test HTTPRequest.from_bytes with standard JSON deserialization."""
+    test_data = {"key": "value", "number": 42}
+    body_bytes = json.dumps(test_data).encode("utf-8")
+
+    path = Route.from_string("/test")
+    request = HTTPRequest.from_bytes(
+        body_bytes=body_bytes,
+        method="GET",
+        path=path,
+        headers={"Content-Type": "application/json"},
+        query_params={"param": ["value"]},
+    )
+
+    assert request.method == "GET"
+    assert request.path == path
+    assert request.headers == {"Content-Type": "application/json"}
+    assert request.query_params == {"param": ["value"]}
+    assert request.body == {}
+
+
 def test_http_request_from_bytes_minimal_params() -> None:
     """Test HTTPRequest.from_bytes with minimal parameters."""
     test_data = {"message": "hello"}
@@ -413,33 +434,6 @@ def test_http_response_body_to_bytes_compact_format() -> None:
     assert "\n" not in body_str  # No newlines
 
 
-def test_http_response_body_to_bytes_aws_operation_fallback() -> None:
-    """Test body_to_bytes with AWS operation that falls back to JSON."""
-    test_data = {"ExecutionId": "test-execution-id", "Status": "SUCCEEDED"}
-    response = HTTPResponse(status_code=200, headers={}, body=test_data)
-
-    # Use a non-existent operation name to trigger fallback
-    body_bytes = response.body_to_bytes(operation_name="NonExistentOperation")
-
-    # Should still work via JSON fallback
-    assert isinstance(body_bytes, bytes)
-    parsed_data = json.loads(body_bytes.decode("utf-8"))
-    assert parsed_data == test_data
-
-
-def test_http_response_body_to_bytes_invalid_data() -> None:
-    """Test body_to_bytes with data that can't be JSON serialized."""
-    # Create data with non-serializable object
-
-    test_data = {"timestamp": datetime.datetime.now(datetime.UTC)}
-    response = HTTPResponse(status_code=200, headers={}, body=test_data)
-
-    with pytest.raises(
-        InvalidParameterValueException, match="JSON serialization failed"
-    ):
-        response.body_to_bytes()
-
-
 def test_http_response_body_to_bytes_empty_body() -> None:
     """Test body_to_bytes with empty body."""
     response = HTTPResponse(status_code=204, headers={}, body={})
@@ -463,28 +457,6 @@ def test_http_response_body_to_bytes_complex_data() -> None:
     parsed_data = json.loads(body_bytes.decode("utf-8"))
 
     assert parsed_data == complex_data
-
-
-def test_http_response_body_to_bytes_aws_operation_success() -> None:
-    """Test body_to_bytes with valid AWS operation (if available)."""
-    # This test will use AWS serialization if available, otherwise fall back to JSON
-    test_data = {
-        "ExecutionId": "test-execution-id",
-        "Status": "SUCCEEDED",
-        "Result": "test-result",
-    }
-    response = HTTPResponse(status_code=200, headers={}, body=test_data)
-
-    # Try with a real AWS operation name
-    body_bytes = response.body_to_bytes(operation_name="StartDurableExecution")
-
-    # Should get valid bytes regardless of AWS vs JSON serialization
-    assert isinstance(body_bytes, bytes)
-    assert len(body_bytes) > 0
-
-    # Should be valid JSON (either from AWS serialization or fallback)
-    parsed_data = json.loads(body_bytes.decode("utf-8"))
-    assert isinstance(parsed_data, dict)
 
 
 # Tests for HTTPResponse.from_dict method
@@ -627,47 +599,21 @@ def test_http_request_from_bytes_aws_deserialization_fallback_error() -> None:
             )
 
 
-def test_http_response_body_to_bytes_aws_serialization_success() -> None:
-    """Test HTTPResponse.body_to_bytes with successful AWS serialization."""
-
-    test_data = {"ExecutionId": "test-id", "Status": "SUCCEEDED"}
-    response = HTTPResponse(status_code=200, headers={}, body=test_data)
-    expected_bytes = b'{"ExecutionId":"test-id","Status":"SUCCEEDED"}'
-
-    # Mock successful AWS serialization
-    mock_serializer = Mock()
-    mock_serializer.to_bytes.return_value = expected_bytes
-
-    with patch(
-        "aws_durable_execution_sdk_python_testing.web.models.AwsRestJsonSerializer.create",
-        return_value=mock_serializer,
-    ):
-        result = response.body_to_bytes(operation_name="StartDurableExecution")
-
-    assert result == expected_bytes
-    mock_serializer.to_bytes.assert_called_once_with(test_data)
-
-
-def test_http_response_body_to_bytes_aws_serialization_fallback_error() -> None:
-    """Test HTTPResponse.body_to_bytes when both AWS and JSON serialization fail."""
+def test_http_response_body_to_bytes_serialization_error() -> None:
+    """Test HTTPResponse.body_to_bytes when JSON serialization fail."""
 
     # Create data that can't be JSON serialized
-    test_data = {"timestamp": datetime.datetime.now(datetime.UTC)}
+    class CustomObject:
+        pass
+
+    test_data = {"custom": CustomObject()}
     response = HTTPResponse(status_code=200, headers={}, body=test_data)
 
-    # Mock AWS serialization failure
-    mock_serializer = Mock()
-    mock_serializer.to_bytes.side_effect = InvalidParameterValueException("AWS failed")
-
-    with patch(
-        "aws_durable_execution_sdk_python_testing.web.models.AwsRestJsonSerializer.create",
-        return_value=mock_serializer,
+    with pytest.raises(
+        InvalidParameterValueException,
+        match="Failed to serialize data to JSON: Object of type CustomObject is not JSON serializable",
     ):
-        with pytest.raises(
-            InvalidParameterValueException,
-            match="Both AWS and JSON serialization failed",
-        ):
-            response.body_to_bytes(operation_name="StartDurableExecution")
+        response.body_to_bytes()
 
 
 # Tests for HTTPResponse.create_error_from_exception method
