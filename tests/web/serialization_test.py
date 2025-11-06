@@ -5,11 +5,14 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import pytest
+import json
+from datetime import datetime
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     InvalidParameterValueException,
 )
 from aws_durable_execution_sdk_python_testing.web.serialization import (
+    JSONSerializer,
     AwsRestJsonDeserializer,
     AwsRestJsonSerializer,
 )
@@ -384,3 +387,194 @@ def test_aws_rest_json_deserializer_should_raise_error_when_json_parsing_fails()
         deserializer.from_bytes(test_bytes)
 
     assert "Failed to deserialize data for test" in str(exc_info.value)
+
+
+def test_serialize_simple_dict():
+    """Test serialization of simple dictionary."""
+    serializer = JSONSerializer()
+    data = {"key": "value", "number": 42}
+    result = serializer.to_bytes(data)
+
+    expected = b'{"key":"value","number":42}'
+    assert result == expected
+    assert isinstance(result, bytes)
+    assert json.loads(result.decode("utf-8")) == data
+
+
+def test_serialize_datetime():
+    """Test serialization of datetime objects."""
+    serializer = JSONSerializer()
+    now = datetime(2025, 11, 5, 16, 30, 9, 895000)
+    data = {"timestamp": now}
+
+    result = serializer.to_bytes(data)
+    expected = b'{"timestamp":"2025-11-05T16:30:09.895000"}'
+
+    assert result == expected
+    assert isinstance(result, bytes)
+
+    deserialized = json.loads(result.decode("utf-8"))
+    assert deserialized["timestamp"] == "2025-11-05T16:30:09.895000"
+
+
+def test_serialize_nested_datetime():
+    """Test serialization of nested structures with datetime."""
+    serializer = JSONSerializer()
+    now = datetime(2025, 11, 5, 16, 30, 9)
+    data = {
+        "event": "user_login",
+        "timestamp": now,
+        "metadata": {"created_at": now, "updated_at": now},
+    }
+
+    result = serializer.to_bytes(data)
+    expected = (
+        b'{"event":"user_login",'
+        b'"timestamp":"2025-11-05T16:30:09",'
+        b'"metadata":{"created_at":"2025-11-05T16:30:09",'
+        b'"updated_at":"2025-11-05T16:30:09"}}'
+    )
+
+    assert result == expected
+
+    deserialized = json.loads(result.decode("utf-8"))
+    assert deserialized["timestamp"] == now.isoformat()
+    assert deserialized["metadata"]["created_at"] == now.isoformat()
+
+
+def test_serialize_list_with_datetime():
+    """Test serialization of list containing datetime."""
+    serializer = JSONSerializer()
+    now = datetime(2025, 11, 5, 16, 30, 9)
+    data = {
+        "events": [{"time": now, "action": "login"}, {"time": now, "action": "logout"}]
+    }
+
+    result = serializer.to_bytes(data)
+    expected = (
+        b'{"events":['
+        b'{"time":"2025-11-05T16:30:09","action":"login"},'
+        b'{"time":"2025-11-05T16:30:09","action":"logout"}'
+        b"]}"
+    )
+
+    assert result == expected
+
+    deserialized = json.loads(result.decode("utf-8"))
+    assert deserialized["events"][0]["time"] == now.isoformat()
+    assert deserialized["events"][1]["time"] == now.isoformat()
+
+
+def test_serialize_mixed_types():
+    """Test serialization of mixed data types."""
+    serializer = JSONSerializer()
+    now = datetime(2025, 11, 5, 16, 30, 9)
+    data = {
+        "string": "test",
+        "number": 42,
+        "float": 3.14,
+        "boolean": True,
+        "null": None,
+        "list": [1, 2, 3],
+        "datetime": now,
+    }
+
+    result = serializer.to_bytes(data)
+    expected = (
+        b'{"string":"test",'
+        b'"number":42,'
+        b'"float":3.14,'
+        b'"boolean":true,'
+        b'"null":null,'
+        b'"list":[1,2,3],'
+        b'"datetime":"2025-11-05T16:30:09"}'
+    )
+
+    assert result == expected
+
+    deserialized = json.loads(result.decode("utf-8"))
+    assert deserialized["string"] == "test"
+    assert deserialized["number"] == 42
+    assert deserialized["float"] == 3.14
+    assert deserialized["boolean"] is True
+    assert deserialized["null"] is None
+    assert deserialized["list"] == [1, 2, 3]
+    assert deserialized["datetime"] == now.isoformat()
+
+
+def test_serialize_returns_bytes():
+    """Test that serialization returns bytes."""
+    serializer = JSONSerializer()
+    data = {"test": "value"}
+    result = serializer.to_bytes(data)
+    expected = b'{"test":"value"}'
+
+    assert result == expected
+    assert isinstance(result, bytes)
+
+
+def test_serialize_non_serializable_object_raises_exception():
+    """Test that non-serializable objects raise InvalidParameterValueException."""
+    serializer = JSONSerializer()
+
+    class CustomObject:
+        pass
+
+    data = {"custom": CustomObject()}
+
+    with pytest.raises(InvalidParameterValueException) as exc_info:
+        serializer.to_bytes(data)
+
+    assert (
+        "Failed to serialize data to JSON: Object of type CustomObject is not JSON serializable"
+        in str(exc_info.value)
+    )
+
+
+def test_serialize_circular_reference_raises_exception():
+    """Test that circular references raise InvalidParameterValueException."""
+    serializer = JSONSerializer()
+    data = {"key": "value"}
+    data["self"] = data  # Create circular reference
+
+    with pytest.raises(InvalidParameterValueException) as exc_info:
+        serializer.to_bytes(data)
+
+    assert "Failed to serialize data to JSON" in str(exc_info.value)
+
+
+def test_serialize_datetime_with_microseconds():
+    """Test serialization of datetime with microseconds."""
+    serializer = JSONSerializer()
+    now = datetime(2025, 11, 5, 16, 30, 9, 123456)
+    data = {"timestamp": now}
+
+    result = serializer.to_bytes(data)
+    expected = b'{"timestamp":"2025-11-05T16:30:09.123456"}'
+
+    assert result == expected
+
+
+def test_serialize_datetime_without_microseconds():
+    """Test serialization of datetime without microseconds."""
+    serializer = JSONSerializer()
+    now = datetime(2025, 11, 5, 16, 30, 9)
+    data = {"timestamp": now}
+
+    result = serializer.to_bytes(data)
+    expected = b'{"timestamp":"2025-11-05T16:30:09"}'
+
+    assert result == expected
+
+
+def test_serialize_multiple_datetimes():
+    """Test multiple datetime objects."""
+    serializer = JSONSerializer()
+    dt1 = datetime(2025, 1, 1, 0, 0, 0)
+    dt2 = datetime(2025, 12, 31, 23, 59, 59)
+
+    data = {"start": dt1, "end": dt2}
+    result = serializer.to_bytes(data)
+    expected = b'{"start":"2025-01-01T00:00:00",' b'"end":"2025-12-31T23:59:59"}'
+
+    assert result == expected

@@ -16,7 +16,8 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
 from aws_durable_execution_sdk_python_testing.web.routes import Route
 from aws_durable_execution_sdk_python_testing.web.serialization import (
     AwsRestJsonDeserializer,
-    AwsRestJsonSerializer,
+    JSONSerializer,
+    Serializer,
 )
 
 
@@ -146,12 +147,10 @@ class HTTPResponse:
     status_code: int
     headers: dict[str, str]
     body: dict[str, Any]
+    serializer: Serializer = JSONSerializer()
 
-    def body_to_bytes(self, operation_name: str | None = None) -> bytes:
+    def body_to_bytes(self) -> bytes:
         """Convert response dict body to bytes for HTTP transmission.
-
-        Args:
-            operation_name: Optional AWS operation name for boto serialization
 
         Returns:
             bytes: Serialized response body
@@ -159,41 +158,9 @@ class HTTPResponse:
         Raises:
             InvalidParameterValueException: If serialization fails with both AWS and JSON methods
         """
-        # Try AWS serialization first if operation_name provided
-        if operation_name:
-            try:
-                serializer = AwsRestJsonSerializer.create(operation_name)
-                result = serializer.to_bytes(self.body)
-                logger.debug(
-                    "Successfully serialized response using AWS serializer for %s",
-                    operation_name,
-                )
-                return result  # noqa: TRY300
-            except InvalidParameterValueException as e:
-                logger.warning(
-                    "AWS serialization failed for %s, falling back to JSON: %s",
-                    operation_name,
-                    e,
-                )
-                # Fall back to standard JSON
-                try:
-                    result = json.dumps(self.body, separators=(",", ":")).encode(
-                        "utf-8"
-                    )
-                    logger.debug("Successfully serialized response using JSON fallback")
-                    return result  # noqa: TRY300
-                except (TypeError, ValueError) as json_error:
-                    msg = f"Both AWS and JSON serialization failed: AWS error: {e}, JSON error: {json_error}"
-                    raise InvalidParameterValueException(msg) from json_error
-        else:
-            # Use standard JSON serialization
-            try:
-                result = json.dumps(self.body, separators=(",", ":")).encode("utf-8")
-                logger.debug("Successfully serialized response using standard JSON")
-                return result  # noqa: TRY300
-            except (TypeError, ValueError) as e:
-                msg = f"JSON serialization failed: {e}"
-                raise InvalidParameterValueException(msg) from e
+        result = self.serializer.to_bytes(data=self.body)
+        logger.debug("Serialized result - before: %s, after: %s", self.body, result)
+        return result
 
     @classmethod
     def from_dict(

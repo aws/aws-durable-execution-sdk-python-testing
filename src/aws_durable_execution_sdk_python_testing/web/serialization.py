@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Any, Protocol
+from datetime import datetime
 
 import aws_durable_execution_sdk_python
 import botocore.loaders  # type: ignore
@@ -55,6 +56,29 @@ class Deserializer(Protocol):
             InvalidParameterValueException: If deserialization fails
         """
         ...  # pragma: no cover
+
+
+class JSONSerializer:
+    """JSON serializer with datetime support."""
+
+    def to_bytes(self, data: Any) -> bytes:
+        """Serialize data to JSON bytes."""
+        try:
+            json_string = json.dumps(
+                data, separators=(",", ":"), default=self._default_handler
+            )
+            return json_string.encode("utf-8")
+        except (TypeError, ValueError) as e:
+            raise InvalidParameterValueException(
+                f"Failed to serialize data to JSON: {str(e)}"
+            )
+
+    def _default_handler(self, obj: Any) -> str:
+        """Handle non-permitive objects."""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        # Raise TypeError for unsupported types
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
 class AwsRestJsonSerializer:
