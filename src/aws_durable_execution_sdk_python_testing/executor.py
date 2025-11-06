@@ -82,7 +82,7 @@ class Executor(ExecutionObserver):
                 tenant_id=input.tenant_id,
                 input=input.input,
             )
-            
+
         execution = Execution.new(input=input)
         execution.start()
         self._store.save(execution)
