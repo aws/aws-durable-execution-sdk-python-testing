@@ -76,7 +76,7 @@ class JSONSerializer:
     def _default_handler(self, obj: Any) -> str:
         """Handle non-permitive objects."""
         if isinstance(obj, datetime):
-            return obj.isoformat()
+            return obj.timestamp()
         # Raise TypeError for unsupported types
         raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 

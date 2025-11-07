@@ -408,13 +408,13 @@ def test_serialize_datetime():
     data = {"timestamp": now}
 
     result = serializer.to_bytes(data)
-    expected = b'{"timestamp":"2025-11-05T16:30:09.895000"}'
+    expected = b'{"timestamp":1762378209.895}'
 
     assert result == expected
     assert isinstance(result, bytes)
 
     deserialized = json.loads(result.decode("utf-8"))
-    assert deserialized["timestamp"] == "2025-11-05T16:30:09.895000"
+    assert deserialized["timestamp"] == now.timestamp()
 
 
 def test_serialize_nested_datetime():
@@ -430,16 +430,16 @@ def test_serialize_nested_datetime():
     result = serializer.to_bytes(data)
     expected = (
         b'{"event":"user_login",'
-        b'"timestamp":"2025-11-05T16:30:09",'
-        b'"metadata":{"created_at":"2025-11-05T16:30:09",'
-        b'"updated_at":"2025-11-05T16:30:09"}}'
+        b'"timestamp":1762378209.0,'
+        b'"metadata":{"created_at":1762378209.0,'
+        b'"updated_at":1762378209.0}}'
     )
 
     assert result == expected
 
     deserialized = json.loads(result.decode("utf-8"))
-    assert deserialized["timestamp"] == now.isoformat()
-    assert deserialized["metadata"]["created_at"] == now.isoformat()
+    assert deserialized["timestamp"] == now.timestamp()
+    assert deserialized["metadata"]["created_at"] == now.timestamp()
 
 
 def test_serialize_list_with_datetime():
@@ -453,16 +453,16 @@ def test_serialize_list_with_datetime():
     result = serializer.to_bytes(data)
     expected = (
         b'{"events":['
-        b'{"time":"2025-11-05T16:30:09","action":"login"},'
-        b'{"time":"2025-11-05T16:30:09","action":"logout"}'
+        b'{"time":1762378209.0,"action":"login"},'
+        b'{"time":1762378209.0,"action":"logout"}'
         b"]}"
     )
 
     assert result == expected
 
     deserialized = json.loads(result.decode("utf-8"))
-    assert deserialized["events"][0]["time"] == now.isoformat()
-    assert deserialized["events"][1]["time"] == now.isoformat()
+    assert deserialized["events"][0]["time"] == now.timestamp()
+    assert deserialized["events"][1]["time"] == now.timestamp()
 
 
 def test_serialize_mixed_types():
@@ -487,7 +487,7 @@ def test_serialize_mixed_types():
         b'"boolean":true,'
         b'"null":null,'
         b'"list":[1,2,3],'
-        b'"datetime":"2025-11-05T16:30:09"}'
+        b'"datetime":1762378209.0}'
     )
 
     assert result == expected
@@ -499,7 +499,7 @@ def test_serialize_mixed_types():
     assert deserialized["boolean"] is True
     assert deserialized["null"] is None
     assert deserialized["list"] == [1, 2, 3]
-    assert deserialized["datetime"] == now.isoformat()
+    assert deserialized["datetime"] == now.timestamp()
 
 
 def test_serialize_returns_bytes():
@@ -550,7 +550,7 @@ def test_serialize_datetime_with_microseconds():
     data = {"timestamp": now}
 
     result = serializer.to_bytes(data)
-    expected = b'{"timestamp":"2025-11-05T16:30:09.123456"}'
+    expected = b'{"timestamp":1762378209.123456}'
 
     assert result == expected
 
@@ -562,7 +562,7 @@ def test_serialize_datetime_without_microseconds():
     data = {"timestamp": now}
 
     result = serializer.to_bytes(data)
-    expected = b'{"timestamp":"2025-11-05T16:30:09"}'
+    expected = b'{"timestamp":1762378209.0}'
 
     assert result == expected
 
@@ -575,6 +575,6 @@ def test_serialize_multiple_datetimes():
 
     data = {"start": dt1, "end": dt2}
     result = serializer.to_bytes(data)
-    expected = b'{"start":"2025-01-01T00:00:00",' b'"end":"2025-12-31T23:59:59"}'
+    expected = b'{"start":1735707600.0,"end":1767243599.0}'
 
     assert result == expected
