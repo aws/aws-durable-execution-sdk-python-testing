@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -67,6 +68,21 @@ class Executor(ExecutionObserver):
         self,
         input: StartDurableExecutionInput,  # noqa: A002
     ) -> StartDurableExecutionOutput:
+        # Generate invocation_id if not provided
+        if input.invocation_id is None:
+            input = StartDurableExecutionInput(
+                account_id=input.account_id,
+                function_name=input.function_name,
+                function_qualifier=input.function_qualifier,
+                execution_name=input.execution_name,
+                execution_timeout_seconds=input.execution_timeout_seconds,
+                execution_retention_period_days=input.execution_retention_period_days,
+                invocation_id=str(uuid.uuid4()),
+                trace_fields=input.trace_fields,
+                tenant_id=input.tenant_id,
+                input=input.input,
+            )
+
         execution = Execution.new(input=input)
         execution.start()
         self._store.save(execution)
