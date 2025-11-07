@@ -787,11 +787,10 @@ class DurableFunctionCloudTestRunner:
             msg = f"Lambda invocation failed with status {status_code}: {error_payload}"
             raise DurableFunctionsTestError(msg)
 
-        # Check for function errors
+        # Check for function errors, we want to return function error for testing purpose
         if "FunctionError" in response:
             error_payload = response["Payload"].read().decode("utf-8")
-            msg = f"Lambda function failed: {error_payload}"
-            raise DurableFunctionsTestError(msg)
+            logger.warning("Lambda function failed: %s", error_payload)
 
         result_payload = response["Payload"].read().decode("utf-8")
         logger.info(

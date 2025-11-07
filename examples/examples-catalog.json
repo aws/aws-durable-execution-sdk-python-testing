@@ -297,6 +297,17 @@
         "ExecutionTimeout": 300
       },
       "path": "./src/parallel/parallel_with_batch_serdes.py"
+    },
+    {
+      "name": "Handler Error",
+      "description": "Simple function with handler error",
+      "handler": "handler_error.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/handler_error/handler_error.py"
     }
   ]
 }

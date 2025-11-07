@@ -38,6 +38,8 @@ from durable_executions_python_language_sdk.context import (
     durable_with_child_context,
 )
 from durable_executions_python_language_sdk.execution import durable_execution
+from aws_durable_execution_sdk_python.config import Duration
+
 
 @durable_step
 def one(a: int, b: int) -> str:
@@ -68,7 +70,7 @@ def function_under_test(event: Any, context: DurableContext) -> list[str]:
     result_one: str = context.step(one(1, 2))
     results.append(result_one)
 
-    context.wait(seconds=1)
+    context.wait(Duration.from_seconds(1))
 
     result_two: str = context.run_in_child_context(two(3, 4))
     results.append(result_two)

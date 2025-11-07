@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any
 from aws_durable_execution_sdk_python.config import CallbackConfig
 from aws_durable_execution_sdk_python.context import DurableContext
 from aws_durable_execution_sdk_python.execution import durable_execution
+from aws_durable_execution_sdk_python.config import Duration
 
 
 if TYPE_CHECKING:
@@ -11,7 +12,9 @@ if TYPE_CHECKING:
 
 @durable_execution
 def handler(_event: Any, context: DurableContext) -> str:
-    callback_config = CallbackConfig(timeout_seconds=120, heartbeat_timeout_seconds=60)
+    callback_config = CallbackConfig(
+        timeout=Duration.from_seconds(120), heartbeat_timeout=Duration.from_seconds(60)
+    )
 
     callback: Callback[str] = context.create_callback(
         name="example_callback", config=callback_config
