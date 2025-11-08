@@ -23,6 +23,7 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import (
     CheckpointDurableExecutionResponse,
+    CheckpointUpdatedExecutionState,
     GetDurableExecutionHistoryResponse,
     GetDurableExecutionResponse,
     GetDurableExecutionStateResponse,
@@ -47,6 +48,9 @@ from aws_durable_execution_sdk_python_testing.observer import ExecutionObserver
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
+    from aws_durable_execution_sdk_python_testing.checkpoint.processor import (
+        CheckpointProcessor,
+    )
     from aws_durable_execution_sdk_python_testing.invoker import Invoker
     from aws_durable_execution_sdk_python_testing.scheduler import Event, Scheduler
     from aws_durable_execution_sdk_python_testing.stores.base import ExecutionStore
@@ -58,10 +62,17 @@ class Executor(ExecutionObserver):
     MAX_CONSECUTIVE_FAILED_ATTEMPTS = 5
     RETRY_BACKOFF_SECONDS = 5
 
-    def __init__(self, store: ExecutionStore, scheduler: Scheduler, invoker: Invoker):
+    def __init__(
+        self,
+        store: ExecutionStore,
+        scheduler: Scheduler,
+        invoker: Invoker,
+        checkpoint_processor: CheckpointProcessor,
+    ):
         self._store = store
         self._scheduler = scheduler
         self._invoker = invoker
+        self._checkpoint_processor = checkpoint_processor
         self._completion_events: dict[str, Event] = {}
 
     def start_execution(
@@ -464,8 +475,8 @@ class Executor(ExecutionObserver):
         self,
         execution_arn: str,
         checkpoint_token: str,
-        updates: list[OperationUpdate] | None = None,  # noqa: ARG002
-        client_token: str | None = None,  # noqa: ARG002
+        updates: list[OperationUpdate] | None = None,
+        client_token: str | None = None,
     ) -> CheckpointDurableExecutionResponse:
         """Process checkpoint for an execution.
 
@@ -489,19 +500,33 @@ class Executor(ExecutionObserver):
             msg: str = f"Invalid checkpoint token: {checkpoint_token}"
             raise InvalidParameterValueException(msg)
 
-        # TODO: Process operation updates using the checkpoint processor
-        # This would integrate with the existing checkpoint processing pipeline
+        # Process operation updates using the checkpoint processor
+        if updates:
+            checkpoint_output = self._checkpoint_processor.process_checkpoint(
+                checkpoint_token=checkpoint_token,
+                updates=updates,
+                client_token=client_token,
+            )
 
-        # Generate new checkpoint token
+            # Convert SDK CheckpointUpdatedExecutionState to testing library version
+            new_execution_state = None
+            if checkpoint_output.new_execution_state:
+                new_execution_state = CheckpointUpdatedExecutionState(
+                    operations=checkpoint_output.new_execution_state.operations,
+                    next_marker=checkpoint_output.new_execution_state.next_marker,
+                )
+
+            return CheckpointDurableExecutionResponse(
+                checkpoint_token=checkpoint_output.checkpoint_token,
+                new_execution_state=new_execution_state,
+            )
+
+        # Generate new checkpoint token for case with no updates
         new_checkpoint_token = execution.get_new_checkpoint_token()
-
-        # Get current execution state - for now return None (simplified implementation)
-        # In a full implementation, this would return CheckpointUpdatedExecutionState with operations
-        new_execution_state = None
 
         return CheckpointDurableExecutionResponse(
             checkpoint_token=new_checkpoint_token,
-            new_execution_state=new_execution_state,
+            new_execution_state=None,
         )
 
     def send_callback_success(
