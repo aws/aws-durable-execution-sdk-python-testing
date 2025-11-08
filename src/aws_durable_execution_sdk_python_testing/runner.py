@@ -500,7 +500,10 @@ class DurableFunctionTestRunner:
         self._service_client = InMemoryServiceClient(self._checkpoint_processor)
         self._invoker = InProcessInvoker(handler, self._service_client)
         self._executor = Executor(
-            store=self._store, scheduler=self._scheduler, invoker=self._invoker
+            store=self._store,
+            scheduler=self._scheduler,
+            invoker=self._invoker,
+            checkpoint_processor=self._checkpoint_processor,
         )
 
         # Wire up observer pattern - CheckpointProcessor uses this to notify executor of state changes
@@ -631,10 +634,19 @@ class WebRunner:
         self._scheduler = Scheduler()
         self._invoker = LambdaInvoker(self._create_boto3_client())
 
-        # Create executor with all dependencies
+        # Create shared CheckpointProcessor
+        checkpoint_processor = CheckpointProcessor(self._store, self._scheduler)
+
+        # Create executor with all dependencies including checkpoint processor
         self._executor = Executor(
-            store=self._store, scheduler=self._scheduler, invoker=self._invoker
+            store=self._store,
+            scheduler=self._scheduler,
+            invoker=self._invoker,
+            checkpoint_processor=checkpoint_processor,
         )
+
+        # Add executor as observer to the checkpoint processor
+        checkpoint_processor.add_execution_observer(self._executor)
 
         # Start the scheduler
         self._scheduler.start()

@@ -90,8 +90,13 @@ def mock_invoker():
 
 
 @pytest.fixture
-def executor(mock_store, mock_scheduler, mock_invoker):
-    return Executor(mock_store, mock_scheduler, mock_invoker)
+def mock_checkpoint_processor():
+    return Mock()
+
+
+@pytest.fixture
+def executor(mock_store, mock_scheduler, mock_invoker, mock_checkpoint_processor):
+    return Executor(mock_store, mock_scheduler, mock_invoker, mock_checkpoint_processor)
 
 
 @pytest.fixture
@@ -117,10 +122,12 @@ def mock_execution():
     return execution
 
 
-def test_init(mock_store, mock_scheduler, mock_invoker):
+def test_init(mock_store, mock_scheduler, mock_invoker, mock_checkpoint_processor):
     # Test that Executor can be constructed with dependencies
     # Dependency injection is implementation detail - test behavior instead
-    executor = Executor(mock_store, mock_scheduler, mock_invoker)
+    executor = Executor(
+        mock_store, mock_scheduler, mock_invoker, mock_checkpoint_processor
+    )
 
     # Verify executor is properly initialized by testing it can perform basic operations
     assert executor is not None

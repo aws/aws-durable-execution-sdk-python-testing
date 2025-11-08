@@ -687,9 +687,13 @@ def test_should_create_all_required_dependencies_during_start():
         mock_store_class.assert_called_once()
         mock_scheduler_class.assert_called_once()
         mock_invoker_class.assert_called_once_with(mock_client)
-        mock_executor_class.assert_called_once_with(
-            store=mock_store, scheduler=mock_scheduler, invoker=mock_invoker
-        )
+        # Verify Executor was called with the expected parameters including checkpoint_processor
+        assert mock_executor_class.call_count == 1
+        call_args = mock_executor_class.call_args
+        assert call_args.kwargs["store"] == mock_store
+        assert call_args.kwargs["scheduler"] == mock_scheduler
+        assert call_args.kwargs["invoker"] == mock_invoker
+        assert "checkpoint_processor" in call_args.kwargs
         mock_web_server_class.assert_called_once_with(
             config=web_config, executor=mock_executor
         )
@@ -825,9 +829,12 @@ def test_should_wire_dependencies_correctly_in_executor():
         runner.start()
 
         # Assert - Verify Executor was created with correct dependencies
-        mock_executor_class.assert_called_once_with(
-            store=mock_store, scheduler=mock_scheduler, invoker=mock_invoker
-        )
+        assert mock_executor_class.call_count == 1
+        call_args = mock_executor_class.call_args
+        assert call_args.kwargs["store"] == mock_store
+        assert call_args.kwargs["scheduler"] == mock_scheduler
+        assert call_args.kwargs["invoker"] == mock_invoker
+        assert "checkpoint_processor" in call_args.kwargs
 
         # Cleanup
         runner.stop()
