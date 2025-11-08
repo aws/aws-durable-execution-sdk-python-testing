@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from aws_durable_execution_sdk_python.config import Duration
 from aws_durable_execution_sdk_python.context import (
     DurableContext,
     durable_with_child_context,
@@ -55,7 +56,7 @@ def handler(_event: Any, context: DurableContext) -> dict[str, Any]:
     )
 
     # Add a wait after runInChildContext to test persistence across invocations
-    context.wait(seconds=1, name="post-processing-wait")
+    context.wait(Duration.from_seconds(1), name="post-processing-wait")
 
     # Verify the data is still intact after the wait
     data_integrity_check = (

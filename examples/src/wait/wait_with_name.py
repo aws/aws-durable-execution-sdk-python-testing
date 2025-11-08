@@ -1,5 +1,6 @@
 from typing import Any
 
+from aws_durable_execution_sdk_python.config import Duration
 from aws_durable_execution_sdk_python.context import DurableContext
 from aws_durable_execution_sdk_python.execution import durable_execution
 
@@ -7,5 +8,5 @@ from aws_durable_execution_sdk_python.execution import durable_execution
 @durable_execution
 def handler(_event: Any, context: DurableContext) -> str:
     # Wait with explicit name
-    context.wait(seconds=2, name="custom_wait")
+    context.wait(Duration.from_seconds(2), name="custom_wait")
     return "Wait with name completed"

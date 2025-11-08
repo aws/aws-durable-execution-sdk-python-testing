@@ -3,7 +3,7 @@
 from random import random
 from typing import Any
 
-from aws_durable_execution_sdk_python.config import StepConfig
+from aws_durable_execution_sdk_python.config import Duration, StepConfig
 from aws_durable_execution_sdk_python.context import DurableContext
 from aws_durable_execution_sdk_python.execution import durable_execution
 from aws_durable_execution_sdk_python.retries import (
@@ -60,7 +60,7 @@ def handler(event: Any, context: DurableContext) -> dict[str, Any]:
                 break
 
             # Wait 1 second until next poll
-            context.wait(seconds=1)
+            context.wait(Duration.from_seconds(1))
 
     except RuntimeError as e:
         # Retries exhausted
