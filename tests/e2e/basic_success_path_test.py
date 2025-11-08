@@ -3,6 +3,7 @@
 import json
 from typing import Any
 
+from aws_durable_execution_sdk_python.config import Duration
 from aws_durable_execution_sdk_python.context import (
     DurableContext,
     durable_step,
@@ -58,7 +59,7 @@ def test_basic_durable_function() -> None:
         result_one: str = context.step(one(1, 2))
         results.append(result_one)
 
-        context.wait(seconds=1)
+        context.wait(duration=Duration.from_seconds(5))
 
         result_two: str = context.run_in_child_context(two(3, 4))
         results.append(result_two)
