@@ -73,7 +73,7 @@ class JSONSerializer:
                 f"Failed to serialize data to JSON: {str(e)}"
             )
 
-    def _default_handler(self, obj: Any) -> str:
+    def _default_handler(self, obj: Any) -> float:
         """Handle non-permitive objects."""
         if isinstance(obj, datetime):
             return obj.timestamp()
