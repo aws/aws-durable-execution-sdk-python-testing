@@ -500,7 +500,6 @@ class Executor(ExecutionObserver):
             msg: str = f"Invalid checkpoint token: {checkpoint_token}"
             raise InvalidParameterValueException(msg)
 
-        # Process operation updates using the checkpoint processor
         if updates:
             checkpoint_output = self._checkpoint_processor.process_checkpoint(
                 checkpoint_token=checkpoint_token,
@@ -508,7 +507,6 @@ class Executor(ExecutionObserver):
                 client_token=client_token,
             )
 
-            # Convert SDK CheckpointUpdatedExecutionState to testing library version
             new_execution_state = None
             if checkpoint_output.new_execution_state:
                 new_execution_state = CheckpointUpdatedExecutionState(
@@ -521,11 +519,8 @@ class Executor(ExecutionObserver):
                 new_execution_state=new_execution_state,
             )
 
-        # Generate new checkpoint token for case with no updates
-        new_checkpoint_token = execution.get_new_checkpoint_token()
-
         return CheckpointDurableExecutionResponse(
-            checkpoint_token=new_checkpoint_token,
+            checkpoint_token=execution.get_new_checkpoint_token(),
             new_execution_state=None,
         )
 
