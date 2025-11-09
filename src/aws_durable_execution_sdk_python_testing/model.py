@@ -1985,20 +1985,24 @@ class CheckpointDurableExecutionRequest:
                     error=ErrorObject.from_dict(update_data["Error"])
                     if update_data.get("Error")
                     else None,
-                    context_options=ContextOptions(**update_data["ContextOptions"])
+                    context_options=ContextOptions.from_dict(
+                        update_data["ContextOptions"]
+                    )
                     if update_data.get("ContextOptions")
                     else None,
-                    step_options=StepOptions(**update_data["StepOptions"])
+                    step_options=StepOptions.from_dict(update_data["StepOptions"])
                     if update_data.get("StepOptions")
                     else None,
-                    wait_options=WaitOptions(**update_data["WaitOptions"])
+                    wait_options=WaitOptions.from_dict(update_data["WaitOptions"])
                     if update_data.get("WaitOptions")
                     else None,
-                    callback_options=CallbackOptions(**update_data["CallbackOptions"])
+                    callback_options=CallbackOptions.from_dict(
+                        update_data["CallbackOptions"]
+                    )
                     if update_data.get("CallbackOptions")
                     else None,
-                    chained_invoke_options=ChainedInvokeOptions(
-                        **update_data["ChainedInvokeOptions"]
+                    chained_invoke_options=ChainedInvokeOptions.from_dict(
+                        update_data["ChainedInvokeOptions"]
                     )
                     if update_data.get("ChainedInvokeOptions")
                     else None,
