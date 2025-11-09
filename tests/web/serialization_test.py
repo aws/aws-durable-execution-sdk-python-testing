@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     InvalidParameterValueException,
@@ -404,11 +404,11 @@ def test_serialize_simple_dict():
 def test_serialize_datetime():
     """Test serialization of datetime objects."""
     serializer = JSONSerializer()
-    now = datetime(2025, 11, 5, 16, 30, 9, 895000)
+    now = datetime(2025, 11, 5, 16, 30, 9, 895000, tzinfo=timezone.utc)
     data = {"timestamp": now}
 
     result = serializer.to_bytes(data)
-    expected = b'{"timestamp":1762378209.895}'
+    expected = b'{"timestamp":1762360209.895}'
 
     assert result == expected
     assert isinstance(result, bytes)
@@ -420,7 +420,7 @@ def test_serialize_datetime():
 def test_serialize_nested_datetime():
     """Test serialization of nested structures with datetime."""
     serializer = JSONSerializer()
-    now = datetime(2025, 11, 5, 16, 30, 9)
+    now = datetime(2025, 11, 5, 16, 30, 9, tzinfo=timezone.utc)
     data = {
         "event": "user_login",
         "timestamp": now,
@@ -430,9 +430,9 @@ def test_serialize_nested_datetime():
     result = serializer.to_bytes(data)
     expected = (
         b'{"event":"user_login",'
-        b'"timestamp":1762378209.0,'
-        b'"metadata":{"created_at":1762378209.0,'
-        b'"updated_at":1762378209.0}}'
+        b'"timestamp":1762360209.0,'
+        b'"metadata":{"created_at":1762360209.0,'
+        b'"updated_at":1762360209.0}}'
     )
 
     assert result == expected
@@ -445,7 +445,7 @@ def test_serialize_nested_datetime():
 def test_serialize_list_with_datetime():
     """Test serialization of list containing datetime."""
     serializer = JSONSerializer()
-    now = datetime(2025, 11, 5, 16, 30, 9)
+    now = datetime(2025, 11, 5, 16, 30, 9, tzinfo=timezone.utc)
     data = {
         "events": [{"time": now, "action": "login"}, {"time": now, "action": "logout"}]
     }
@@ -453,8 +453,8 @@ def test_serialize_list_with_datetime():
     result = serializer.to_bytes(data)
     expected = (
         b'{"events":['
-        b'{"time":1762378209.0,"action":"login"},'
-        b'{"time":1762378209.0,"action":"logout"}'
+        b'{"time":1762360209.0,"action":"login"},'
+        b'{"time":1762360209.0,"action":"logout"}'
         b"]}"
     )
 
@@ -468,7 +468,7 @@ def test_serialize_list_with_datetime():
 def test_serialize_mixed_types():
     """Test serialization of mixed data types."""
     serializer = JSONSerializer()
-    now = datetime(2025, 11, 5, 16, 30, 9)
+    now = datetime(2025, 11, 5, 16, 30, 9, tzinfo=timezone.utc)
     data = {
         "string": "test",
         "number": 42,
@@ -487,7 +487,7 @@ def test_serialize_mixed_types():
         b'"boolean":true,'
         b'"null":null,'
         b'"list":[1,2,3],'
-        b'"datetime":1762378209.0}'
+        b'"datetime":1762360209.0}'
     )
 
     assert result == expected
@@ -546,11 +546,11 @@ def test_serialize_circular_reference_raises_exception():
 def test_serialize_datetime_with_microseconds():
     """Test serialization of datetime with microseconds."""
     serializer = JSONSerializer()
-    now = datetime(2025, 11, 5, 16, 30, 9, 123456)
+    now = datetime(2025, 11, 5, 16, 30, 9, 123456, tzinfo=timezone.utc)
     data = {"timestamp": now}
 
     result = serializer.to_bytes(data)
-    expected = b'{"timestamp":1762378209.123456}'
+    expected = b'{"timestamp":1762360209.123456}'
 
     assert result == expected
 
@@ -558,11 +558,11 @@ def test_serialize_datetime_with_microseconds():
 def test_serialize_datetime_without_microseconds():
     """Test serialization of datetime without microseconds."""
     serializer = JSONSerializer()
-    now = datetime(2025, 11, 5, 16, 30, 9)
+    now = datetime(2025, 11, 5, 16, 30, 9, tzinfo=timezone.utc)
     data = {"timestamp": now}
 
     result = serializer.to_bytes(data)
-    expected = b'{"timestamp":1762378209.0}'
+    expected = b'{"timestamp":1762360209.0}'
 
     assert result == expected
 
@@ -570,11 +570,11 @@ def test_serialize_datetime_without_microseconds():
 def test_serialize_multiple_datetimes():
     """Test multiple datetime objects."""
     serializer = JSONSerializer()
-    dt1 = datetime(2025, 1, 1, 0, 0, 0)
-    dt2 = datetime(2025, 12, 31, 23, 59, 59)
+    dt1 = datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    dt2 = datetime(2025, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
     data = {"start": dt1, "end": dt2}
     result = serializer.to_bytes(data)
-    expected = b'{"start":1735707600.0,"end":1767243599.0}'
+    expected = b'{"start":1735689600.0,"end":1767225599.0}'
 
     assert result == expected
