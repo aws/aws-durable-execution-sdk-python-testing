@@ -1,4 +1,4 @@
-"""Example demonstrating map operations for processing collections durably."""
+"""Example demonstrating map with maxConcurrency limit."""
 
 from typing import Any
 
@@ -9,15 +9,15 @@ from aws_durable_execution_sdk_python.execution import durable_execution
 
 @durable_execution
 def handler(_event: Any, context: DurableContext) -> list[int]:
-    """Process a list of items using context.map()."""
-    items = [1, 2, 3, 4, 5]
+    """Process items with concurrency limit of 3."""
+    items = list(range(1, 11))  # [1, 2, 3, ..., 10]
 
-    # Use context.map() to process items concurrently and extract results immediately
+    # Extract results immediately to avoid BatchResult serialization
     return context.map(
         inputs=items,
         func=lambda ctx, item, index, _: ctx.step(
-            lambda _: item * 2, name=f"map_item_{index}"
+            lambda _: item * 3, name=f"process_{index}"
         ),
-        name="map_operation",
-        config=MapConfig(max_concurrency=2),
+        name="map_with_concurrency",
+        config=MapConfig(max_concurrency=3),
     ).get_results()

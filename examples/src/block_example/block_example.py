@@ -7,13 +7,14 @@ from aws_durable_execution_sdk_python.context import (
     durable_with_child_context,
 )
 from aws_durable_execution_sdk_python.execution import durable_execution
+from aws_durable_execution_sdk_python.config import Duration
 
 
 @durable_with_child_context
 def nested_block(ctx: DurableContext) -> str:
     """Nested block with its own child context."""
     # Wait in the nested block
-    ctx.wait(seconds=1)
+    ctx.wait(Duration.from_seconds(1))
     return "nested block result"
 
 

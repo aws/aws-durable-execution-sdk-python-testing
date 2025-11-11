@@ -29,6 +29,7 @@ dist/
 .kiro/
 .idea
 .env
+.env*
 
 .durable_executions
 

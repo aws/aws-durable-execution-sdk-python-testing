@@ -187,6 +187,127 @@
         "ExecutionTimeout": 300
       },
       "path": "./src/simple_execution/simple_execution.py"
+    },
+    {
+      "name": "Map with Max Concurrency",
+      "description": "Map operation with maxConcurrency limit",
+      "handler": "map_with_max_concurrency.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/map/map_with_max_concurrency.py"
+    },
+    {
+      "name": "Map with Min Successful",
+      "description": "Map operation with min_successful completion config",
+      "handler": "map_with_min_successful.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/map/map_with_min_successful.py"
+    },
+    {
+      "name": "Map with Failure Tolerance",
+      "description": "Map operation with failure tolerance",
+      "handler": "map_with_failure_tolerance.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/map/map_with_failure_tolerance.py"
+    },
+    {
+      "name": "Parallel with Max Concurrency",
+      "description": "Parallel operation with maxConcurrency limit",
+      "handler": "parallel_with_max_concurrency.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/parallel/parallel_with_max_concurrency.py"
+    },
+    {
+      "name": "Parallel with Wait",
+      "description": "Parallel operation with wait operations in branches",
+      "handler": "parallel_with_wait.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/parallel/parallel_with_wait.py"
+    },
+    {
+      "name": "Parallel with Failure Tolerance",
+      "description": "Parallel operation with failure tolerance",
+      "handler": "parallel_with_failure_tolerance.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/parallel/parallel_with_failure_tolerance.py"
+    },
+    {
+      "name": "Map with Custom SerDes",
+      "description": "Map operation with custom item-level serialization",
+      "handler": "map_with_custom_serdes.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/map/map_with_custom_serdes.py"
+    },
+    {
+      "name": "Map with Batch SerDes",
+      "description": "Map operation with custom batch-level serialization",
+      "handler": "map_with_batch_serdes.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/map/map_with_batch_serdes.py"
+    },
+    {
+      "name": "Parallel with Custom SerDes",
+      "description": "Parallel operation with custom item-level serialization",
+      "handler": "parallel_with_custom_serdes.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/parallel/parallel_with_custom_serdes.py"
+    },
+    {
+      "name": "Parallel with Batch SerDes",
+      "description": "Parallel operation with custom batch-level serialization",
+      "handler": "parallel_with_batch_serdes.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/parallel/parallel_with_batch_serdes.py"
+    },
+    {
+      "name": "Handler Error",
+      "description": "Simple function with handler error",
+      "handler": "handler_error.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/handler_error/handler_error.py"
     }
   ]
 }

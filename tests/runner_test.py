@@ -1331,12 +1331,31 @@ def test_cloud_runner_run_function_error(mock_boto3):
         "StatusCode": 200,
         "FunctionError": "Unhandled",
         "Payload": Mock(read=lambda: b'{"errorMessage": "Function failed"}'),
+        "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
     }
 
-    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    mock_client.get_durable_execution.return_value = {
+        "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+        "DurableExecutionName": "test-execution",
+        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:test",
+        "Status": "FAILED",
+        "StartTimestamp": "2023-01-01T00:00:00Z",
+        "EndTimestamp": "2023-01-01T00:01:00Z",
+        "Error": {"ErrorMessage": "execution failed"},
+    }
 
-    with pytest.raises(DurableFunctionsTestError, match="Lambda function failed"):
-        runner.run(input="test-input")
+    mock_client.get_durable_execution_history.return_value = {
+        "Events": [
+            {
+                "EventType": "ExecutionStarted",
+                "EventTimestamp": "2023-01-01T00:00:00Z",
+                "Id": "exec-1",
+            }
+        ]
+    }
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    result = runner.run(input="test-input")
+    assert result.status is InvocationStatus.FAILED
 
 
 @patch("aws_durable_execution_sdk_python_testing.runner.boto3")

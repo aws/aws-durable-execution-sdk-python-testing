@@ -20,6 +20,7 @@ from aws_durable_execution_sdk_python_testing.runner import (
     DurableFunctionTestRunner,
     StepOperation,
 )
+from aws_durable_execution_sdk_python.config import Duration
 
 
 # brazil-test-exec pytest test/runner_int_test.py
@@ -58,7 +59,7 @@ def test_basic_durable_function() -> None:
         result_one: str = context.step(one(1, 2))
         results.append(result_one)
 
-        context.wait(seconds=1)
+        context.wait(Duration.from_seconds(1))
 
         result_two: str = context.run_in_child_context(two(3, 4))
         results.append(result_two)
