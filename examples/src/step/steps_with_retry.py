@@ -1,10 +1,10 @@
 """Example demonstrating multiple steps with retry logic."""
 
-from random import random
+from itertools import count
 from typing import Any
 
-from aws_durable_execution_sdk_python.config import StepConfig, Duration
-from aws_durable_execution_sdk_python.context import DurableContext
+from aws_durable_execution_sdk_python.config import Duration, StepConfig
+from aws_durable_execution_sdk_python.context import DurableContext, StepContext
 from aws_durable_execution_sdk_python.execution import durable_execution
 from aws_durable_execution_sdk_python.retries import (
     RetryStrategyConfig,
@@ -12,18 +12,26 @@ from aws_durable_execution_sdk_python.retries import (
 )
 
 
-def simulated_get_item(name: str) -> dict[str, Any] | None:
-    """Simulate getting an item that may fail randomly."""
-    # Fail 50% of the time
-    if random() < 0.5:  # noqa: S311
+# Counter for deterministic behavior across retries
+_attempts = count(1)  # starts from 1
+
+
+def simulated_get_item(_step_context: StepContext, name: str) -> dict[str, Any] | None:
+    """Simulate getting an item with deterministic counter-based behavior."""
+    # Use counter for deterministic behavior
+    attempt = next(_attempts)
+
+    # Fail on first attempt
+    if attempt == 1:
         msg = "Random failure"
         raise RuntimeError(msg)
 
-    # Simulate finding item after some attempts
-    if random() > 0.3:  # noqa: S311
-        return {"id": name, "data": "item data"}
+    # Return None on second attempt (poll 1)
+    if attempt == 2:
+        return None
 
-    return None
+    # Return item on third attempt (poll 2, after retry)
+    return {"id": name, "data": "item data"}
 
 
 @durable_execution
@@ -49,7 +57,7 @@ def handler(event: Any, context: DurableContext) -> dict[str, Any]:
 
             # Try to get the item with retry
             get_response = context.step(
-                lambda _, n=name: simulated_get_item(n),
+                lambda _, n=name: simulated_get_item(_, n),
                 name=f"get_item_poll_{poll_count}",
                 config=step_config,
             )

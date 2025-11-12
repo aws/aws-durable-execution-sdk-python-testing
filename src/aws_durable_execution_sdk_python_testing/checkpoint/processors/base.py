@@ -12,6 +12,7 @@ from aws_durable_execution_sdk_python.lambda_service import (
     ContextDetails,
     ExecutionDetails,
     Operation,
+    OperationAction,
     OperationStatus,
     OperationType,
     OperationUpdate,
@@ -72,9 +73,15 @@ class OperationProcessor:
         )
 
     def _create_step_details(
-        self, update: OperationUpdate, current_operation: Operation | None = None
+        self,
+        update: OperationUpdate,
+        current_operation: Operation | None = None,
     ) -> StepDetails | None:
-        """Create StepDetails from OperationUpdate."""
+        """Create StepDetails from OperationUpdate.
+
+        Automatically increments attempt count for RETRY, SUCCEED, and FAIL actions.
+        """
+
         attempt: int = 0
         next_attempt_timestamp: datetime.datetime | None = None
 
@@ -84,6 +91,13 @@ class OperationProcessor:
                 next_attempt_timestamp = (
                     current_operation.step_details.next_attempt_timestamp
                 )
+            # Increment attempt for RETRY, SUCCEED, and FAIL actions
+            if update.action in {
+                OperationAction.RETRY,
+                OperationAction.SUCCEED,
+                OperationAction.FAIL,
+            }:
+                attempt += 1
             return StepDetails(
                 attempt=attempt,
                 next_attempt_timestamp=next_attempt_timestamp,
