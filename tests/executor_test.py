@@ -2216,7 +2216,7 @@ def test_send_callback_success(executor, mock_store):
     mock_execution.complete_callback_success.return_value = Mock()
     mock_store.load.return_value = mock_execution
 
-    with patch.object(executor, "_invoke_execution"):
+    with patch.object(executor, "_invoke_execution") as mock_invoke:
         result = executor.send_callback_success(callback_id, b"success-result")
 
     assert isinstance(result, SendDurableExecutionCallbackSuccessResponse)
@@ -2225,6 +2225,8 @@ def test_send_callback_success(executor, mock_store):
         callback_id, b"success-result"
     )
     mock_store.update.assert_called_once_with(mock_execution)
+    # Verify execution is invoked after callback success
+    mock_invoke.assert_called_once_with("test-arn")
 
 
 def test_send_callback_success_empty_callback_id(executor):
@@ -2253,10 +2255,15 @@ def test_send_callback_success_with_result(executor, mock_store):
     mock_execution.complete_callback_success.return_value = Mock()
     mock_store.load.return_value = mock_execution
 
-    with patch.object(executor, "_invoke_execution"):
+    with patch.object(executor, "_invoke_execution") as mock_invoke:
         result = executor.send_callback_success(callback_id, b"test-result")
 
     assert isinstance(result, SendDurableExecutionCallbackSuccessResponse)
+    mock_execution.complete_callback_success.assert_called_once_with(
+        callback_id, b"test-result"
+    )
+    # Verify execution is invoked after callback success
+    mock_invoke.assert_called_once_with("test-arn")
 
 
 def test_send_callback_failure(executor, mock_store):
@@ -2273,12 +2280,14 @@ def test_send_callback_failure(executor, mock_store):
     mock_execution.complete_callback_failure.return_value = Mock()
     mock_store.load.return_value = mock_execution
 
-    with patch.object(executor, "_invoke_execution"):
+    with patch.object(executor, "_invoke_execution") as mock_invoke:
         result = executor.send_callback_failure(callback_id)
 
     assert isinstance(result, SendDurableExecutionCallbackFailureResponse)
     mock_store.load.assert_called_once_with("test-arn")
     mock_store.update.assert_called_once_with(mock_execution)
+    # Verify execution is invoked after callback failure
+    mock_invoke.assert_called_once_with("test-arn")
 
 
 def test_send_callback_failure_empty_callback_id(executor):
@@ -2306,11 +2315,13 @@ def test_send_callback_failure_with_error(executor, mock_store):
     mock_store.load.return_value = mock_execution
 
     error = ErrorObject.from_message("Test callback error")
-    with patch.object(executor, "_invoke_execution"):
+    with patch.object(executor, "_invoke_execution") as mock_invoke:
         result = executor.send_callback_failure(callback_id, error)
 
     assert isinstance(result, SendDurableExecutionCallbackFailureResponse)
     mock_execution.complete_callback_failure.assert_called_once_with(callback_id, error)
+    # Verify execution is invoked after callback failure
+    mock_invoke.assert_called_once_with("test-arn")
 
 
 def test_send_callback_heartbeat(executor, mock_store):

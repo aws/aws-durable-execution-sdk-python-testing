@@ -71,15 +71,15 @@ class CheckpointProcessor:
             execution_arn=token.execution_arn,
         )
 
-        # 5. Save update
+        # 5. Generate a new checkpoint token and save updated operations
+        new_checkpoint_token = execution.get_new_checkpoint_token()
         execution.operations = updated_operations
         execution.updates.extend(all_updates)
-
         self._store.update(execution)
 
         # 6. Return checkpoint result
         return CheckpointOutput(
-            checkpoint_token=execution.get_new_checkpoint_token(),
+            checkpoint_token=new_checkpoint_token,
             new_execution_state=CheckpointUpdatedExecutionState(
                 operations=execution.get_navigable_operations(), next_marker=None
             ),

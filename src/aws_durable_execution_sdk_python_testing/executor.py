@@ -28,6 +28,7 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
     ResourceNotFoundException,
 )
 from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.exceptions import IllegalStateException
 from aws_durable_execution_sdk_python_testing.model import (
     CheckpointDurableExecutionResponse,
     CheckpointUpdatedExecutionState,
@@ -611,8 +612,12 @@ class Executor(ExecutionObserver):
                 new_execution_state=new_execution_state,
             )
 
+        # Save execution state after generating new token
+        new_checkpoint_token = execution.get_new_checkpoint_token()
+        self._store.update(execution)
+
         return CheckpointDurableExecutionResponse(
-            checkpoint_token=execution.get_new_checkpoint_token(),
+            checkpoint_token=new_checkpoint_token,
             new_execution_state=None,
         )
 
@@ -644,6 +649,7 @@ class Executor(ExecutionObserver):
             execution.complete_callback_success(callback_id, result)
             self._store.update(execution)
             self._cleanup_callback_timeouts(callback_id)
+            self._invoke_execution(callback_token.execution_arn)
             logger.info("Callback success completed for callback_id: %s", callback_id)
         except Exception as e:
             msg = f"Failed to process callback success: {e}"
@@ -681,6 +687,7 @@ class Executor(ExecutionObserver):
             execution.complete_callback_failure(callback_id, callback_error)
             self._store.update(execution)
             self._cleanup_callback_timeouts(callback_id)
+            self._invoke_execution(callback_token.execution_arn)
             logger.info("Callback failure completed for callback_id: %s", callback_id)
         except Exception as e:
             msg = f"Failed to process callback failure: {e}"
@@ -944,7 +951,7 @@ class Executor(ExecutionObserver):
 
     def fail_execution(self, execution_arn: str, error: ErrorObject) -> None:
         """Fail execution with error."""
-        logger.exception("[%s] Completing execution with error.", execution_arn)
+        logger.error("[%s] Completing execution with error: %s", execution_arn, error)
         execution: Execution = self._store.load(execution_arn=execution_arn)
         execution.complete_fail(error=error)
         self._store.update(execution)
@@ -1190,9 +1197,8 @@ class Executor(ExecutionObserver):
                 f"Callback timed out: {CallbackTimeoutType.TIMEOUT.value}"
             )
             execution.complete_callback_failure(callback_id, timeout_error)
+            execution.complete_fail(timeout_error)
             self._store.update(execution)
-            self._invoke_execution(execution_arn)
-
             logger.warning("[%s] Callback %s timed out", execution_arn, callback_id)
         except Exception:
             logger.exception(
@@ -1218,9 +1224,8 @@ class Executor(ExecutionObserver):
                 f"Callback heartbeat timed out: {CallbackTimeoutType.HEARTBEAT.value}"
             )
             execution.complete_callback_failure(callback_id, heartbeat_error)
+            execution.complete_fail(heartbeat_error)
             self._store.update(execution)
-            self._invoke_execution(execution_arn)
-
             logger.warning(
                 "[%s] Callback %s heartbeat timed out", execution_arn, callback_id
             )
