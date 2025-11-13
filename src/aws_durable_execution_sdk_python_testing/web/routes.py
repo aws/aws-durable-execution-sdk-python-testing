@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import unquote
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     UnknownRouteError,
@@ -444,7 +445,7 @@ class CallbackSuccessRoute(BytesPayloadRoute):
         return cls(
             raw_path=route.raw_path,
             segments=route.segments,
-            callback_id=route.segments[2],
+            callback_id=unquote(route.segments[2]),
         )
 
 
@@ -487,7 +488,7 @@ class CallbackFailureRoute(BytesPayloadRoute):
         return cls(
             raw_path=route.raw_path,
             segments=route.segments,
-            callback_id=route.segments[2],
+            callback_id=unquote(route.segments[2]),
         )
 
 
@@ -530,7 +531,7 @@ class CallbackHeartbeatRoute(Route):
         return cls(
             raw_path=route.raw_path,
             segments=route.segments,
-            callback_id=route.segments[2],
+            callback_id=unquote(route.segments[2]),
         )
 
 

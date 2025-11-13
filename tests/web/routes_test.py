@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+from urllib.parse import quote
 
 import pytest
 
@@ -1112,3 +1113,60 @@ def test_router_thread_safety():
     # Check results
     assert len(errors) == 0, f"Thread safety test failed with errors: {errors}"
     assert len(results) == 5, f"Expected 5 successful workers, got {len(results)}"
+
+
+def test_callback_routes_url_decoding():
+    """Test that callback routes properly URL-decode callback IDs."""
+    # Test callback ID with special characters that need URL encoding
+    callback_id = "eyJhcm4iOiJhcm4iLCJvcCI6ImVhNjZjMDZjMWUxYzA1ZmEifQ=="
+    encoded_callback_id = quote(callback_id, safe="")
+
+    # Test CallbackSuccessRoute
+    base_route = Route.from_string(
+        f"/2025-12-01/durable-execution-callbacks/{encoded_callback_id}/succeed"
+    )
+    success_route = CallbackSuccessRoute.from_route(base_route)
+    assert success_route.callback_id == callback_id  # Should be decoded
+
+    # Test CallbackFailureRoute
+    base_route = Route.from_string(
+        f"/2025-12-01/durable-execution-callbacks/{encoded_callback_id}/fail"
+    )
+    failure_route = CallbackFailureRoute.from_route(base_route)
+    assert failure_route.callback_id == callback_id  # Should be decoded
+
+    # Test CallbackHeartbeatRoute
+    base_route = Route.from_string(
+        f"/2025-12-01/durable-execution-callbacks/{encoded_callback_id}/heartbeat"
+    )
+    heartbeat_route = CallbackHeartbeatRoute.from_route(base_route)
+    assert heartbeat_route.callback_id == callback_id  # Should be decoded
+
+
+def test_router_callback_routes_url_decoding():
+    """Test Router properly handles URL-encoded callback IDs."""
+    router = Router()
+    callback_id = "eyJhcm4iOiJhcm4iLCJvcCI6ImVhNjZjMDZjMWUxYzA1ZmEifQ=="
+    encoded_callback_id = quote(callback_id, safe="")
+
+    # Test success route
+    route = router.find_route(
+        f"/2025-12-01/durable-execution-callbacks/{encoded_callback_id}/succeed", "POST"
+    )
+    assert isinstance(route, CallbackSuccessRoute)
+    assert route.callback_id == callback_id  # Should be decoded
+
+    # Test failure route
+    route = router.find_route(
+        f"/2025-12-01/durable-execution-callbacks/{encoded_callback_id}/fail", "POST"
+    )
+    assert isinstance(route, CallbackFailureRoute)
+    assert route.callback_id == callback_id  # Should be decoded
+
+    # Test heartbeat route
+    route = router.find_route(
+        f"/2025-12-01/durable-execution-callbacks/{encoded_callback_id}/heartbeat",
+        "POST",
+    )
+    assert isinstance(route, CallbackHeartbeatRoute)
+    assert route.callback_id == callback_id  # Should be decoded
