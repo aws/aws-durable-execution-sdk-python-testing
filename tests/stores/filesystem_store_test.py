@@ -12,7 +12,10 @@ from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
 from aws_durable_execution_sdk_python_testing.stores.filesystem import (
     FileSystemExecutionStore,
+    datetime_object_hook,
 )
+
+from datetime import datetime, timezone
 
 
 @pytest.fixture
@@ -264,3 +267,16 @@ def test_filesystem_execution_store_thread_safety_basic(store, sample_execution)
     store.save(sample_execution)
     loaded = store.load(sample_execution.durable_execution_arn)
     assert loaded.durable_execution_arn == sample_execution.durable_execution_arn
+
+
+def test_datetime_object_hook_converts_timestamp_fields():
+    """Test conversion of timestamp fields to datetime objects."""
+    timestamp = 1672531200.0  # 2023-01-01 00:00:00 UTC
+    obj = {
+        "start_timestamp": timestamp,
+    }
+
+    result = datetime_object_hook(obj)
+
+    expected_datetime = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    assert result["start_timestamp"] == expected_datetime

@@ -1617,3 +1617,499 @@ def test_cloud_runner_wait_for_completion_aborted_status(mock_boto3):
     result = runner._wait_for_completion("test-arn", timeout=10)
 
     assert result.status == "ABORTED"
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_run_async_success(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.run_async with successful invocation."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.invoke.return_value = {
+        "StatusCode": 202,
+        "Payload": Mock(read=lambda: b'{"result": "success"}'),
+        "DurableExecutionArn": "arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1",
+    }
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    execution_arn = runner.run_async(input="test-input")
+
+    assert (
+        execution_arn
+        == "arn:aws:lambda:us-east-1:123456789012:function:test:execution:exec-1"
+    )
+    mock_client.invoke.assert_called_once_with(
+        FunctionName="test-function",
+        InvocationType="Event",
+        Payload='"test-input"',
+    )
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_run_async_with_400(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.run_async with successful invocation."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.invoke.return_value = {
+        "StatusCode": 400,
+        "Payload": Mock(read=lambda: b'{"result": "failed"}'),
+    }
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Lambda invocation failed with status 400"
+    ):
+        runner.run_async(input="test-input")
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_run_async_failure(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.run_async with invocation failure."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+    mock_client.invoke.side_effect = Exception("Async invoke failed")
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Failed to invoke Lambda function"
+    ):
+        runner.run_async(input="test-input")
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_send_callback_success(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.send_callback_success."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    runner.send_callback_success("callback-123")
+
+    mock_client.send_durable_execution_callback_success.assert_called_once_with(
+        CallbackId="callback-123"
+    )
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_send_callback_failure(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.send_callback_failure."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    runner.send_callback_failure("callback-123")
+
+    mock_client.send_durable_execution_callback_failure.assert_called_once_with(
+        CallbackId="callback-123"
+    )
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_send_callback_heartbeat(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.send_callback_heartbeat."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    runner.send_callback_heartbeat("callback-123")
+
+    mock_client.send_durable_execution_callback_heartbeat.assert_called_once_with(
+        CallbackId="callback-123"
+    )
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_send_callback_error(mock_boto3):
+    """Test DurableFunctionCloudTestRunner callback methods with API errors."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+    mock_client.send_durable_execution_callback_success.side_effect = Exception(
+        "API error"
+    )
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Failed to send callback success"
+    ):
+        runner.send_callback_success("callback-123")
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_callback_success(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.wait_for_callback success."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.get_durable_execution_history.return_value = {
+        "Events": [
+            {
+                "EventType": "CallbackStarted",
+                "EventTimestamp": "2023-01-01T00:00:00Z",
+                "Id": "callback-event-1",
+                "Name": "test-callback",
+                "CallbackStartedDetails": {"CallbackId": "callback-123"},
+            }
+        ]
+    }
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function", poll_interval=0.01
+    )
+    callback_id = runner.wait_for_callback("test-arn", name="test-callback", timeout=10)
+
+    assert callback_id == "callback-123"
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_callback_none(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.wait_for_callback none."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.get_durable_execution_history.return_value = {
+        "Events": [
+            {
+                "EventType": "CallbackStarted",
+                "EventTimestamp": "2023-01-01T00:00:00Z",
+                "Id": "callback-event-1",
+                "Name": "test-callback",
+                "CallbackStartedDetails": {"CallbackId": "callback-123"},
+            }
+        ]
+    }
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function", poll_interval=0.01
+    )
+
+    with pytest.raises(TimeoutError, match="Callback did not available within"):
+        runner.wait_for_callback("test-arn", name="test-callback1", timeout=2)
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_callback_success_without_name(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.wait_for_callback success."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.get_durable_execution_history.return_value = {
+        "Events": [
+            {
+                "EventType": "CallbackStarted",
+                "EventTimestamp": "2023-01-01T00:00:00Z",
+                "Id": "callback-event-1",
+                "Name": "test-callback",
+                "CallbackStartedDetails": {"CallbackId": "callback-123"},
+            }
+        ]
+    }
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function", poll_interval=0.01
+    )
+    callback_id = runner.wait_for_callback("test-arn")
+
+    assert callback_id == "callback-123"
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_callback_all_done_without_name(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.wait_for_callback all_done_without_name."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.get_durable_execution_history.return_value = {
+        "Events": [
+            {
+                "EventType": "CallbackStarted",
+                "EventTimestamp": "2023-01-01T00:00:00Z",
+                "Id": "callback-event-1",
+                "Name": "test-callback",
+                "CallbackStartedDetails": {"CallbackId": "callback-123"},
+            },
+            {
+                "EventType": "CallbackSucceeded",
+                "EventTimestamp": "2023-01-01T00:05:00Z",
+                "Id": "callback-event-1",
+                "Name": "test-callback",
+            },
+        ]
+    }
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function", poll_interval=0.01
+    )
+    with pytest.raises(TimeoutError, match="Callback did not available within"):
+        runner.wait_for_callback("test-arn", timeout=2)
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+@patch("aws_durable_execution_sdk_python_testing.runner.time")
+def test_cloud_runner_wait_for_callback_timeout(mock_time, mock_boto3):
+    """Test DurableFunctionCloudTestRunner.wait_for_callback timeout."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+    mock_time.time.side_effect = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+
+    mock_client.get_durable_execution_history.return_value = {"Events": []}
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function", poll_interval=0.01
+    )
+
+    with pytest.raises(TimeoutError, match="Callback did not available within"):
+        runner.wait_for_callback("test-arn", timeout=2)
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_callback_already_completed(mock_boto3):
+    """Test DurableFunctionCloudTestRunner.wait_for_callback already completed."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.get_durable_execution_history.return_value = {
+        "Events": [
+            {
+                "EventType": "CallbackStarted",
+                "EventTimestamp": "2023-01-01T00:00:00Z",
+                "Id": "callback-event-1",
+                "Name": "test-callback",
+                "CallbackStartedDetails": {"CallbackId": "callback-123"},
+            },
+            {
+                "EventType": "CallbackSucceeded",
+                "EventTimestamp": "2023-01-01T00:05:00Z",
+                "Id": "callback-event-1",
+                "Name": "test-callback",
+            },
+        ]
+    }
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function", poll_interval=0.01
+    )
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Callback test-callback has already completed"
+    ):
+        runner.wait_for_callback("test-arn", "test-callback", timeout=2)
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_callback_client_error_retryable(mock_boto3):
+    """Test wait_for_callback with retryable ClientError."""
+    from botocore.exceptions import ClientError  # type: ignore
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    # First call raises ResourceNotFoundException, second succeeds
+    mock_client.get_durable_execution_history.side_effect = [
+        ClientError(
+            error_response={"Error": {"Code": "ResourceNotFoundException"}},
+            operation_name="GetDurableExecutionHistory",
+        ),
+        {
+            "Events": [
+                {
+                    "EventType": "CallbackStarted",
+                    "EventTimestamp": "2023-01-01T00:00:00Z",
+                    "Id": "callback-event-1",
+                    "Name": "test-callback",
+                    "CallbackStartedDetails": {"CallbackId": "callback-123"},
+                }
+            ]
+        },
+    ]
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function", poll_interval=0.01
+    )
+    callback_id = runner.wait_for_callback("test-arn", name="test-callback", timeout=10)
+
+    assert callback_id == "callback-123"
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_callback_client_error_non_retryable(
+    mock_boto3,
+):
+    """Test wait_for_callback with non-retryable ClientError."""
+    from botocore.exceptions import ClientError
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.get_durable_execution_history.side_effect = ClientError(
+        error_response={"Error": {"Code": "AccessDeniedException"}},
+        operation_name="GetDurableExecutionHistory",
+    )
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Failed to fetch execution history"
+    ):
+        runner.wait_for_callback("test-arn", timeout=10)
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_callback_generic_exception(mock_boto3):
+    """Test wait_for_callback with generic Exception."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    mock_client.get_durable_execution_history.side_effect = Exception("Network error")
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+
+    with pytest.raises(
+        DurableFunctionsTestError, match="Failed to fetch execution history"
+    ):
+        runner.wait_for_callback("test-arn", timeout=10)
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_result_fetch_history_exception(mock_boto3):
+    """Test wait_for_result with exception in _fetch_execution_history."""
+    from aws_durable_execution_sdk_python_testing.exceptions import (
+        DurableFunctionsTestError,
+    )
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    # Mock successful _wait_for_completion
+    mock_execution_response = Mock()
+    mock_execution_response.status = "SUCCEEDED"
+
+    # Mock _fetch_execution_history to raise exception
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    runner._wait_for_completion = Mock(return_value=mock_execution_response)
+    runner._fetch_execution_history = Mock(
+        side_effect=Exception("History fetch failed")
+    )
+
+    with pytest.raises(
+        DurableFunctionsTestError,
+        match="Failed to fetch execution history: History fetch failed",
+    ):
+        runner.wait_for_result("test-arn", timeout=60)
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.boto3")
+def test_cloud_runner_wait_for_result_success(mock_boto3):
+    """Test wait_for_result successful execution."""
+    from aws_durable_execution_sdk_python.execution import InvocationStatus
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    mock_client = Mock()
+    mock_boto3.client.return_value = mock_client
+
+    # Mock successful responses
+    mock_execution_response = Mock()
+    mock_execution_response.status = "SUCCEEDED"
+    mock_history_response = Mock()
+    mock_history_response.events = []
+
+    runner = DurableFunctionCloudTestRunner(function_name="test-function")
+    runner._wait_for_completion = Mock(return_value=mock_execution_response)
+    runner._fetch_execution_history = Mock(return_value=mock_history_response)
+
+    # Mock the from_execution_history method
+    with patch(
+        "aws_durable_execution_sdk_python_testing.runner.DurableFunctionTestResult.from_execution_history"
+    ) as mock_from_history:
+        mock_result = Mock()
+        mock_result.status = InvocationStatus.SUCCEEDED
+        mock_from_history.return_value = mock_result
+
+        result = runner.wait_for_result("test-arn", timeout=60)
+
+        assert result.status == InvocationStatus.SUCCEEDED
+        mock_from_history.assert_called_once_with(
+            mock_execution_response, mock_history_response
+        )

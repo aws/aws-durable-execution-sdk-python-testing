@@ -105,6 +105,36 @@ class TestRunnerAdapter:
         """Execute the durable function and return results."""
         return self._runner.run(input=input, timeout=timeout)
 
+    def run_async(
+        self,
+        input: str | None = None,  # noqa: A002
+        timeout: int = 60,
+    ) -> str:
+        return self._runner.run_async(input=input, timeout=timeout)
+
+    def send_callback_success(self, callback_id: str) -> None:
+        self._runner.send_callback_success(callback_id=callback_id)
+
+    def send_callback_failure(self, callback_id: str) -> None:
+        self._runner.send_callback_failure(callback_id=callback_id)
+
+    def send_callback_heartbeat(self, callback_id: str) -> None:
+        self._runner.send_callback_heartbeat(callback_id=callback_id)
+
+    def wait_for_result(
+        self, execution_arn: str, timeout: int = 60
+    ) -> DurableFunctionTestResult:
+        return self._runner.wait_for_result(
+            execution_arn=execution_arn, timeout=timeout
+        )
+
+    def wait_for_callback(
+        self, execution_arn: str, name: str | None = None, timeout: int = 60
+    ) -> str:
+        return self._runner.wait_for_callback(
+            execution_arn=execution_arn, name=name, timeout=timeout
+        )
+
     @property
     def mode(self) -> str:
         """Get the runner mode (local or cloud)."""
