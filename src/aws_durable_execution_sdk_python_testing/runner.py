@@ -558,6 +558,15 @@ class DurableFunctionTestRunner:
         execution: Execution = self._store.load(output.execution_arn)
         return DurableFunctionTestResult.create(execution=execution)
 
+    def send_callback_success(self, callback_id: str, result: bytes):
+        self._executor.send_callback_success(callback_id=callback_id, result=result)
+
+    def send_callback_failure(self, callback_id: str, error: ErrorObject | None):
+        self._executor.send_callback_failure(callback_id=callback_id, error=error)
+
+    def send_callback_heartbeat(self, callback_id: str):
+        self._executor.send_callback_heartbeat(callback_id=callback_id)
+
 
 class DurableChildContextTestRunner(DurableFunctionTestRunner):
     """Test a durable block, annotated with @durable_with_child_context, in isolation."""

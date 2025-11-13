@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from aws_durable_execution_sdk_python.lambda_service import OperationPayload
+from aws_durable_execution_sdk_python.lambda_service import (
+    ErrorObject,
+    OperationPayload,
+)
 from aws_durable_execution_sdk_python.serdes import ExtendedTypeSerDes
 
 from aws_durable_execution_sdk_python_testing.runner import (
@@ -121,6 +124,29 @@ class TestRunnerAdapter:
         if isinstance(self._runner, contextlib.AbstractContextManager):
             return self._runner.__exit__(exc_type, exc_val, exc_tb)
         return None
+
+    def succeed_callback(self, callback_id: str, result: bytes) -> None:
+        """Send callback success response."""
+        if self.mode == RunnerMode.LOCAL:
+            self._runner.send_callback_success(callback_id=callback_id, result=result)
+        else:
+            logger.warning("Current runner does not support callback success")
+
+    def fail_callback(self, callback_id: str, error: Exception | None = None) -> None:
+        """Send callback failure response."""
+        if self.mode == RunnerMode.LOCAL:
+            error_obj = ErrorObject.from_exception(error) if error else None
+            self._runner.send_callback_failure(callback_id=callback_id, error=error_obj)
+        else:
+            logger.warning("Current runner does not support callback failure")
+
+    def heartbeat_callback(self, callback_id: str) -> None:
+        """Send callback heartbeat to keep callback alive."""
+
+        if self.mode == RunnerMode.LOCAL:
+            self._runner.send_callback_heartbeat(callback_id=callback_id)
+        else:
+            logger.warning("Current runner does not support callback heartbeat")
 
 
 @pytest.fixture
