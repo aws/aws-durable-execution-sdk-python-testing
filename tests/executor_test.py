@@ -78,12 +78,12 @@ class MockExecutionObserver(ExecutionObserver):
         }
 
     def on_callback_created(
-        self, execution_arn: str, operation_id: str, callback_id: str
+        self, execution_arn: str, operation_id: str, callback_token: CallbackToken
     ) -> None:
         """Capture callback creation events."""
         self.callback_creations[execution_arn] = {
             "operation_id": operation_id,
-            "callback_id": callback_id,
+            "callback_id": callback_token.to_str(),
         }
 
     def on_callback_completed(
