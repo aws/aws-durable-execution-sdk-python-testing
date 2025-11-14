@@ -742,7 +742,7 @@ class DurableFunctionCloudTestRunner:
         ... )
         >>> with runner:
         ...     result = runner.run(input={"name": "World"}, timeout=60)
-        >>> assert result.status == InvocationStatus.SUCCEEDED
+        >>> assert result.current_status == InvocationStatus.SUCCEEDED
     """
 
     def __init__(

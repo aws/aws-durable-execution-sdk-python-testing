@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from datetime import UTC, datetime
+from enum import Enum
 from threading import Lock
 from typing import Any
 from uuid import uuid4
@@ -20,11 +21,12 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationUpdate,
 )
 
-# Import AWS exceptions
 from aws_durable_execution_sdk_python_testing.exceptions import (
     IllegalStateException,
     InvalidParameterValueException,
 )
+
+# Import AWS exceptions
 from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
 )
@@ -32,6 +34,16 @@ from aws_durable_execution_sdk_python_testing.token import (
     CheckpointToken,
     CallbackToken,
 )
+
+
+class ExecutionStatus(Enum):
+    """Execution status for API responses."""
+
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    STOPPED = "STOPPED"
+    TIMED_OUT = "TIMED_OUT"
 
 
 class Execution:
@@ -55,11 +67,23 @@ class Execution:
         self.is_complete: bool = False
         self.result: DurableExecutionInvocationOutput | None = None
         self.consecutive_failed_invocation_attempts: int = 0
+        self.close_status: ExecutionStatus | None = None
 
     @property
     def token_sequence(self) -> int:
         """Get current token sequence value."""
         return self._token_sequence
+
+    def current_status(self) -> ExecutionStatus:
+        """Get execution status."""
+        if not self.is_complete:
+            return ExecutionStatus.RUNNING
+
+        if not self.close_status:
+            msg: str = "close_status must be set when execution is complete"
+            raise IllegalStateException(msg)
+
+        return self.close_status
 
     @staticmethod
     def new(input: StartDurableExecutionInput) -> Execution:  # noqa: A002
@@ -82,6 +106,7 @@ class Execution:
             "IsComplete": self.is_complete,
             "Result": self.result.to_dict() if self.result else None,
             "ConsecutiveFailedInvocationAttempts": self.consecutive_failed_invocation_attempts,
+            "CloseStatus": self.close_status.value if self.close_status else None,
         }
 
     @classmethod
@@ -115,6 +140,10 @@ class Execution:
         execution.consecutive_failed_invocation_attempts = data[
             "ConsecutiveFailedInvocationAttempts"
         ]
+        close_status_str = data.get("CloseStatus")
+        execution.close_status = (
+            ExecutionStatus(close_status_str) if close_status_str else None
+        )
 
         return execution
 
@@ -187,16 +216,40 @@ class Execution:
         return False
 
     def complete_success(self, result: str | None) -> None:
+        """Complete execution successfully (DecisionType.COMPLETE_WORKFLOW_EXECUTION)."""
         self.result = DurableExecutionInvocationOutput(
             status=InvocationStatus.SUCCEEDED, result=result
         )
         self.is_complete = True
+        self.close_status = ExecutionStatus.SUCCEEDED
+        self._end_execution(OperationStatus.SUCCEEDED)
 
     def complete_fail(self, error: ErrorObject) -> None:
+        """Complete execution with failure (DecisionType.FAIL_WORKFLOW_EXECUTION)."""
         self.result = DurableExecutionInvocationOutput(
             status=InvocationStatus.FAILED, error=error
         )
         self.is_complete = True
+        self.close_status = ExecutionStatus.FAILED
+        self._end_execution(OperationStatus.FAILED)
+
+    def complete_timeout(self, error: ErrorObject) -> None:
+        """Complete execution with timeout."""
+        self.result = DurableExecutionInvocationOutput(
+            status=InvocationStatus.FAILED, error=error
+        )
+        self.is_complete = True
+        self.close_status = ExecutionStatus.TIMED_OUT
+        self._end_execution(OperationStatus.TIMED_OUT)
+
+    def complete_stopped(self, error: ErrorObject) -> None:
+        """Complete execution as terminated (TerminateWorkflowExecutionV2Request)."""
+        self.result = DurableExecutionInvocationOutput(
+            status=InvocationStatus.FAILED, error=error
+        )
+        self.is_complete = True
+        self.close_status = ExecutionStatus.STOPPED
+        self._end_execution(OperationStatus.STOPPED)
 
     def find_operation(self, operation_id: str) -> tuple[int, Operation]:
         """Find operation by ID, return index and operation."""
@@ -327,3 +380,14 @@ class Execution:
                 callback_details=updated_callback_details,
             )
             return self.operations[index]
+
+    def _end_execution(self, status: OperationStatus) -> None:
+        """Set the end_timestamp on the main EXECUTION operation when execution completes."""
+        execution_op: Operation = self.get_operation_execution_started()
+        if execution_op.operation_type == OperationType.EXECUTION:
+            with self._state_lock:
+                self.operations[0] = replace(
+                    execution_op,
+                    status=status,
+                    end_timestamp=datetime.now(UTC),
+                )

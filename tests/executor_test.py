@@ -29,7 +29,10 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
     InvalidParameterValueException,
     ResourceNotFoundException,
 )
-from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.execution import (
+    ExecutionStatus,
+    Execution,
+)
 from aws_durable_execution_sdk_python_testing.executor import Executor
 from aws_durable_execution_sdk_python_testing.model import (
     ListDurableExecutionsResponse,
@@ -38,7 +41,10 @@ from aws_durable_execution_sdk_python_testing.model import (
     SendDurableExecutionCallbackSuccessResponse,
     StartDurableExecutionInput,
 )
-from aws_durable_execution_sdk_python_testing.observer import ExecutionObserver
+from aws_durable_execution_sdk_python_testing.observer import (
+    ExecutionNotifier,
+    ExecutionObserver,
+)
 from aws_durable_execution_sdk_python_testing.token import (
     CallbackToken,
 )
@@ -1727,20 +1733,24 @@ def test_retry_handler_execution(executor, mock_scheduler):
 def test_get_execution_details(executor, mock_store):
     """Test get_execution_details method."""
 
-    # Create mock execution with operation
-    mock_execution = Mock()
-    mock_execution.durable_execution_arn = "test-arn"
-    mock_execution.start_input.execution_name = "test-execution"
-    mock_execution.start_input.function_name = "test-function"
-    mock_execution.is_complete = True
+    # Create real execution instance with mocked start_input
+    mock_start_input = Mock()
+    mock_start_input.execution_name = "test-execution"
+    mock_start_input.function_name = "test-function"
+
+    execution = Execution(
+        durable_execution_arn="test-arn", start_input=mock_start_input, operations=[]
+    )
+    execution.is_complete = True
 
     # Create mock result
     mock_result = DurableExecutionInvocationOutput(
         status=InvocationStatus.SUCCEEDED, result="test-result"
     )
-    mock_execution.result = mock_result
+    execution.result = mock_result
+    execution.close_status = ExecutionStatus.SUCCEEDED
 
-    # Create mock operation
+    # Create mock operation and add to execution
     mock_operation = Operation(
         operation_id="op-1",
         parent_id=None,
@@ -1751,9 +1761,9 @@ def test_get_execution_details(executor, mock_store):
         status=OperationStatus.SUCCEEDED,
         execution_details=ExecutionDetails(input_payload='{"test": "data"}'),
     )
-    mock_execution.get_operation_execution_started.return_value = mock_operation
+    execution.operations = [mock_operation]
 
-    mock_store.load.return_value = mock_execution
+    mock_store.load.return_value = execution
 
     result = executor.get_execution_details("test-arn")
 
@@ -1776,20 +1786,23 @@ def test_get_execution_details_not_found(executor, mock_store):
 def test_get_execution_details_failed_execution(executor, mock_store):
     """Test get_execution_details with failed execution."""
 
-    # Create mock execution with failed result
-    mock_execution = Mock()
-    mock_execution.durable_execution_arn = "test-arn"
-    mock_execution.start_input.execution_name = "test-execution"
-    mock_execution.start_input.function_name = "test-function"
-    mock_execution.is_complete = True
+    # Create real execution instance with mocked start_input
+    mock_start_input = Mock()
+    mock_start_input.execution_name = "test-execution"
+    mock_start_input.function_name = "test-function"
+
+    execution = Execution(
+        durable_execution_arn="test-arn", start_input=mock_start_input, operations=[]
+    )
+    execution.is_complete = True
 
     error = ErrorObject.from_message("Test error")
     mock_result = DurableExecutionInvocationOutput(
         status=InvocationStatus.FAILED, error=error
     )
-    mock_execution.result = mock_result
+    execution.result = mock_result
 
-    # Create mock operation
+    # Create mock operation and add to execution
     mock_operation = Operation(
         operation_id="op-1",
         parent_id=None,
@@ -1799,12 +1812,16 @@ def test_get_execution_details_failed_execution(executor, mock_store):
         status=OperationStatus.FAILED,
         execution_details=ExecutionDetails(input_payload='{"test": "data"}'),
     )
-    mock_execution.get_operation_execution_started.return_value = mock_operation
+    execution.operations = [mock_operation]
 
-    mock_store.load.return_value = mock_execution
-
+    mock_store.load.return_value = execution
+    with pytest.raises(
+        IllegalStateException,
+        match="close_status must be set when execution is complete",
+    ):
+        executor.get_execution_details("test-arn")
+    execution.close_status = ExecutionStatus.FAILED
     result = executor.get_execution_details("test-arn")
-
     assert result.status == "FAILED"
     assert result.result is None
     assert result.error == error
@@ -1812,34 +1829,28 @@ def test_get_execution_details_failed_execution(executor, mock_store):
 
 def test_list_executions_empty(executor, mock_store):
     """Test list_executions with no executions."""
-    mock_store.list_all.return_value = []
+    query_result = ([], None)
+    mock_store.query.return_value = query_result
 
     result = executor.list_executions()
 
     assert result.durable_executions == []
     assert result.next_marker is None
-    mock_store.list_all.assert_called_once()
+    mock_store.query.assert_called_once()
 
 
 def test_list_executions_with_filtering(executor, mock_store):
     """Test list_executions with function name filtering."""
+    # Create real execution instance
+    mock_start_input = Mock()
+    mock_start_input.execution_name = "exec1"
+    mock_start_input.function_name = "function1"
 
-    # Create mock executions
-    execution1 = Mock()
-    execution1.durable_execution_arn = "arn1"
-    execution1.start_input.execution_name = "exec1"
-    execution1.start_input.function_name = "function1"
+    execution1 = Execution(
+        durable_execution_arn="arn1", start_input=mock_start_input, operations=[]
+    )
     execution1.is_complete = False
     execution1.result = None
-
-    execution2 = Mock()
-    execution2.durable_execution_arn = "arn2"
-    execution2.start_input.execution_name = "exec2"
-    execution2.start_input.function_name = "function2"
-    execution2.is_complete = True
-    execution2.result = DurableExecutionInvocationOutput(
-        status=InvocationStatus.SUCCEEDED, result="result"
-    )
 
     # Create mock operations
     op1 = Operation(
@@ -1851,20 +1862,11 @@ def test_list_executions_with_filtering(executor, mock_store):
         status=OperationStatus.STARTED,
         execution_details=ExecutionDetails(input_payload="{}"),
     )
-    op2 = Operation(
-        operation_id="op-2",
-        parent_id=None,
-        name="exec2",
-        start_timestamp=datetime.now(UTC),
-        operation_type=OperationType.EXECUTION,
-        status=OperationStatus.SUCCEEDED,
-        execution_details=ExecutionDetails(input_payload="{}"),
-    )
+    execution1.operations = [op1]
 
-    execution1.get_operation_execution_started.return_value = op1
-    execution2.get_operation_execution_started.return_value = op2
-
-    mock_store.list_all.return_value = [execution1, execution2]
+    # Mock the query method to return filtered results
+    query_result = ([execution1], "1")
+    mock_store.query.return_value = query_result
 
     # Test filtering by function name
     result = executor.list_executions(function_name="function1")
@@ -1876,10 +1878,9 @@ def test_list_executions_with_filtering(executor, mock_store):
 
 def test_list_executions_with_pagination(executor, mock_store):
     """Test list_executions with pagination."""
-
-    # Create multiple mock executions
-    executions = []
-    for i in range(5):
+    # Create multiple mock executions for first page
+    executions_page1 = []
+    for i in range(2):
         execution = Mock()
         execution.durable_execution_arn = f"arn{i}"
         execution.start_input.execution_name = f"exec{i}"
@@ -1897,9 +1898,36 @@ def test_list_executions_with_pagination(executor, mock_store):
             execution_details=ExecutionDetails(input_payload="{}"),
         )
         execution.get_operation_execution_started.return_value = op
-        executions.append(execution)
+        executions_page1.append(execution)
 
-    mock_store.list_all.return_value = executions
+    # Create executions for second page
+    executions_page2 = []
+    for i in range(2, 4):
+        execution = Mock()
+        execution.durable_execution_arn = f"arn{i}"
+        execution.start_input.execution_name = f"exec{i}"
+        execution.start_input.function_name = "test-function"
+        execution.is_complete = False
+        execution.result = None
+
+        op = Operation(
+            operation_id=f"op-{i}",
+            parent_id=None,
+            name=f"exec{i}",
+            start_timestamp=datetime.now(UTC),
+            operation_type=OperationType.EXECUTION,
+            status=OperationStatus.STARTED,
+            execution_details=ExecutionDetails(input_payload="{}"),
+        )
+        execution.get_operation_execution_started.return_value = op
+        executions_page2.append(execution)
+
+    # Mock query responses for pagination
+    query_result1 = (executions_page1, "2")
+
+    query_result2 = (executions_page2, "4")
+
+    mock_store.query.side_effect = [query_result1, query_result2]
 
     # Test pagination with max_items=2
     result = executor.list_executions(max_items=2)
@@ -1930,8 +1958,8 @@ def test_list_executions_by_function(executor):
             function_name="test-function",
             execution_name=None,
             status_filter="RUNNING",
-            time_after=None,
-            time_before=None,
+            started_after=None,
+            started_before=None,
             marker=None,
             max_items=None,
             reverse_order=False,
@@ -1942,16 +1970,26 @@ def test_list_executions_by_function(executor):
 
 def test_stop_execution(executor, mock_store):
     """Test stop_execution method."""
-    mock_execution = Mock()
-    mock_execution.is_complete = False
-    mock_store.load.return_value = mock_execution
+    # Create real execution instance with mocked start_input
+    mock_start_input = Mock()
+    mock_start_input.execution_name = "test-execution"
+    mock_start_input.function_name = "test-function"
 
-    with patch.object(executor, "fail_execution") as mock_fail:
-        result = executor.stop_execution("test-arn")
+    execution = Execution(
+        durable_execution_arn="test-arn",
+        start_input=mock_start_input,
+        operations=[Mock()],
+    )
+    execution.is_complete = False
+    mock_store.load.return_value = execution
+
+    result = executor.stop_execution("test-arn")
 
     mock_store.load.assert_called_once_with("test-arn")
-    mock_fail.assert_called_once()
+    mock_store.update.assert_called_once_with(execution)
     assert result.stop_timestamp is not None
+    assert execution.is_complete is True
+    assert execution.close_status == ExecutionStatus.STOPPED
 
 
 def test_stop_execution_already_complete(executor, mock_store):
@@ -1966,16 +2004,35 @@ def test_stop_execution_already_complete(executor, mock_store):
 
 def test_stop_execution_with_custom_error(executor, mock_store):
     """Test stop_execution with custom error."""
-    mock_execution = Mock()
-    mock_execution.is_complete = False
-    mock_store.load.return_value = mock_execution
+    # Create real execution instance with mocked start_input
+    mock_start_input = Mock()
+    mock_start_input.execution_name = "test-execution"
+    mock_start_input.function_name = "test-function"
+
+    execution = Execution(
+        durable_execution_arn="test-arn",
+        start_input=mock_start_input,
+        operations=[Mock()],
+    )
+    execution.is_complete = False
+    mock_store.load.return_value = execution
 
     custom_error = ErrorObject.from_message("Custom stop error")
 
-    with patch.object(executor, "fail_execution") as mock_fail:
-        executor.stop_execution("test-arn", error=custom_error)
+    executor.stop_execution("test-arn", error=custom_error)
 
-    mock_fail.assert_called_once_with("test-arn", custom_error)
+    mock_store.load.assert_called_once_with("test-arn")
+    mock_store.update.assert_called_once_with(execution)
+    assert execution.is_complete is True
+    assert execution.close_status == ExecutionStatus.STOPPED
+    assert execution.result.error == custom_error
+
+
+def test_get_execution_not_found(executor, mock_store):
+    mock_store.load.side_effect = KeyError("not found")
+
+    with pytest.raises(ResourceNotFoundException):
+        executor.get_execution("test-arn")
 
 
 def test_get_execution_state(executor, mock_store):
@@ -2741,3 +2798,65 @@ def test_schedule_callback_timeouts_exception_handling(executor, mock_store):
     # No timeouts should be scheduled
     assert len(executor._callback_timeouts) == 0
     assert len(executor._callback_heartbeats) == 0
+
+
+def test_on_timed_out(executor, mock_store):
+    """Test on_timed_out method."""
+    # Create real execution instance
+    mock_start_input = Mock()
+    mock_start_input.execution_name = "test-execution"
+    mock_start_input.function_name = "test-function"
+
+    execution = Execution(
+        durable_execution_arn="test-arn",
+        start_input=mock_start_input,
+        operations=[Mock()],
+    )
+    execution.is_complete = False
+    mock_store.load.return_value = execution
+
+    error = ErrorObject.from_message("Execution timeout")
+
+    with patch.object(executor, "_complete_events") as mock_complete_events:
+        executor.on_timed_out("test-arn", error)
+
+    mock_store.load.assert_called_once_with(execution_arn="test-arn")
+    mock_store.update.assert_called_once_with(execution)
+    mock_complete_events.assert_called_once_with(execution_arn="test-arn")
+    assert execution.is_complete is True
+    assert execution.close_status == ExecutionStatus.TIMED_OUT
+    assert execution.result.error == error
+
+
+def test_on_stopped(executor):
+    """Test on_stopped method."""
+    error = ErrorObject.from_message("Execution stopped")
+
+    with patch.object(executor, "fail_execution") as mock_fail:
+        executor.on_stopped("test-arn", error)
+
+    mock_fail.assert_called_once_with("test-arn", error)
+
+
+def test_notify_timed_out():
+    """Test notify_timed_out method."""
+    notifier = ExecutionNotifier()
+    observer = Mock()
+    notifier.add_observer(observer)
+
+    error = ErrorObject.from_message("Timeout error")
+    notifier.notify_timed_out("test-arn", error)
+
+    observer.on_timed_out.assert_called_once_with(execution_arn="test-arn", error=error)
+
+
+def test_notify_stopped():
+    """Test notify_stopped method."""
+    notifier = ExecutionNotifier()
+    observer = Mock()
+    notifier.add_observer(observer)
+
+    error = ErrorObject.from_message("Stop error")
+    notifier.notify_stopped("test-arn", error)
+
+    observer.on_stopped.assert_called_once_with(execution_arn="test-arn", error=error)

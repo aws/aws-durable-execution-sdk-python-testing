@@ -4,7 +4,9 @@ from datetime import datetime, timezone
 from unittest.mock import patch, Mock
 
 import pytest
-from aws_durable_execution_sdk_python.execution import InvocationStatus
+from aws_durable_execution_sdk_python.execution import (
+    InvocationStatus,
+)
 from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
     Operation,
@@ -364,7 +366,7 @@ def test_complete_success_with_string_result():
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
     )
-    execution = Execution("test-arn", start_input, [])
+    execution = Execution("test-arn", start_input, [Mock()])
 
     execution.complete_success("success result")
 
@@ -383,7 +385,7 @@ def test_complete_success_with_none_result():
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
     )
-    execution = Execution("test-arn", start_input, [])
+    execution = Execution("test-arn", start_input, [Mock()])
 
     execution.complete_success(None)
 
@@ -402,7 +404,7 @@ def test_complete_fail():
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
     )
-    execution = Execution("test-arn", start_input, [])
+    execution = Execution("test-arn", start_input, [Mock()])
     error = ErrorObject.from_message("Test error message")
 
     execution.complete_fail(error)
@@ -646,6 +648,112 @@ def test_complete_retry_wrong_type():
 
     with pytest.raises(IllegalStateException, match="Expected STEP operation"):
         execution.complete_retry("wait-op-id")
+
+
+def test_status_running():
+    """Test status property returns RUNNING for incomplete execution."""
+    start_input = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="test-function",
+        function_qualifier="$LATEST",
+        execution_name="test-execution",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+    )
+    execution = Execution("test-arn", start_input, [])
+
+    assert execution.current_status().value == "RUNNING"
+
+
+def test_status_succeeded():
+    """Test status property returns SUCCEEDED for successful execution."""
+    start_input = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="test-function",
+        function_qualifier="$LATEST",
+        execution_name="test-execution",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+    )
+    execution = Execution("test-arn", start_input, [Mock()])
+    execution.complete_success("success result")
+
+    assert execution.current_status().value == "SUCCEEDED"
+
+
+def test_status_failed():
+    """Test status property returns FAILED for failed execution."""
+    start_input = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="test-function",
+        function_qualifier="$LATEST",
+        execution_name="test-execution",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+    )
+    execution = Execution("test-arn", start_input, [Mock()])
+    error = ErrorObject.from_message("Test error")
+    execution.complete_fail(error)
+
+    assert execution.current_status().value == "FAILED"
+
+
+def test_status_timed_out():
+    """Test status property returns TIMED_OUT for timeout errors."""
+    start_input = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="test-function",
+        function_qualifier="$LATEST",
+        execution_name="test-execution",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+    )
+    execution = Execution("test-arn", start_input, [Mock()])
+    error = ErrorObject(
+        message="Execution timed out", type="TimeoutError", data=None, stack_trace=None
+    )
+    execution.complete_timeout(error)
+
+    assert execution.current_status().value == "TIMED_OUT"
+
+
+def test_status_stopped():
+    """Test status property returns STOPPED for stop errors."""
+    start_input = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="test-function",
+        function_qualifier="$LATEST",
+        execution_name="test-execution",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+    )
+    execution = Execution("test-arn", start_input, [Mock()])
+    error = ErrorObject(
+        message="Execution stopped", type="StopError", data=None, stack_trace=None
+    )
+    execution.complete_stopped(error)
+
+    assert execution.current_status().value == "STOPPED"
+
+
+def test_status_no_result():
+    """Test status property returns FAILED for completed execution with no result."""
+    start_input = StartDurableExecutionInput(
+        account_id="123456789012",
+        function_name="test-function",
+        function_qualifier="$LATEST",
+        execution_name="test-execution",
+        execution_timeout_seconds=300,
+        execution_retention_period_days=7,
+    )
+    execution = Execution("test-arn", start_input, [])
+    execution.is_complete = True
+    execution.result = None
+    with pytest.raises(
+        IllegalStateException,
+        match="close_status must be set when execution is complete",
+    ):
+        execution.current_status()
 
 
 def test_complete_retry_with_step_details():

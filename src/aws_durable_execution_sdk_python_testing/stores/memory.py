@@ -5,12 +5,16 @@ from __future__ import annotations
 from threading import Lock
 from typing import TYPE_CHECKING
 
+from aws_durable_execution_sdk_python_testing.stores.base import (
+    BaseExecutionStore,
+)
+
 
 if TYPE_CHECKING:
     from aws_durable_execution_sdk_python_testing.execution import Execution
 
 
-class InMemoryExecutionStore:
+class InMemoryExecutionStore(BaseExecutionStore):
     """Dict-based storage for testing."""
 
     def __init__(self) -> None:

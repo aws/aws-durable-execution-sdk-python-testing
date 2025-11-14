@@ -11,6 +11,9 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
     ResourceNotFoundException,
 )
 from aws_durable_execution_sdk_python_testing.execution import Execution
+from aws_durable_execution_sdk_python_testing.stores.base import (
+    BaseExecutionStore,
+)
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -37,7 +40,7 @@ def datetime_object_hook(obj):
     return obj
 
 
-class FileSystemExecutionStore:
+class FileSystemExecutionStore(BaseExecutionStore):
     """File system-based execution store for persistence."""
 
     def __init__(self, storage_dir: Path) -> None:
