@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from aws_durable_execution_sdk_python.lambda_service import OperationPayload
+from aws_durable_execution_sdk_python.lambda_service import (
+    ErrorObject,
+    OperationPayload,
+)
 from aws_durable_execution_sdk_python.serdes import ExtendedTypeSerDes
 
 from aws_durable_execution_sdk_python_testing.runner import (
@@ -112,11 +115,15 @@ class TestRunnerAdapter:
     ) -> str:
         return self._runner.run_async(input=input, timeout=timeout)
 
-    def send_callback_success(self, callback_id: str) -> None:
-        self._runner.send_callback_success(callback_id=callback_id)
+    def send_callback_success(
+        self, callback_id: str, result: bytes | None = None
+    ) -> None:
+        self._runner.send_callback_success(callback_id=callback_id, result=result)
 
-    def send_callback_failure(self, callback_id: str) -> None:
-        self._runner.send_callback_failure(callback_id=callback_id)
+    def send_callback_failure(
+        self, callback_id: str, error: ErrorObject | None = None
+    ) -> None:
+        self._runner.send_callback_failure(callback_id=callback_id, error=error)
 
     def send_callback_heartbeat(self, callback_id: str) -> None:
         self._runner.send_callback_heartbeat(callback_id=callback_id)

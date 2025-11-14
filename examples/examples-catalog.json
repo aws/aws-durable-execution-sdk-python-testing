@@ -79,10 +79,21 @@
       "path": "./src/callback/callback.py"
     },
     {
-      "name": "Wait for Callback",
+      "name": "Wait for Callback Success",
       "description": "Usage of context.wait_for_callback() to wait for external system responses",
       "handler": "wait_for_callback.handler",
-      "integration": false,
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback.py"
+    },
+    {
+      "name": "Wait for Callback Failure",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback.handler",
+      "integration": true,
       "durableConfig": {
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300

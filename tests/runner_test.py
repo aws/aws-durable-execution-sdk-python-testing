@@ -21,11 +21,13 @@ from aws_durable_execution_sdk_python.lambda_service import Operation as SvcOper
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
     InvalidParameterValueException,
+    ResourceNotFoundException,
 )
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
     StartDurableExecutionOutput,
+    GetDurableExecutionHistoryResponse,
 )
 from aws_durable_execution_sdk_python_testing.runner import (
     OPERATION_FACTORIES,
@@ -1708,7 +1710,7 @@ def test_cloud_runner_send_callback_success(mock_boto3):
     runner.send_callback_success("callback-123")
 
     mock_client.send_durable_execution_callback_success.assert_called_once_with(
-        CallbackId="callback-123"
+        CallbackId="callback-123", Result=None
     )
 
 
@@ -1726,7 +1728,7 @@ def test_cloud_runner_send_callback_failure(mock_boto3):
     runner.send_callback_failure("callback-123")
 
     mock_client.send_durable_execution_callback_failure.assert_called_once_with(
-        CallbackId="callback-123"
+        CallbackId="callback-123", Error=None
     )
 
 
@@ -1893,6 +1895,69 @@ def test_cloud_runner_wait_for_callback_all_done_without_name(mock_boto3):
     runner = DurableFunctionCloudTestRunner(
         function_name="test-function", poll_interval=0.01
     )
+    with pytest.raises(TimeoutError, match="Callback did not available within"):
+        runner.wait_for_callback("test-arn", timeout=2)
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.Executor")
+def test_local_runner_wait_for_callback_all_done_without_name(mock_executor_class):
+    """Test DurableFunctionCloudTestRunner.wait_for_callback all_done_without_name."""
+    handler = Mock()
+    mock_executor = Mock()
+    mock_executor_class.return_value = mock_executor
+    mock_executor.get_execution_history.return_value = (
+        GetDurableExecutionHistoryResponse.from_dict(
+            {
+                "Events": [
+                    {
+                        "EventType": "CallbackStarted",
+                        "EventTimestamp": "2023-01-01T00:00:00Z",
+                        "Id": "callback-event-1",
+                        "Name": "test-callback",
+                        "CallbackStartedDetails": {"CallbackId": "callback-123"},
+                    },
+                    {
+                        "EventType": "CallbackSucceeded",
+                        "EventTimestamp": "2023-01-01T00:05:00Z",
+                        "Id": "callback-event-1",
+                        "Name": "test-callback",
+                    },
+                ]
+            }
+        )
+    )
+
+    runner = DurableFunctionTestRunner(handler)
+    with pytest.raises(TimeoutError, match="Callback did not available within"):
+        runner.wait_for_callback("test-arn", timeout=2)
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.Executor")
+def test_local_runner_wait_for_callback_with_exception(mock_executor_class):
+    """Test DurableFunctionCloudTestRunner.wait_for_callback with exception"""
+    handler = Mock()
+    mock_executor = Mock()
+    mock_executor_class.return_value = mock_executor
+    mock_executor.get_execution_history.side_effect = Exception("error")
+
+    runner = DurableFunctionTestRunner(handler)
+    with pytest.raises(
+        DurableFunctionsTestError, match="Failed to fetch execution history"
+    ):
+        runner.wait_for_callback("test-arn", timeout=10)
+
+
+@patch("aws_durable_execution_sdk_python_testing.runner.Executor")
+def test_local_runner_wait_for_callback_with_resource_not_found_exception(
+    mock_executor_class,
+):
+    """Test DurableFunctionCloudTestRunner.wait_for_callback with resource_not_found exception"""
+    handler = Mock()
+    mock_executor = Mock()
+    mock_executor_class.return_value = mock_executor
+    mock_executor.get_execution_history.side_effect = ResourceNotFoundException("error")
+
+    runner = DurableFunctionTestRunner(handler)
     with pytest.raises(TimeoutError, match="Callback did not available within"):
         runner.wait_for_callback("test-arn", timeout=2)
 

@@ -40,6 +40,7 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsLocalRunnerError,
     DurableFunctionsTestError,
     InvalidParameterValueException,
+    ResourceNotFoundException,
 )
 from aws_durable_execution_sdk_python_testing.executor import Executor
 from aws_durable_execution_sdk_python_testing.invoker import (
@@ -395,6 +396,69 @@ def create_operation(
     return operation_class.from_svc_operation(svc_operation, all_operations)
 
 
+def _get_callback_id_from_events(
+    events: list[Event], name: str | None = None
+) -> str | None:
+    """
+    Get callback ID from execution history for callbacks that haven't completed.
+
+    Args:
+        execution_arn: The ARN of the execution to query.
+        name: Optional callback name to search for. If not provided, returns the latest callback.
+
+    Returns:
+        The callback ID string for a non-completed callback, or None if not found.
+
+    Raises:
+        DurableFunctionsTestError: If the named callback has already succeeded/failed/timed out.
+    """
+    callback_started_events = [
+        event for event in events if event.event_type == "CallbackStarted"
+    ]
+
+    if not callback_started_events:
+        return None
+
+    completed_callback_ids = {
+        event.event_id
+        for event in events
+        if event.event_type
+        in ["CallbackSucceeded", "CallbackFailed", "CallbackTimedOut"]
+    }
+
+    if name is not None:
+        for event in callback_started_events:
+            if event.name == name:
+                callback_id = event.event_id
+                if callback_id in completed_callback_ids:
+                    raise DurableFunctionsTestError(
+                        f"Callback {name} has already completed (succeeded/failed/timed out)"
+                    )
+                return (
+                    event.callback_started_details.callback_id
+                    if event.callback_started_details
+                    else None
+                )
+        return None
+
+    # If name is not provided, find the latest non-completed callback event
+    active_callbacks = [
+        event
+        for event in callback_started_events
+        if event.event_id not in completed_callback_ids
+    ]
+
+    if not active_callbacks:
+        return None
+
+    latest_event = active_callbacks[-1]
+    return (
+        latest_event.callback_started_details.callback_id
+        if latest_event.callback_started_details
+        else None
+    )
+
+
 @dataclass(frozen=True)
 class DurableFunctionTestResult:
     status: InvocationStatus
@@ -493,10 +557,11 @@ class DurableFunctionTestResult:
 
 
 class DurableFunctionTestRunner:
-    def __init__(self, handler: Callable):
+    def __init__(self, handler: Callable, poll_interval: float = 1.0):
         self._scheduler: Scheduler = Scheduler()
         self._scheduler.start()
         self._store = InMemoryExecutionStore()
+        self.poll_interval = poll_interval
         self._checkpoint_processor = CheckpointProcessor(
             store=self._store, scheduler=self._scheduler
         )
@@ -529,6 +594,37 @@ class DurableFunctionTestRunner:
         execution_name: str = "execution-name",
         account_id: str = "123456789012",
     ) -> DurableFunctionTestResult:
+        execution_arn = self.run_async(
+            input=input,
+            timeout=timeout,
+            function_name=function_name,
+            execution_name=execution_name,
+            account_id=account_id,
+        )
+
+        return self.wait_for_result(execution_arn=execution_arn, timeout=timeout)
+
+    def send_callback_success(
+        self, callback_id: str, result: bytes | None = None
+    ) -> None:
+        self._executor.send_callback_success(callback_id=callback_id, result=result)
+
+    def send_callback_failure(
+        self, callback_id: str, error: ErrorObject | None = None
+    ) -> None:
+        self._executor.send_callback_failure(callback_id=callback_id, error=error)
+
+    def send_callback_heartbeat(self, callback_id: str) -> None:
+        self._executor.send_callback_heartbeat(callback_id=callback_id)
+
+    def run_async(
+        self,
+        input: str | None = None,  # noqa: A002
+        timeout: int = 900,
+        function_name: str = "test-function",
+        execution_name: str = "execution-name",
+        account_id: str = "123456789012",
+    ) -> str:
         start_input = StartDurableExecutionInput(
             account_id=account_id,
             function_name=function_name,
@@ -549,17 +645,51 @@ class DurableFunctionTestRunner:
         if output.execution_arn is None:
             msg_arn: str = "Execution ARN must exist to run test."
             raise DurableFunctionsTestError(msg_arn)
+        return output.execution_arn
 
+    def wait_for_result(
+        self, execution_arn: str, timeout: int = 60
+    ) -> DurableFunctionTestResult:
         # Block until completion
-        completed = self._executor.wait_until_complete(output.execution_arn, timeout)
+        completed = self._executor.wait_until_complete(execution_arn, timeout)
 
         if not completed:
             msg_timeout: str = "Execution did not complete within timeout"
 
             raise TimeoutError(msg_timeout)
 
-        execution: Execution = self._store.load(output.execution_arn)
+        execution: Execution = self._store.load(execution_arn)
         return DurableFunctionTestResult.create(execution=execution)
+
+    def wait_for_callback(
+        self, execution_arn: str, name: str | None = None, timeout: int = 60
+    ) -> str:
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+            try:
+                history_response = self._executor.get_execution_history(execution_arn)
+                callback_id = _get_callback_id_from_events(
+                    events=history_response.events, name=name
+                )
+                if callback_id:
+                    return callback_id
+            except ResourceNotFoundException as e:
+                pass
+            except Exception as e:
+                msg = f"Failed to fetch execution history: {e}"
+                raise DurableFunctionsTestError(msg) from e
+
+            # Wait before next poll
+            time.sleep(self.poll_interval)
+
+        # Timeout reached
+        elapsed = time.time() - start_time
+        msg = (
+            f"Callback did not available within {timeout}s "
+            f"(elapsed: {elapsed:.1f}s."
+        )
+        raise TimeoutError(msg)
 
 
 class DurableChildContextTestRunner(DurableFunctionTestRunner):
@@ -853,81 +983,23 @@ class DurableFunctionCloudTestRunner:
 
         return response.get("DurableExecutionArn")
 
-    def _get_callback_id_from_events(
-        self, events: list[Event], name: str | None = None
-    ) -> str | None:
-        """
-        Get callback ID from execution history for callbacks that haven't completed.
-
-        Args:
-            execution_arn: The ARN of the execution to query.
-            name: Optional callback name to search for. If not provided, returns the latest callback.
-
-        Returns:
-            The callback ID string for a non-completed callback, or None if not found.
-
-        Raises:
-            DurableFunctionsTestError: If the named callback has already succeeded/failed/timed out.
-        """
-        callback_started_events = [
-            event for event in events if event.event_type == "CallbackStarted"
-        ]
-
-        if not callback_started_events:
-            return None
-
-        completed_callback_ids = {
-            event.event_id
-            for event in events
-            if event.event_type
-            in ["CallbackSucceeded", "CallbackFailed", "CallbackTimedOut"]
-        }
-
-        if name is not None:
-            for event in callback_started_events:
-                if event.name == name:
-                    callback_id = event.event_id
-                    if callback_id in completed_callback_ids:
-                        raise DurableFunctionsTestError(
-                            f"Callback {name} has already completed (succeeded/failed/timed out)"
-                        )
-                    return (
-                        event.callback_started_details.callback_id
-                        if event.callback_started_details
-                        else None
-                    )
-            return None
-
-        # If name is not provided, find the latest non-completed callback event
-        active_callbacks = [
-            event
-            for event in callback_started_events
-            if event.event_id not in completed_callback_ids
-        ]
-
-        if not active_callbacks:
-            return None
-
-        latest_event = active_callbacks[-1]
-        return (
-            latest_event.callback_started_details.callback_id
-            if latest_event.callback_started_details
-            else None
-        )
-
-    def send_callback_success(self, callback_id: str) -> None:
+    def send_callback_success(
+        self, callback_id: str, result: bytes | None = None
+    ) -> None:
         try:
             self.lambda_client.send_durable_execution_callback_success(
-                CallbackId=callback_id
+                CallbackId=callback_id, Result=result
             )
         except Exception as e:
             msg = f"Failed to send callback success for {self.function_name}, callback_id {callback_id}: {e}"
             raise DurableFunctionsTestError(msg) from e
 
-    def send_callback_failure(self, callback_id: str) -> None:
+    def send_callback_failure(
+        self, callback_id: str, error: ErrorObject | None = None
+    ) -> None:
         try:
             self.lambda_client.send_durable_execution_callback_failure(
-                CallbackId=callback_id
+                CallbackId=callback_id, Error=error.to_dict() if error else None
             )
         except Exception as e:
             msg = f"Failed to send callback failure for {self.function_name}, callback_id {callback_id}: {e}"
@@ -1042,7 +1114,7 @@ class DurableFunctionCloudTestRunner:
         while time.time() - start_time < timeout:
             try:
                 history_response = self._fetch_execution_history(execution_arn)
-                callback_id = self._get_callback_id_from_events(
+                callback_id = _get_callback_id_from_events(
                     events=history_response.events, name=name
                 )
                 if callback_id:

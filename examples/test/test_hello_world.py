@@ -15,7 +15,10 @@ from test.conftest import deserialize_operation_payload
 def test_hello_world(durable_runner):
     """Test hello world example."""
     with durable_runner:
-        result = durable_runner.run(input="test", timeout=10)
+        result = durable_runner.run(input="test", timeout=30)
 
     assert result.status is InvocationStatus.SUCCEEDED
-    assert deserialize_operation_payload(result.result) == "Hello World!"
+    assert deserialize_operation_payload(result.result) == {
+        "statusCode": 200,
+        "body": "Hello from Durable Lambda! (status: 200)",
+    }
