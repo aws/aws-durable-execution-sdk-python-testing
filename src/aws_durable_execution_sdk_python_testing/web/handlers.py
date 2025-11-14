@@ -387,13 +387,15 @@ class StopDurableExecutionHandler(EndpointHandler):
             HTTPResponse: The HTTP response to send to the client
         """
         try:
-            body_data: dict[str, Any] = self._parse_json_body(request)
-            stop_request: StopDurableExecutionRequest = (
-                StopDurableExecutionRequest.from_dict(body_data)
-            )
+            body_data: dict[str, Any] = self._parse_json_body_optional(request)
 
             stop_route = cast(StopDurableExecutionRoute, parsed_route)
             execution_arn: str = stop_route.arn
+
+            body_data["DurableExecutionArn"] = execution_arn
+            stop_request: StopDurableExecutionRequest = (
+                StopDurableExecutionRequest.from_dict(body_data)
+            )
 
             stop_response: StopDurableExecutionResponse = self.executor.stop_execution(
                 execution_arn, stop_request.error
