@@ -1127,7 +1127,7 @@ def test_get_durable_execution_history_handler_success():
         method="GET",
         path=typed_route,
         headers={},
-        query_params={"maxResults": ["10"], "nextToken": ["token-123"]},
+        query_params={"MaxItems": ["10"], "Marker": ["token-123"]},
         body={},
     )
 
@@ -1203,7 +1203,7 @@ def test_get_durable_execution_history_handler_with_query_params():
         method="GET",
         path=typed_route,
         headers={},
-        query_params={"maxResults": ["25"]},
+        query_params={"MaxItems": ["25"]},
         body={},
     )
 
@@ -1220,6 +1220,86 @@ def test_get_durable_execution_history_handler_with_query_params():
         reverse_order=False,
         marker=None,
         max_items=25,
+    )
+
+
+def test_get_durable_execution_history_handler_with_include_execution_data():
+    """Test GetDurableExecutionHistoryHandler with IncludeExecutionData parameter."""
+
+    executor = Mock()
+    handler = GetDurableExecutionHistoryHandler(executor)
+
+    # Mock the executor response
+    mock_response = GetDurableExecutionHistoryResponse(events=[], next_marker=None)
+    executor.get_execution_history.return_value = mock_response
+
+    # Create strongly-typed route using Router
+    router = Router()
+    typed_route = router.find_route(
+        "/2025-12-01/durable-executions/test-arn/history", "GET"
+    )
+
+    request = HTTPRequest(
+        method="GET",
+        path=typed_route,
+        headers={},
+        query_params={"IncludeExecutionData": ["true"], "MaxItems": ["1000"]},
+        body={},
+    )
+
+    response = handler.handle(typed_route, request)
+
+    # Verify response
+    assert response.status_code == 200
+    assert response.body == {"Events": []}
+
+    # Verify executor was called with include_execution_data=True
+    executor.get_execution_history.assert_called_once_with(
+        "test-arn",
+        include_execution_data=True,
+        reverse_order=False,
+        marker=None,
+        max_items=1000,
+    )
+
+
+def test_get_durable_execution_history_handler_with_include_execution_data_false():
+    """Test GetDurableExecutionHistoryHandler with IncludeExecutionData=false."""
+
+    executor = Mock()
+    handler = GetDurableExecutionHistoryHandler(executor)
+
+    # Mock the executor response
+    mock_response = GetDurableExecutionHistoryResponse(events=[], next_marker=None)
+    executor.get_execution_history.return_value = mock_response
+
+    # Create strongly-typed route using Router
+    router = Router()
+    typed_route = router.find_route(
+        "/2025-12-01/durable-executions/test-arn/history", "GET"
+    )
+
+    request = HTTPRequest(
+        method="GET",
+        path=typed_route,
+        headers={},
+        query_params={"IncludeExecutionData": ["false"]},
+        body={},
+    )
+
+    response = handler.handle(typed_route, request)
+
+    # Verify response
+    assert response.status_code == 200
+    assert response.body == {"Events": []}
+
+    # Verify executor was called with include_execution_data=False
+    executor.get_execution_history.assert_called_once_with(
+        "test-arn",
+        include_execution_data=False,
+        reverse_order=False,
+        marker=None,
+        max_items=None,
     )
 
 

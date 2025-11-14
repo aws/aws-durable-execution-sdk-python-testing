@@ -457,16 +457,24 @@ class GetDurableExecutionHistoryHandler(EndpointHandler):
             history_route = cast(GetDurableExecutionHistoryRoute, parsed_route)
             execution_arn: str = history_route.arn
 
-            max_results: str | None = self._parse_query_param(request, "maxResults")
-            next_token: str | None = self._parse_query_param(request, "nextToken")
+            max_items: str | None = self._parse_query_param(request, "MaxItems")
+            marker: str | None = self._parse_query_param(request, "Marker")
+            include_execution_data_str: str | None = self._parse_query_param(
+                request, "IncludeExecutionData"
+            )
+            include_execution_data: bool = (
+                include_execution_data_str == "true"
+                if include_execution_data_str
+                else False
+            )
 
             history_response: GetDurableExecutionHistoryResponse = (
                 self.executor.get_execution_history(
                     execution_arn,
-                    include_execution_data=False,
+                    include_execution_data=include_execution_data,
                     reverse_order=False,
-                    marker=next_token,
-                    max_items=int(max_results) if max_results else None,
+                    marker=marker,
+                    max_items=int(max_items) if max_items else None,
                 )
             )
 
