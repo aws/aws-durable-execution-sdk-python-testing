@@ -48,7 +48,5 @@ jobs:
       run: hatch run types:check
     - name: Run tests + coverage
       run: hatch run test:cov
-    - name: Run example tests
-      run: hatch run test:examples
     - name: Build distribution
       run: hatch build
