@@ -12,12 +12,7 @@ from aws_durable_execution_sdk_python.config import Duration
 
 def generate_large_string(size_in_kb: int) -> str:
     """Generate a string of approximately the specified size in KB."""
-    target_size = size_in_kb * 1024  # Convert KB to bytes
-    base_string = "A" * 1000  # 1KB string
-    repetitions = target_size // 1000
-    remainder = target_size % 1000
-
-    return base_string * repetitions + "A" * remainder
+    return "A" * 1024 * size_in_kb
 
 
 @durable_with_child_context
