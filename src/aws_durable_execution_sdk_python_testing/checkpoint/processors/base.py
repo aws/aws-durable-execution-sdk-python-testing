@@ -77,7 +77,13 @@ class OperationProcessor:
     def _create_context_details(self, update: OperationUpdate) -> ContextDetails | None:
         """Create ContextDetails from OperationUpdate."""
         return (
-            ContextDetails(result=update.payload, error=update.error)
+            ContextDetails(
+                result=update.payload,
+                error=update.error,
+                replay_children=update.context_options.replay_children
+                if update.context_options
+                else False,
+            )
             if update.operation_type == OperationType.CONTEXT
             else None
         )

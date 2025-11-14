@@ -20,6 +20,7 @@ from aws_durable_execution_sdk_python.lambda_service import (
     StepDetails,
     WaitDetails,
     WaitOptions,
+    ContextOptions,
 )
 
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.base import (
@@ -196,6 +197,23 @@ def test_create_step_details():
     assert isinstance(result, StepDetails)
     assert result.result == "test-payload"
     assert result.error == error
+
+
+def test_create_context_details_with_replay_children():
+    processor = MockProcessor()
+    update = OperationUpdate(
+        operation_id="test-id",
+        operation_type=OperationType.CONTEXT,
+        action=OperationAction.SUCCEED,
+        payload="test-payload",
+        context_options=ContextOptions(replay_children=True),
+    )
+
+    result = processor.create_context_details(update)
+
+    assert isinstance(result, ContextDetails)
+    assert result.result == "test-payload"
+    assert result.replay_children == True
 
 
 def test_create_step_details_non_step_type():

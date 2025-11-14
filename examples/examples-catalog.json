@@ -134,6 +134,17 @@
       "path": "./src/map/map_operations.py"
     },
     {
+      "name": "Map Large Scale",
+      "description": "Processing collections using map-like durable operations in large scale",
+      "handler": "map_with_large_scale.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/map/map_with_large_scale.py"
+    },
+    {
       "name": "Block Example",
       "description": "Nested child contexts demonstrating block operations",
       "handler": "block_example.handler",
