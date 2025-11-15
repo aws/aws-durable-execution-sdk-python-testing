@@ -74,7 +74,7 @@ dependencies = [
 [tool.hatch.envs.examples.scripts]
 cli = "python examples/cli.py {args}"
 bootstrap = "python examples/cli.py bootstrap"
-generate-sam = "python examples/cli.py sam {args}"
+generate-sam-template = "python examples/scripts/generate_sam_template.py"
 build = "python examples/cli.py build"
 deploy = "python examples/cli.py deploy {args}"
 invoke = "python examples/cli.py invoke {args}"
