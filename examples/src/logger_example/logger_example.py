@@ -4,9 +4,15 @@ from typing import Any
 
 from aws_durable_execution_sdk_python.context import (
     DurableContext,
+    StepContext,
     durable_with_child_context,
+    durable_step,
 )
 from aws_durable_execution_sdk_python.execution import durable_execution
+
+import logging
+
+logging.getLogger().setLevel(logging.INFO)
 
 
 @durable_with_child_context
@@ -26,6 +32,16 @@ def child_workflow(ctx: DurableContext) -> str:
     return child_result
 
 
+@durable_step
+def my_step(step_context: StepContext, my_arg: int) -> str:
+    step_context.logger.info("Hello from my_step")
+    step_context.logger.warning("Warning from my_step", extra={"my_arg": my_arg})
+    step_context.logger.error(
+        "Error from my_step", extra={"my_arg": my_arg, "type": "error"}
+    )
+    return f"from my_step: {my_arg}"
+
+
 @durable_execution
 def handler(event: Any, context: DurableContext) -> str:
     """Handler demonstrating logger usage."""
@@ -37,6 +53,8 @@ def handler(event: Any, context: DurableContext) -> str:
         lambda _: "processed",
         name="process_data",
     )
+
+    context.step(my_step(123))
 
     context.logger.info("Step 1 completed", extra={"result": result1})
 
