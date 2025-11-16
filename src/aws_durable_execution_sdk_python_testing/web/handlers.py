@@ -198,10 +198,7 @@ class EndpointHandler(ABC):
         Raises:
             InvalidParameterValueException: If payload parsing fails
         """
-        if not isinstance(request.body, bytes):
-            return b""
-
-        if not request.body:
+        if not request.body or not isinstance(request.body, bytes):
             return b""
 
         try:
