@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 from abc import ABC, abstractmethod
@@ -182,6 +183,40 @@ class EndpointHandler(ABC):
         return HTTPResponse.create_empty(204, additional_headers)
 
     # Removed deprecated _error_response method - use AWS exceptions directly
+
+    def _parse_callback_result_payload(self, request: HTTPRequest) -> bytes:
+        """Parse callback result payload from request body.
+
+        Expects JSON payload with base64-encoded Result field.
+
+        Args:
+            request: The HTTP request containing the JSON payload
+
+        Returns:
+            bytes: The decoded result payload
+
+        Raises:
+            InvalidParameterValueException: If payload parsing fails
+        """
+        if not isinstance(request.body, bytes):
+            return b""
+
+        if not request.body:
+            return b""
+
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+            if isinstance(payload, dict) and "Result" in payload:
+                result_value = payload["Result"]
+                if isinstance(result_value, str):
+                    return base64.b64decode(result_value)
+            return b""
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            msg = f"Failed to parse JSON payload: {e}"
+            raise InvalidParameterValueException(msg) from e
+        except ValueError as e:
+            msg = f"Failed to decode base64 result: {e}"
+            raise InvalidParameterValueException(msg) from e
 
     def _parse_query_param(self, request: HTTPRequest, param_name: str) -> str | None:
         """Parse a single query parameter from the request.
@@ -611,8 +646,7 @@ class SendDurableExecutionCallbackSuccessHandler(EndpointHandler):
             callback_route = cast(CallbackSuccessRoute, parsed_route)
             callback_id: str = callback_route.callback_id
 
-            # For binary payload operations, body is raw bytes
-            result_bytes = request.body if isinstance(request.body, bytes) else b""
+            result_bytes: bytes = self._parse_callback_result_payload(request)
 
             callback_response: SendDurableExecutionCallbackSuccessResponse = (  # noqa: F841
                 self.executor.send_callback_success(
