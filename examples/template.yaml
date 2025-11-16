@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Globals:
   Function:
@@ -14,12 +14,38 @@ Parameters:
     Type: String
     Default: https://lambda.us-west-2.amazonaws.com
 Resources:
+  DurableFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyName: DurableExecutionPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - lambda:CheckpointDurableExecution
+            - lambda:GetDurableExecutionState
+            Resource: '*'
   HelloWorld:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
       Handler: hello_world.handler
       Description: A simple hello world example with no durable operations
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -29,6 +55,10 @@ Resources:
       CodeUri: build/
       Handler: step.handler
       Description: Basic usage of context.step() to checkpoint a simple operation
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -38,6 +68,10 @@ Resources:
       CodeUri: build/
       Handler: step_with_name.handler
       Description: Step operation with explicit name parameter
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -47,6 +81,10 @@ Resources:
       CodeUri: build/
       Handler: step_with_retry.handler
       Description: Usage of context.step() with retry configuration for fault tolerance
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -56,6 +94,23 @@ Resources:
       CodeUri: build/
       Handler: wait.handler
       Description: Basic usage of context.wait() to pause execution
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  MultipleWait:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: multiple_wait.handler
+      Description: Usage of demonstrating multiple sequential wait operations.
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -64,9 +119,12 @@ Resources:
     Properties:
       CodeUri: build/
       Handler: callback.handler
-      Description:
-        Basic usage of context.create_callback() to create a callback for
+      Description: Basic usage of context.create_callback() to create a callback for
         external systems
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -75,9 +133,12 @@ Resources:
     Properties:
       CodeUri: build/
       Handler: wait_for_callback.handler
-      Description:
-        Usage of context.wait_for_callback() to wait for external system
+      Description: Usage of context.wait_for_callback() to wait for external system
         responses
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -86,9 +147,12 @@ Resources:
     Properties:
       CodeUri: build/
       Handler: run_in_child_context.handler
-      Description:
-        Usage of context.run_in_child_context() to execute operations in
+      Description: Usage of context.run_in_child_context() to execute operations in
         isolated contexts
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -98,6 +162,10 @@ Resources:
       CodeUri: build/
       Handler: parallel.handler
       Description: Executing multiple durable operations in parallel
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -107,6 +175,10 @@ Resources:
       CodeUri: build/
       Handler: map_operations.handler
       Description: Processing collections using map-like durable operations
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -116,6 +188,10 @@ Resources:
       CodeUri: build/
       Handler: block_example.handler
       Description: Nested child contexts demonstrating block operations
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -125,6 +201,10 @@ Resources:
       CodeUri: build/
       Handler: logger_example.handler
       Description: Demonstrating logger usage and enrichment in DurableContext
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -134,6 +214,10 @@ Resources:
       CodeUri: build/
       Handler: steps_with_retry.handler
       Description: Multiple steps with retry logic in a polling pattern
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -143,6 +227,37 @@ Resources:
       CodeUri: build/
       Handler: wait_for_condition.handler
       Description: Polling pattern that waits for a condition to be met
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  RunInChildContextLargeData:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: run_in_child_context_large_data.handler
+      Description: Usage of context.run_in_child_context() to execute operations in
+        isolated contexts with large data
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  SimpleExecution:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: simple_execution.handler
+      Description: Simple execution without durable execution
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -152,6 +267,10 @@ Resources:
       CodeUri: build/
       Handler: map_with_max_concurrency.handler
       Description: Map operation with maxConcurrency limit
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -161,6 +280,10 @@ Resources:
       CodeUri: build/
       Handler: map_with_min_successful.handler
       Description: Map operation with min_successful completion config
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -170,6 +293,10 @@ Resources:
       CodeUri: build/
       Handler: map_with_failure_tolerance.handler
       Description: Map operation with failure tolerance
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -179,6 +306,10 @@ Resources:
       CodeUri: build/
       Handler: parallel_with_max_concurrency.handler
       Description: Parallel operation with maxConcurrency limit
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -188,6 +319,10 @@ Resources:
       CodeUri: build/
       Handler: parallel_with_wait.handler
       Description: Parallel operation with wait operations in branches
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
@@ -197,42 +332,75 @@ Resources:
       CodeUri: build/
       Handler: parallel_with_failure_tolerance.handler
       Description: Parallel operation with failure tolerance
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  MapWithCustomSerDes:
+  MapWithCustomSerdes:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
       Handler: map_with_custom_serdes.handler
       Description: Map operation with custom item-level serialization
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  MapWithBatchSerDes:
+  MapWithBatchSerdes:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
       Handler: map_with_batch_serdes.handler
       Description: Map operation with custom batch-level serialization
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  ParallelWithCustomSerDes:
+  ParallelWithCustomSerdes:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
       Handler: parallel_with_custom_serdes.handler
       Description: Parallel operation with custom item-level serialization
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
-  ParallelWithBatchSerDes:
+  ParallelWithBatchSerdes:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: build/
       Handler: parallel_with_batch_serdes.handler
       Description: Parallel operation with custom batch-level serialization
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  HandlerError:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: handler_error.handler
+      Description: Simple function with handler error
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
