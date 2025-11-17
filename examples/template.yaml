@@ -182,6 +182,20 @@ Resources:
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
+  MapWithLargeScale:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: map_with_large_scale.handler
+      Description: Processing collections using map-like durable operations in large
+        scale
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
   BlockExample:
     Type: AWS::Serverless::Function
     Properties:
