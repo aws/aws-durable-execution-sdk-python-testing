@@ -330,6 +330,7 @@ def deploy_function(example_name: str, function_name: str | None = None):
             "Variables": {"AWS_ENDPOINT_URL_LAMBDA": config["lambda_endpoint"]}
         },
         "DurableConfig": example_config["durableConfig"],
+        "LoggingConfig": example_config.get("loggingConfig", {}),
     }
 
     if config["kms_key_arn"]:
