@@ -10,10 +10,6 @@ from aws_durable_execution_sdk_python.context import (
 )
 from aws_durable_execution_sdk_python.execution import durable_execution
 
-import logging
-
-logging.getLogger().setLevel(logging.INFO)
-
 
 @durable_with_child_context
 def child_workflow(ctx: DurableContext) -> str:

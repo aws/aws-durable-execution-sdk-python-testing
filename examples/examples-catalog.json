@@ -153,6 +153,10 @@
         "RetentionPeriodInDays": 7,
         "ExecutionTimeout": 300
       },
+      "loggingConfig": {
+        "ApplicationLogLevel": "INFO",
+        "LogFormat": "JSON"
+      },
       "path": "./src/logger_example/logger_example.py"
     },
     {
