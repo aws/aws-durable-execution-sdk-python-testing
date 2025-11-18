@@ -1760,7 +1760,7 @@ class Event:
             and wait_details.scheduled_end_timestamp
             and context.operation.start_timestamp
         ):
-            duration = int(
+            duration = round(
                 (
                     wait_details.scheduled_end_timestamp
                     - context.operation.start_timestamp
@@ -1789,7 +1789,7 @@ class Event:
             and wait_details.scheduled_end_timestamp
             and context.operation.start_timestamp
         ):
-            duration = int(
+            duration = round(
                 (
                     wait_details.scheduled_end_timestamp - context.start_timestamp
                 ).total_seconds()

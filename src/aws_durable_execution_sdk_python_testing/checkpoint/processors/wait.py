@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import os
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -41,8 +43,12 @@ class WaitProcessor(OperationProcessor):
                 wait_seconds = (
                     update.wait_options.wait_seconds if update.wait_options else 0
                 )
+                time_scale = float(os.getenv("DURABLE_EXECUTION_TIME_SCALE", "1.0"))
+                logging.info("Using DURABLE_EXECUTION_TIME_SCALE: %f", time_scale)
+                scaled_wait_seconds = wait_seconds * time_scale
+
                 scheduled_end_timestamp = datetime.now(UTC) + timedelta(
-                    seconds=wait_seconds
+                    seconds=scaled_wait_seconds
                 )
 
                 # Create WaitDetails with scheduled timestamp
@@ -72,7 +78,7 @@ class WaitProcessor(OperationProcessor):
                 notifier.notify_wait_timer_scheduled(
                     execution_arn=execution_arn,
                     operation_id=update.operation_id,
-                    delay=wait_seconds,
+                    delay=scaled_wait_seconds,
                 )
                 return wait_operation
             case OperationAction.CANCEL:
