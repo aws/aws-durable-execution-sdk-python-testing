@@ -99,7 +99,7 @@ def test_execution_start(mock_datetime):
     assert operation.start_timestamp == mock_now
     assert operation.operation_type == OperationType.EXECUTION
     assert operation.status == OperationStatus.STARTED
-    assert operation.execution_details.input_payload == '"{\\"key\\": \\"value\\"}"'
+    assert operation.execution_details.input_payload == '{"key": "value"}'
 
 
 def test_get_operation_execution_started():

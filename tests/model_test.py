@@ -77,21 +77,23 @@ TIMESTAMP_2023_01_01_00_01 = datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datet
 TIMESTAMP_2023_01_01_00_02 = datetime.datetime(2023, 1, 1, 0, 2, 0, tzinfo=datetime.UTC)
 TIMESTAMP_2023_01_02_00_00 = datetime.datetime(2023, 1, 2, 0, 0, 0, tzinfo=datetime.UTC)
 
+DEFAULT_START_DURABLE_EXECUTION_INPUT_DATA = {
+    "AccountId": "123456789012",
+    "FunctionName": "my-function",
+    "FunctionQualifier": "$LATEST",
+    "ExecutionName": "test-execution",
+    "ExecutionTimeoutSeconds": 300,
+    "ExecutionRetentionPeriodDays": 7,
+    "InvocationId": "invocation-123",
+    "TraceFields": {"key": "value"},
+    "TenantId": "tenant-123",
+    "Input": "test-input",
+}
+
 
 def test_start_durable_execution_input_serialization():
     """Test StartDurableExecutionInput from_dict/to_dict round-trip."""
-    data = {
-        "AccountId": "123456789012",
-        "FunctionName": "my-function",
-        "FunctionQualifier": "$LATEST",
-        "ExecutionName": "test-execution",
-        "ExecutionTimeoutSeconds": 300,
-        "ExecutionRetentionPeriodDays": 7,
-        "InvocationId": "invocation-123",
-        "TraceFields": {"key": "value"},
-        "TenantId": "tenant-123",
-        "Input": "test-input",
-    }
+    data = DEFAULT_START_DURABLE_EXECUTION_INPUT_DATA
 
     # Test from_dict
     input_obj = StartDurableExecutionInput.from_dict(data)
@@ -113,6 +115,42 @@ def test_start_durable_execution_input_serialization():
     # Test round-trip
     round_trip = StartDurableExecutionInput.from_dict(result_data)
     assert round_trip == input_obj
+
+
+def test_start_durable_execution_input_get_input_json_input():
+    """Test StartDurableExecutionInput from_dict/to_dict round-trip."""
+    data = DEFAULT_START_DURABLE_EXECUTION_INPUT_DATA
+    data["Input"] = '{"message": "hello"}'
+
+    input_obj = StartDurableExecutionInput.from_dict(data)
+    assert '{"message": "hello"}' == input_obj.get_normalized_input()
+
+
+def test_start_durable_execution_input_get_input_str_non_json_input():
+    """Test StartDurableExecutionInput from_dict/to_dict round-trip."""
+    data = DEFAULT_START_DURABLE_EXECUTION_INPUT_DATA
+    data["Input"] = "hello"
+
+    input_obj = StartDurableExecutionInput.from_dict(data)
+    assert '"hello"' == input_obj.get_normalized_input()
+
+
+def test_start_durable_execution_input_get_input_str_json_input():
+    """Test StartDurableExecutionInput from_dict/to_dict round-trip."""
+    data = DEFAULT_START_DURABLE_EXECUTION_INPUT_DATA
+    data["Input"] = '"hello"'
+
+    input_obj = StartDurableExecutionInput.from_dict(data)
+    assert '"hello"' == input_obj.get_normalized_input()
+
+
+def test_start_durable_execution_input_get_input_list_json_input():
+    """Test StartDurableExecutionInput from_dict/to_dict round-trip."""
+    data = DEFAULT_START_DURABLE_EXECUTION_INPUT_DATA
+    data["Input"] = "[1,2,3]"
+
+    input_obj = StartDurableExecutionInput.from_dict(data)
+    assert "[1,2,3]" == input_obj.get_normalized_input()
 
 
 def test_start_durable_execution_input_minimal():

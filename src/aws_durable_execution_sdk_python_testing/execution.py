@@ -161,7 +161,7 @@ class Execution:
                     operation_type=OperationType.EXECUTION,
                     status=OperationStatus.STARTED,
                     execution_details=ExecutionDetails(
-                        input_payload=json.dumps(self.start_input.input)
+                        input_payload=self.start_input.get_normalized_input()
                     ),
                 )
             )

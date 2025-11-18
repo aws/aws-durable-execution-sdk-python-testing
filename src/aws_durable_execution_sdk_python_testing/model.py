@@ -6,6 +6,7 @@ import datetime
 from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Any
+import json
 
 from dateutil.tz import UTC
 
@@ -165,6 +166,19 @@ class StartDurableExecutionInput:
         if self.input is not None:
             result["Input"] = self.input
         return result
+
+    def get_normalized_input(self):
+        """
+        Normalize input string to be JSON deserializable.
+        Avoid double coding json input.
+        """
+        # Try to parse once
+        try:
+            _ = json.loads(self.input)
+            return self.input
+        except (json.JSONDecodeError, TypeError):
+            # Not valid JSON, treat as plain string and encode it
+            return json.dumps(self.input)
 
 
 @dataclass(frozen=True)
