@@ -84,7 +84,11 @@ class MockExecutionObserver(ExecutionObserver):
         }
 
     def on_callback_created(
-        self, execution_arn: str, operation_id: str, callback_token: CallbackToken
+        self,
+        execution_arn: str,
+        operation_id: str,
+        callback_options: CallbackOptions | None,
+        callback_token: CallbackToken,
     ) -> None:
         """Capture callback creation events."""
         self.callback_creations[execution_arn] = {
@@ -2491,41 +2495,17 @@ def test_complete_events_no_event(executor):
 
 def test_callback_timeout_scheduling(executor, mock_store, mock_scheduler):
     """Test that callback timeouts are scheduled when callback is created."""
-    # Create mock execution with callback operation and updates
-    mock_execution = Mock()
-    mock_execution.durable_execution_arn = "test-arn"
-
-    # Create callback operation with details
-    callback_operation = Operation(
-        operation_id="op-123",
-        operation_type=OperationType.CALLBACK,
-        status=OperationStatus.STARTED,
-        callback_details=CallbackDetails(callback_id="callback-id"),
-    )
-    mock_execution.find_operation.return_value = (0, callback_operation)
-
-    # Create callback update with timeout options
+    # Create callback options with both timeouts
     callback_options = CallbackOptions(timeout_seconds=60, heartbeat_timeout_seconds=30)
-    update = OperationUpdate(
-        operation_id="op-123",
-        operation_type=OperationType.CALLBACK,
-        action=OperationAction.START,
-        callback_options=callback_options,
-    )
-    mock_execution.updates = [update]
-
-    mock_store.load.return_value = mock_execution
-    mock_scheduler.create_event.return_value = Mock()
 
     # Set up completion event
     executor._completion_events["test-arn"] = Mock()
 
-    # Test the timeout scheduling directly
-    executor._schedule_callback_timeouts("test-arn", "op-123", "callback-id")
+    # Test the timeout scheduling directly with correct parameters
+    executor._schedule_callback_timeouts("test-arn", callback_options, "callback-id")
 
     # Verify scheduler was called for both timeouts
     assert mock_scheduler.call_later.call_count == 2  # main timeout + heartbeat timeout
-    assert mock_scheduler.create_event.call_count == 2  # events for both timeouts
 
 
 def test_callback_timeout_cleanup(executor, mock_store):
@@ -2540,9 +2520,9 @@ def test_callback_timeout_cleanup(executor, mock_store):
     # Trigger cleanup
     executor._cleanup_callback_timeouts("callback-id")
 
-    # Verify events were removed and cleaned up
-    timeout_event.remove.assert_called_once()
-    heartbeat_event.remove.assert_called_once()
+    # Verify events were cancelled and removed
+    timeout_event.cancel.assert_called_once()
+    heartbeat_event.cancel.assert_called_once()
     assert "callback-id" not in executor._callback_timeouts
     assert "callback-id" not in executor._callback_heartbeats
 
@@ -2575,8 +2555,8 @@ def test_callback_heartbeat_timeout_reset(executor, mock_store, mock_scheduler):
     # Reset heartbeat timeout
     executor._reset_callback_heartbeat_timeout(callback_id, "test-arn")
 
-    # Verify old event was removed and new one scheduled
-    old_event.remove.assert_called_once()
+    # Verify old event was cancelled and new one scheduled
+    old_event.cancel.assert_called_once()
     mock_scheduler.call_later.assert_called()
 
 
@@ -2591,22 +2571,26 @@ def test_callback_timeout_handlers(executor, mock_store):
     mock_execution.is_complete = False
     mock_store.load.return_value = mock_execution
 
-    with patch.object(executor, "_invoke_execution"):
-        # Test main timeout handler
-        executor._on_callback_timeout("test-arn", callback_id)
+    # Test main timeout handler
+    executor._on_callback_timeout("test-arn", callback_id)
 
-        # Verify callback was failed with timeout error
-        mock_execution.complete_callback_failure.assert_called()
-        timeout_error = mock_execution.complete_callback_failure.call_args[0][1]
-        assert "Callback.Timeout" in str(timeout_error.message)
+    # Verify callback was failed with timeout error
+    mock_execution.complete_callback_timeout.assert_called()
+    timeout_error = mock_execution.complete_callback_timeout.call_args[0][1]
+    assert "Callback timed out" in str(timeout_error.message)
+    mock_execution.complete_fail.assert_called()
 
-        # Test heartbeat timeout handler
-        executor._on_callback_heartbeat_timeout("test-arn", callback_id)
+    # Reset mocks for heartbeat test
+    mock_execution.reset_mock()
 
-        # Verify callback was failed with heartbeat timeout error
-        assert mock_execution.complete_callback_failure.call_count == 2
-        heartbeat_error = mock_execution.complete_callback_failure.call_args[0][1]
-        assert "Callback.Heartbeat" in str(heartbeat_error.message)
+    # Test heartbeat timeout handler
+    executor._on_callback_heartbeat_timeout("test-arn", callback_id)
+
+    # Verify callback was failed with heartbeat timeout error
+    mock_execution.complete_callback_timeout.assert_called()
+    heartbeat_error = mock_execution.complete_callback_timeout.call_args[0][1]
+    assert "Callback heartbeat timed out" in str(heartbeat_error.message)
+    mock_execution.complete_fail.assert_called()
 
 
 def test_callback_timeout_completed_execution(executor, mock_store):
@@ -2626,7 +2610,7 @@ def test_callback_timeout_completed_execution(executor, mock_store):
     executor._on_callback_heartbeat_timeout("test-arn", callback_id)
 
     # Verify no callback operations were performed
-    mock_execution.complete_callback_failure.assert_not_called()
+    mock_execution.complete_callback_timeout.assert_not_called()
     mock_store.update.assert_not_called()
 
 
@@ -2717,32 +2701,12 @@ def test_schedule_callback_timeouts_only_main_timeout(
 ):
     """Test _schedule_callback_timeouts with only main timeout configured."""
 
-    # Create operation with callback details
-    operation = Operation(
-        operation_id="op-123",
-        operation_type=OperationType.CALLBACK,
-        status=OperationStatus.STARTED,
-        callback_details=CallbackDetails(callback_id="callback-id"),
-    )
-
-    mock_execution = Mock()
-    mock_execution.find_operation.return_value = (0, operation)
-
-    # Create update with only main timeout
+    # Create callback options with only main timeout
     callback_options = CallbackOptions(timeout_seconds=60, heartbeat_timeout_seconds=0)
-    update = OperationUpdate(
-        operation_id="op-123",
-        operation_type=OperationType.CALLBACK,
-        action=OperationAction.START,
-        callback_options=callback_options,
-    )
-    mock_execution.updates = [update]
 
-    mock_store.load.return_value = mock_execution
-    mock_scheduler.create_event.return_value = Mock()
     executor._completion_events["test-arn"] = Mock()
 
-    executor._schedule_callback_timeouts("test-arn", "op-123", "callback-id")
+    executor._schedule_callback_timeouts("test-arn", callback_options, "callback-id")
 
     # Only main timeout should be scheduled
     assert mock_scheduler.call_later.call_count == 1
@@ -2754,32 +2718,12 @@ def test_schedule_callback_timeouts_only_heartbeat_timeout(
     executor, mock_store, mock_scheduler
 ):
     """Test _schedule_callback_timeouts with only heartbeat timeout configured."""
-    # Create operation with callback details
-    operation = Operation(
-        operation_id="op-123",
-        operation_type=OperationType.CALLBACK,
-        status=OperationStatus.STARTED,
-        callback_details=CallbackDetails(callback_id="callback-id"),
-    )
-
-    mock_execution = Mock()
-    mock_execution.find_operation.return_value = (0, operation)
-
-    # Create update with only heartbeat timeout
+    # Create callback options with only heartbeat timeout
     callback_options = CallbackOptions(timeout_seconds=0, heartbeat_timeout_seconds=30)
-    update = OperationUpdate(
-        operation_id="op-123",
-        operation_type=OperationType.CALLBACK,
-        action=OperationAction.START,
-        callback_options=callback_options,
-    )
-    mock_execution.updates = [update]
 
-    mock_store.load.return_value = mock_execution
-    mock_scheduler.create_event.return_value = Mock()
     executor._completion_events["test-arn"] = Mock()
 
-    executor._schedule_callback_timeouts("test-arn", "op-123", "callback-id")
+    executor._schedule_callback_timeouts("test-arn", callback_options, "callback-id")
 
     # Only heartbeat timeout should be scheduled
     assert mock_scheduler.call_later.call_count == 1

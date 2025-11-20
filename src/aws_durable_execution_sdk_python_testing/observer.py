@@ -11,7 +11,10 @@ from aws_durable_execution_sdk_python_testing.token import CallbackToken
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from aws_durable_execution_sdk_python.lambda_service import ErrorObject
+    from aws_durable_execution_sdk_python.lambda_service import (
+        ErrorObject,
+        CallbackOptions,
+    )
 
 
 class ExecutionObserver(ABC):
@@ -47,7 +50,11 @@ class ExecutionObserver(ABC):
 
     @abstractmethod
     def on_callback_created(
-        self, execution_arn: str, operation_id: str, callback_token: CallbackToken
+        self,
+        execution_arn: str,
+        operation_id: str,
+        callback_options: CallbackOptions | None,
+        callback_token: CallbackToken,
     ) -> None:
         """Called when callback is created."""
 
@@ -119,13 +126,18 @@ class ExecutionNotifier:
         )
 
     def notify_callback_created(
-        self, execution_arn: str, operation_id: str, callback_token: CallbackToken
+        self,
+        execution_arn: str,
+        operation_id: str,
+        callback_options: CallbackOptions | None,
+        callback_token: CallbackToken,
     ) -> None:
         """Notify observers about callback creation."""
         self._notify_observers(
             ExecutionObserver.on_callback_created,
             execution_arn=execution_arn,
             operation_id=operation_id,
+            callback_options=callback_options,
             callback_token=callback_token,
         )
 

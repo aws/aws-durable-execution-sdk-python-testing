@@ -12,6 +12,7 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationUpdate,
     CallbackDetails,
     OperationType,
+    CallbackOptions,
 )
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.base import (
     OperationProcessor,
@@ -43,12 +44,6 @@ class CallbackProcessor(OperationProcessor):
                     operation_id=update.operation_id,
                 )
 
-                notifier.notify_callback_created(
-                    execution_arn=execution_arn,
-                    operation_id=update.operation_id,
-                    callback_token=callback_token,
-                )
-
                 callback_id: str = callback_token.to_str()
 
                 callback_details: CallbackDetails | None = (
@@ -60,11 +55,15 @@ class CallbackProcessor(OperationProcessor):
                     if update.operation_type == OperationType.CALLBACK
                     else None
                 )
+
                 status: OperationStatus = OperationStatus.STARTED
+
                 start_time: datetime.datetime | None = self._get_start_time(current_op)
+
                 end_time: datetime.datetime | None = self._get_end_time(
                     current_op, status
                 )
+
                 operation: Operation = Operation(
                     operation_id=update.operation_id,
                     parent_id=update.parent_id,
@@ -76,7 +75,14 @@ class CallbackProcessor(OperationProcessor):
                     sub_type=update.sub_type,
                     callback_details=callback_details,
                 )
+                callback_options: CallbackOptions | None = update.callback_options
 
+                notifier.notify_callback_created(
+                    execution_arn=execution_arn,
+                    operation_id=update.operation_id,
+                    callback_options=callback_options,
+                    callback_token=callback_token,
+                )
                 return operation
             case _:
                 msg: str = "Invalid action for CALLBACK operation."

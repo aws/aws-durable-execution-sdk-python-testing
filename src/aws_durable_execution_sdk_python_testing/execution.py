@@ -381,6 +381,32 @@ class Execution:
             )
             return self.operations[index]
 
+    def complete_callback_timeout(
+        self, callback_id: str, error: ErrorObject
+    ) -> Operation:
+        """Complete CALLBACK operation with timeout."""
+        index, operation = self.find_callback_operation(callback_id)
+
+        if operation.status != OperationStatus.STARTED:
+            msg: str = f"Callback operation [{callback_id}] is not in STARTED state"
+            raise IllegalStateException(msg)
+
+        with self._state_lock:
+            self._token_sequence += 1
+            updated_callback_details = None
+            if operation.callback_details:
+                updated_callback_details = replace(
+                    operation.callback_details, error=error
+                )
+
+            self.operations[index] = replace(
+                operation,
+                status=OperationStatus.TIMED_OUT,
+                end_timestamp=datetime.now(UTC),
+                callback_details=updated_callback_details,
+            )
+            return self.operations[index]
+
     def _end_execution(self, status: OperationStatus) -> None:
         """Set the end_timestamp on the main EXECUTION operation when execution completes."""
         execution_op: Operation = self.get_operation_execution_started()

@@ -1,0 +1,1 @@
+source /Users/rarepolz/workspace/aws-durable-execution/venv/bin/activate && pip install -e . --no-deps && pytest tests/event_conversion_test.py -v

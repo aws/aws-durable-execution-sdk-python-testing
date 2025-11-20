@@ -5,7 +5,7 @@ import threading
 from unittest.mock import Mock
 
 import pytest
-from aws_durable_execution_sdk_python.lambda_service import ErrorObject
+from aws_durable_execution_sdk_python.lambda_service import ErrorObject, CallbackOptions
 
 from aws_durable_execution_sdk_python_testing.observer import (
     ExecutionNotifier,
@@ -49,10 +49,14 @@ class MockExecutionObserver(ExecutionObserver):
         self.on_step_retry_scheduled_calls.append((execution_arn, operation_id, delay))
 
     def on_callback_created(
-        self, execution_arn: str, operation_id: str, callback_token: CallbackToken
+        self,
+        execution_arn: str,
+        operation_id: str,
+        callback_options: CallbackOptions | None,
+        callback_token: CallbackToken,
     ) -> None:
         self.on_callback_created_calls.append(
-            (execution_arn, operation_id, callback_token)
+            (execution_arn, operation_id, callback_options, callback_token)
         )
 
 
