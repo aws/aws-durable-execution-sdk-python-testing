@@ -101,6 +101,105 @@
       "path": "./src/wait_for_callback/wait_for_callback.py"
     },
     {
+      "name": "Wait For Callback Success Anonymous",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback_anonymous.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback_anonymous.py"
+    },
+    {
+      "name": "Wait For Callback Heartbeat Sends",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback_heartbeat.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback_heartbeat.py"
+    },
+    {
+      "name": "Wait For Callback With Child Context",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback_child.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback_child.py"
+    },
+    {
+      "name": "Wait For Callback Mixed Ops",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback_mixed_ops.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback_mixed_ops.py"
+    },
+    {
+      "name": "Wait For Callback Multiple Invocations",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback_multiple_invocations.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback_multiple_invocations.py"
+    },
+    {
+      "name": "Wait For Callback Failing Submitter Catchable",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback_submitter_failure_catchable.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback_submitter_failure_catchable.py"
+    },
+    {
+      "name": "Wait For Callback Submitter Failure",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback_submitter_failure.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback_submitter_failure.py"
+    },
+    {
+      "name": "Wait For Callback Serdes",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback_serdes.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback_serdes.py"
+    },
+    {
+      "name": "Wait For Callback Nested",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback_nested.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback_nested.py"
+    },
+    {
       "name": "Run in Child Context",
       "description": "Usage of context.run_in_child_context() to execute operations in isolated contexts",
       "handler": "run_in_child_context.handler",
