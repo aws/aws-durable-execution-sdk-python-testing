@@ -334,6 +334,17 @@
         "ExecutionTimeout": 300
       },
       "path": "./src/handler_error/handler_error.py"
+    },
+    {
+      "name": "None Results",
+      "description": "Test handling of step operations with undefined result after replay.",
+      "handler": "none_results.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/none_results/none_results.py"
     }
   ]
 }
