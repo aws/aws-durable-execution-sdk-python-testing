@@ -65,6 +65,7 @@ from aws_durable_execution_sdk_python_testing.stores.filesystem import (
 from aws_durable_execution_sdk_python_testing.stores.memory import (
     InMemoryExecutionStore,
 )
+from aws_durable_execution_sdk_python_testing.stores.sqlite import SQLiteExecutionStore
 from aws_durable_execution_sdk_python_testing.web.server import WebServer
 
 
@@ -759,7 +760,10 @@ class WebRunner:
             raise DurableFunctionsLocalRunnerError(msg)
 
         # Create dependencies and server
-        if self._config.store_type == StoreType.FILESYSTEM:
+        if self._config.store_type == StoreType.SQLITE:
+            store_path = self._config.store_path
+            self._store = SQLiteExecutionStore.create_and_initialize(store_path)
+        elif self._config.store_type == StoreType.FILESYSTEM:
             store_path = self._config.store_path or ".durable_executions"
             self._store = FileSystemExecutionStore.create(store_path)
         else:
