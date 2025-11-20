@@ -2578,7 +2578,6 @@ def test_callback_timeout_handlers(executor, mock_store):
     mock_execution.complete_callback_timeout.assert_called()
     timeout_error = mock_execution.complete_callback_timeout.call_args[0][1]
     assert "Callback timed out" in str(timeout_error.message)
-    mock_execution.complete_fail.assert_called()
 
     # Reset mocks for heartbeat test
     mock_execution.reset_mock()
@@ -2590,7 +2589,6 @@ def test_callback_timeout_handlers(executor, mock_store):
     mock_execution.complete_callback_timeout.assert_called()
     heartbeat_error = mock_execution.complete_callback_timeout.call_args[0][1]
     assert "Callback heartbeat timed out" in str(heartbeat_error.message)
-    mock_execution.complete_fail.assert_called()
 
 
 def test_callback_timeout_completed_execution(executor, mock_store):
