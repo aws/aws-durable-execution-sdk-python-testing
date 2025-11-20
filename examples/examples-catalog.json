@@ -347,6 +347,17 @@
       "path": "./src/map/map_with_failure_tolerance.py"
     },
     {
+      "name": "Map Completion Config",
+      "description": "Reproduces issue where map with minSuccessful loses failure count",
+      "handler": "map_completion.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/map/map_completion.py"
+    },
+    {
       "name": "Parallel with Max Concurrency",
       "description": "Parallel operation with maxConcurrency limit",
       "handler": "parallel_with_max_concurrency.handler",

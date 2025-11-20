@@ -440,6 +440,19 @@ Resources:
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
+  MapCompletion:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: map_completion.handler
+      Description: Reproduces issue where map with minSuccessful loses failure count
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
   ParallelWithMaxConcurrency:
     Type: AWS::Serverless::Function
     Properties:
