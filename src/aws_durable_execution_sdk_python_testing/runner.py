@@ -555,6 +555,18 @@ class DurableFunctionTestResult:
     def get_execution(self, name: str) -> ExecutionOperation:
         return cast(ExecutionOperation, self.get_operation_by_name(name))
 
+    def get_all_operations(self) -> list[Operation]:
+        """Recursively get all operations including nested ones."""
+        all_ops = []
+        stack = list(self.operations)
+        while stack:
+            op = stack.pop()
+            all_ops.append(op)
+            # Add child operations to stack (if they exist)
+            if hasattr(op, "child_operations") and op.child_operations:
+                stack.extend(op.child_operations)
+        return all_ops
+
 
 class DurableFunctionTestRunner:
     def __init__(self, handler: Callable, poll_interval: float = 1.0):
