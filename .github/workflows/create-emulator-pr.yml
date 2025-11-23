@@ -22,8 +22,8 @@ jobs:
         BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
         EMULATOR_BRANCH="testing-sdk-${BRANCH_NAME}"
         
-        git clone git@github.com:aws/aws-lambda-durable-functions-emulator.git
-        cd aws-lambda-durable-functions-emulator
+        git clone git@github.com:aws/aws-durable-execution-emulator.git
+        cd aws-durable-execution-emulator
         git push origin --delete "$EMULATOR_BRANCH" || echo "Branch may not exist"
 
   create-emulator-pr:
@@ -51,7 +51,7 @@ jobs:
         
     - name: Checkout emulator repo
       run: |
-        git clone git@github.com:aws/aws-lambda-durable-functions-emulator.git emulator
+        git clone git@github.com:aws/aws-durable-execution-emulator.git emulator
         
     - name: Create branch and update uv.lock
       working-directory: emulator
@@ -151,6 +151,7 @@ jobs:
               });
             } else {
               // Create new PR
+              console.log("Creating an emulator PR")
               const response = await github.rest.pulls.create({
                 owner: 'aws',
                 repo: 'aws-durable-execution-emulator',
