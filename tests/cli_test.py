@@ -1004,7 +1004,7 @@ def test_create_boto3_client_sets_up_aws_data_path() -> None:
 
                 # Verify boto3 client is created with correct parameters
                 mock_boto3_client.assert_called_once_with(
-                    "lambdainternal-local",
+                    "lambdainternal",
                     endpoint_url=app.config.local_runner_endpoint,
                     region_name=app.config.local_runner_region,
                 )

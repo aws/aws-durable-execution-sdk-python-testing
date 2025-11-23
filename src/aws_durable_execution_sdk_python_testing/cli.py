@@ -457,7 +457,7 @@ class CliApp:
     def _create_boto3_client(
         self, endpoint_url: str | None = None, region_name: str | None = None
     ) -> Any:
-        """Create boto3 client for lambdainternal-local service.
+        """Create boto3 client for lambdainternal service.
 
         Args:
             endpoint_url: Optional endpoint URL override
@@ -481,7 +481,7 @@ class CliApp:
 
             # Create client with local endpoint - no AWS access keys required
             return boto3.client(
-                "lambdainternal-local",
+                "lambdainternal",
                 endpoint_url=final_endpoint,
                 region_name=final_region,
             )

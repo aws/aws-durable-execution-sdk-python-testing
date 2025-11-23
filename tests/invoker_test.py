@@ -69,7 +69,6 @@ def test_in_process_invoker_create_invocation_input():
     assert invocation_input.durable_execution_arn == execution.durable_execution_arn
     assert invocation_input.checkpoint_token is not None
     assert isinstance(invocation_input.initial_execution_state, InitialExecutionState)
-    assert invocation_input.is_local_runner is False
     assert invocation_input.service_client is service_client
 
 
@@ -86,7 +85,6 @@ def test_in_process_invoker_invoke():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",  # noqa: S106
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     result = invoker.invoke("test-function", input_data)
@@ -149,7 +147,6 @@ def test_lambda_invoker_create_invocation_input():
     assert invocation_input.durable_execution_arn == execution.durable_execution_arn
     assert invocation_input.checkpoint_token is not None
     assert isinstance(invocation_input.initial_execution_state, InitialExecutionState)
-    assert invocation_input.is_local_runner is False
 
 
 def test_lambda_invoker_invoke_success():
@@ -173,7 +170,6 @@ def test_lambda_invoker_invoke_success():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",  # noqa: S106
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     result = invoker.invoke("test-function", input_data)
@@ -211,7 +207,6 @@ def test_lambda_invoker_invoke_failure():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",  # noqa: S106
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(
@@ -286,7 +281,6 @@ def test_lambda_invoker_invoke_empty_function_name():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(
@@ -308,7 +302,6 @@ def test_lambda_invoker_invoke_whitespace_function_name():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(
@@ -337,7 +330,6 @@ def test_lambda_invoker_invoke_status_202():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     result = invoker.invoke("test-function", input_data)
@@ -367,7 +359,6 @@ def test_lambda_invoker_invoke_function_error():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(
@@ -446,7 +437,6 @@ def test_lambda_invoker_invoke_resource_not_found():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(
@@ -481,7 +471,6 @@ def test_lambda_invoker_invoke_invalid_parameter():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(InvalidParameterValueException, match="Invalid parameter"):
@@ -510,7 +499,6 @@ def test_lambda_invoker_invoke_service_exception():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(DurableFunctionsTestError, match="Lambda invocation failed"):
@@ -539,7 +527,6 @@ def test_lambda_invoker_invoke_ec2_exception():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(DurableFunctionsTestError, match="Lambda infrastructure error"):
@@ -568,7 +555,6 @@ def test_lambda_invoker_invoke_kms_exception():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(DurableFunctionsTestError, match="Lambda KMS error"):
@@ -600,7 +586,6 @@ def test_lambda_invoker_invoke_durable_execution_already_started():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(
@@ -624,7 +609,6 @@ def test_lambda_invoker_invoke_unexpected_exception():
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
-        is_local_runner=False,
     )
 
     with pytest.raises(

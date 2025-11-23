@@ -417,7 +417,7 @@ def test_should_handle_boto3_client_creation_with_custom_config():
 
         # Assert - Verify boto3 client was called with correct parameters
         mock_boto3_client.assert_called_once_with(
-            "lambdainternal-local",
+            "lambdainternal",
             endpoint_url="http://custom-endpoint:8080",
             region_name="eu-west-1",
         )
@@ -442,7 +442,7 @@ def test_should_handle_boto3_client_creation_with_defaults():
 
         # Assert - Verify boto3 client was called with default parameters
         mock_boto3_client.assert_called_once_with(
-            "lambdainternal-local",
+            "lambdainternal",
             endpoint_url="http://127.0.0.1:3001",  # Default lambda_endpoint value
             region_name="us-west-2",  # Default value
         )
@@ -773,7 +773,7 @@ def test_should_pass_correct_boto3_client_to_lambda_invoker():
 
         # Assert - Verify boto3 client was created with correct parameters
         mock_boto3_client.assert_called_once_with(
-            "lambdainternal-local",
+            "lambdainternal",
             endpoint_url="http://test-endpoint:7777",
             region_name="ap-southeast-2",
         )
