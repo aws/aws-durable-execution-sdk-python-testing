@@ -13,24 +13,18 @@ jobs:
     if: github.event.action == 'closed'
     runs-on: ubuntu-latest
     steps:
-    - name: Delete emulator branch
-      uses: actions/github-script@v7
+    - uses: webfactory/ssh-agent@v0.9.1
       with:
-        github-token: ${{ secrets.EMULATOR_REPO_TOKEN }}
-        script: |
-          const branch_name = context.payload.pull_request.head.ref;
-          const emulator_branch = `testing-sdk-${branch_name}`;
-          
-          try {
-            await github.rest.git.deleteRef({
-              owner: 'aws',
-              repo: 'aws-lambda-durable-functions-emulator',
-              ref: `heads/${emulator_branch}`
-            });
-            console.log(`Deleted emulator branch: ${emulator_branch}`);
-          } catch (error) {
-            console.log(`Branch ${emulator_branch} may not exist or already deleted`);
-          }
+        ssh-private-key: ${{ secrets.SDK_KEY }}
+        
+    - name: Delete emulator branch
+      run: |
+        BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+        EMULATOR_BRANCH="testing-sdk-${BRANCH_NAME}"
+        
+        git clone git@github.com:aws/aws-lambda-durable-functions-emulator.git
+        cd aws-lambda-durable-functions-emulator
+        git push origin --delete "$EMULATOR_BRANCH" || echo "Branch may not exist"
 
   create-emulator-pr:
     if: github.event.action == 'opened' || github.event.action == 'synchronize'
@@ -44,12 +38,13 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v4
         
-    - name: Checkout emulator repo
-      uses: actions/checkout@v5
+    - uses: webfactory/ssh-agent@v0.9.1
       with:
-        repository: aws/aws-lambda-durable-functions-emulator
-        token: ${{ secrets.EMULATOR_REPO_TOKEN }}
-        path: emulator
+        ssh-private-key: ${{ secrets.SDK_KEY }}
+        
+    - name: Checkout emulator repo
+      run: |
+        git clone git@github.com:aws/aws-lambda-durable-functions-emulator.git emulator
         
     - name: Create branch and update uv.lock
       working-directory: emulator
@@ -96,7 +91,6 @@ jobs:
     - name: Create or update PR in emulator repo
       uses: actions/github-script@v7
       with:
-        github-token: ${{ secrets.EMULATOR_REPO_TOKEN }}
         script: |
           const pr = context.payload.pull_request;
           const branch_name = pr.head.ref;
@@ -109,7 +103,7 @@ jobs:
 ## Dependencies
 This PR locks the testing SDK to a specific commit from branch \`${branch_name}\` using uv.lock for reproducible builds.
 
-**Testing SDK Dependency:** \`git+https://github.com/${context.repo.owner}/${context.repo.repo}.git@${branch_name}\`
+**Testing SDK Dependency:** \`git+ssh://git@github.com/${context.repo.owner}/${context.repo.repo}.git@${branch_name}\`
 
 The emulator binaries will be built using the exact testing SDK commit locked in uv.lock from PR aws/aws-durable-execution-sdk-python-testing#${pr.number}.
 
