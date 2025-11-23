@@ -121,7 +121,7 @@ jobs:
             try {
               const prs = await github.rest.pulls.list({
                 owner: 'aws',
-                repo: 'aws-lambda-durable-functions-emulator',
+                repo: 'aws-durable-execution-emulator',
                 head: `aws:${emulator_branch}`,
                 state: 'open'
               });
@@ -134,7 +134,7 @@ jobs:
               // Update existing PR
               await github.rest.pulls.update({
                 owner: 'aws',
-                repo: 'aws-lambda-durable-functions-emulator',
+                repo: 'aws-durable-execution-emulator',
                 pull_number: existingPR.number,
                 title: `Lock testing SDK branch: ${branch_name} (PR #${pr.number})`,
                 body: pr_body
@@ -153,7 +153,7 @@ jobs:
               // Create new PR
               const response = await github.rest.pulls.create({
                 owner: 'aws',
-                repo: 'aws-lambda-durable-functions-emulator',
+                repo: 'aws-durable-execution-emulator',
                 title: `Lock testing SDK branch: ${branch_name} (PR #${pr.number})`,
                 head: emulator_branch,
                 base: 'main',
