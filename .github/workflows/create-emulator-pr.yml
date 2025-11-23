@@ -93,7 +93,7 @@ jobs:
         # Commit and push only the uv.lock file
         git add uv.lock
         git commit -m "Lock testing SDK branch: $BRANCH_NAME (PR #$PR_NUMBER)" || echo "No changes to commit"
-        git push origin "$EMULATOR_BRANCH"
+        git push --force-with-lease origin "$EMULATOR_BRANCH"
         
     - name: Create or update PR in emulator repo
       uses: actions/github-script@v7
