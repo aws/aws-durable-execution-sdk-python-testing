@@ -92,33 +92,16 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
+          const fs = require('fs');
           const pr = context.payload.pull_request;
           const branch_name = pr.head.ref;
           const emulator_branch = `testing-sdk-${branch_name}`;
           
-          const pr_body = `*Issue #, if available:* Related to aws/aws-durable-execution-sdk-python-testing#${pr.number}
-
-*Description of changes:* Testing changes from testing SDK branch \`${branch_name}\`
-
-## Dependencies
-This PR locks the testing SDK to a specific commit from branch \`${branch_name}\` using uv.lock for reproducible builds.
-
-**Testing SDK Dependency:** \`git+ssh://git@github.com/${context.repo.owner}/${context.repo.repo}.git@${branch_name}\`
-
-The emulator binaries will be built using the exact testing SDK commit locked in uv.lock from PR aws/aws-durable-execution-sdk-python-testing#${pr.number}.
-
-## Testing
-
-- [ ] Binaries created successfully with locked dependencies
-- [ ] Emulator functionality verified with new testing SDK changes
-
-## Checklist
-
-- [ ] Code follows project style guidelines
-- [ ] Self-review completed
-- [ ] Changes are backward compatible (or breaking changes documented)
-
-By submitting this pull request, I confirm that you can use, modify, copy, and redistribute this contribution, under the terms of your choice.`;
+          // Read and populate PR template
+          const template = fs.readFileSync('.github/workflows/emulator-pr-template.md', 'utf8');
+          const pr_body = template
+            .replace(/{{PR_NUMBER}}/g, pr.number)
+            .replace(/{{BRANCH_NAME}}/g, branch_name);
 
           try {
             // Check if PR already exists
