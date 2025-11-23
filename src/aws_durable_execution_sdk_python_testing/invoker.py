@@ -85,7 +85,6 @@ class InProcessInvoker(Invoker):
                 operations=execution.operations,
                 next_marker="",
             ),
-            is_local_runner=False,
             service_client=self.service_client,
         )
 
@@ -135,7 +134,6 @@ class LambdaInvoker(Invoker):
                 operations=execution.operations,
                 next_marker="",
             ),
-            is_local_runner=False,
         )
 
     def invoke(

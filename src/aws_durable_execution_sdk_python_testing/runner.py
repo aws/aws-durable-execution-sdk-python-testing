@@ -850,13 +850,13 @@ class WebRunner:
         self._executor = None
 
     def _create_boto3_client(self) -> Any:
-        """Create boto3 client for lambdainternal-local service.
+        """Create boto3 client for lambdainternal service.
 
         Configures AWS data path and creates a boto3 client with the
         local runner endpoint and region from configuration.
 
         Returns:
-            Configured boto3 client for lambdainternal-local service
+            Configured boto3 client for lambdainternal service
 
         Raises:
             Exception: If client creation fails - exceptions propagate naturally
@@ -869,7 +869,7 @@ class WebRunner:
 
         # Create client with Lambda endpoint configuration
         return boto3.client(
-            "lambdainternal-local",
+            "lambdainternal",
             endpoint_url=self._config.lambda_endpoint,
             region_name=self._config.local_runner_region,
         )
