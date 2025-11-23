@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: webfactory/ssh-agent@v0.9.1
       with:
-        ssh-private-key: ${{ secrets.SDK_KEY }}
+        ssh-private-key: ${{ secrets.EMULATOR_KEY }}
         
     - name: Delete emulator branch
       run: |
@@ -40,7 +40,9 @@ jobs:
         
     - uses: webfactory/ssh-agent@v0.9.1
       with:
-        ssh-private-key: ${{ secrets.SDK_KEY }}
+        ssh-private-key: |
+          ${{ secrets.EMULATOR_PRIVATE_KEY }}
+          ${{ secrets.SDK_KEY }}
         
     - name: Checkout emulator repo
       run: |
