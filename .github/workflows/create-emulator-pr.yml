@@ -59,7 +59,6 @@ jobs:
         BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
         EMULATOR_BRANCH="testing-sdk-${BRANCH_NAME}"
         PR_NUMBER="${{ github.event.pull_request.number }}"
-        TESTING_SDK_URL="git+ssh://git@github.com/${{ github.repository }}.git@${BRANCH_NAME}"
         
         # Create or update branch
         git fetch origin
@@ -70,8 +69,8 @@ jobs:
           git checkout -b "$EMULATOR_BRANCH"
         fi
         
-        # Update pyproject.toml to use the testing SDK branch (temporary, not committed)
-        sed -i.bak "s|aws-durable-execution-sdk-python-testing @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python-testing.git|aws-durable-execution-sdk-python-testing @ ${TESTING_SDK_URL}|" pyproject.toml
+        # Update pyproject.toml to use local testing SDK (temporary, not committed)
+        sed -i.bak "s|aws-durable-execution-sdk-python-testing @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python-testing.git|aws-durable-execution-sdk-python-testing @ file://$GITHUB_WORKSPACE|" pyproject.toml
         rm pyproject.toml.bak
         
         # Generate new uv.lock with the specific testing SDK commit
