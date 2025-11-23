@@ -105,7 +105,7 @@ jobs:
           const emulator_branch = `testing-sdk-${branch_name}`;
           
           // Read and populate PR template
-          const template = fs.readFileSync('.github/workflows/emulator-pr-template.md', 'utf8');
+          const template = fs.readFileSync('../testing-sdk/.github/workflows/emulator-pr-template.md', 'utf8');
           const pr_body = template
             .replace(/{{PR_NUMBER}}/g, pr.number)
             .replace(/{{BRANCH_NAME}}/g, branch_name);
