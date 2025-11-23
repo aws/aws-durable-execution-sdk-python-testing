@@ -104,8 +104,12 @@ jobs:
           const branch_name = pr.head.ref;
           const emulator_branch = `testing-sdk-${branch_name}`;
           
+          // Debug: check current directory and list files
+          console.log('Current working directory:', process.cwd());
+          console.log('Directory contents:', fs.readdirSync('.'));
+          
           // Read and populate PR template
-          const template = fs.readFileSync('../testing-sdk/.github/workflows/emulator-pr-template.md', 'utf8');
+          const template = fs.readFileSync('testing-sdk/.github/workflows/emulator-pr-template.md', 'utf8');
           const pr_body = template
             .replace(/{{PR_NUMBER}}/g, pr.number)
             .replace(/{{BRANCH_NAME}}/g, branch_name);
