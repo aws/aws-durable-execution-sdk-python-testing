@@ -21,8 +21,8 @@ jobs:
         
     - name: Delete emulator branch
       run: |
-        BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
-        EMULATOR_BRANCH="testing-sdk-${BRANCH_NAME}"
+        PR_NUMBER="${{ github.event.pull_request.number }}"
+        EMULATOR_BRANCH="testing-sdk-pr-${PR_NUMBER}-sync"
         
         git clone git@github.com:aws/aws-durable-execution-emulator.git
         cd aws-durable-execution-emulator
@@ -64,8 +64,8 @@ jobs:
         
         # Get PR info
         BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
-        EMULATOR_BRANCH="testing-sdk-${BRANCH_NAME}"
         PR_NUMBER="${{ github.event.pull_request.number }}"
+        EMULATOR_BRANCH="testing-sdk-pr-${PR_NUMBER}-sync"
         
         # Create or update branch
         git fetch origin
@@ -94,8 +94,15 @@ jobs:
         
         # Commit and push only the uv.lock file
         git add uv.lock
-        git commit -m "Lock testing SDK branch: $BRANCH_NAME (PR #$PR_NUMBER)" || echo "No changes to commit"
-        git push --force-with-lease origin "$EMULATOR_BRANCH"
+        if git commit -m "Lock testing SDK branch: $BRANCH_NAME (PR #$PR_NUMBER)"; then
+          echo "Changes committed successfully"
+          git push --force-with-lease origin "$EMULATOR_BRANCH"
+          echo "Branch pushed successfully"
+        else
+          echo "No changes to commit"
+          # Still need to push the branch even if no changes
+          git push --force-with-lease origin "$EMULATOR_BRANCH" || git push origin "$EMULATOR_BRANCH"
+        fi
         
     - name: Create or update PR in emulator repo
       uses: actions/github-script@v7
@@ -105,11 +112,10 @@ jobs:
           const fs = require('fs');
           const pr = context.payload.pull_request;
           const branch_name = pr.head.ref;
-          const emulator_branch = `testing-sdk-${branch_name}`;
+          const emulator_branch = `testing-sdk-pr-${pr.number}-sync`;
           
-          // Debug: check current directory and list files
-          console.log('Current working directory:', process.cwd());
-          console.log('Directory contents:', fs.readdirSync('.'));
+          // Wait a moment for branch to be available
+          await new Promise(resolve => setTimeout(resolve, 2000));
           
           // Read and populate PR template
           const template = fs.readFileSync('testing-sdk/.github/workflows/emulator-pr-template.md', 'utf8');
