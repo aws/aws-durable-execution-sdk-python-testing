@@ -70,7 +70,8 @@ jobs:
         fi
         
         # Update pyproject.toml to use local testing SDK (temporary, not committed)
-        sed -i.bak "s|aws-durable-execution-sdk-python-testing @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python-testing.git|aws-durable-execution-sdk-python-testing @ file://$GITHUB_WORKSPACE|" pyproject.toml
+        TESTING_SDK_PATH="$(realpath $GITHUB_WORKSPACE)"
+        sed -i.bak "s|aws-durable-execution-sdk-python-testing @ git+ssh://git@github.com/aws/aws-durable-execution-sdk-python-testing.git|aws-durable-execution-sdk-python-testing @ file://${TESTING_SDK_PATH}|" pyproject.toml
         rm pyproject.toml.bak
         
         # Generate new uv.lock with the specific testing SDK commit
