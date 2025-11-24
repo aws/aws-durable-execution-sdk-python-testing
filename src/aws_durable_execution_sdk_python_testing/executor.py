@@ -106,6 +106,7 @@ class Executor(ExecutionObserver):
                 trace_fields=input.trace_fields,
                 tenant_id=input.tenant_id,
                 input=input.input,
+                lambda_endpoint=input.lambda_endpoint,
             )
 
         execution = Execution.new(input=input)

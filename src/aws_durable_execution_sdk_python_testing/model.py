@@ -117,6 +117,7 @@ class StartDurableExecutionInput:
     trace_fields: dict | None = None
     tenant_id: str | None = None
     input: str | None = None
+    lambda_endpoint: str | None = None  # Endpoint for this specific execution
 
     @classmethod
     def from_dict(cls, data: dict) -> StartDurableExecutionInput:
@@ -146,6 +147,7 @@ class StartDurableExecutionInput:
             trace_fields=data.get("TraceFields"),
             tenant_id=data.get("TenantId"),
             input=data.get("Input"),
+            lambda_endpoint=data.get("LambdaEndpoint", None),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -165,6 +167,8 @@ class StartDurableExecutionInput:
             result["TenantId"] = self.tenant_id
         if self.input is not None:
             result["Input"] = self.input
+        if self.lambda_endpoint is not None:
+            result["LambdaEndpoint"] = self.lambda_endpoint
         return result
 
     def get_normalized_input(self):
