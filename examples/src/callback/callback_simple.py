@@ -1,9 +1,8 @@
 from typing import TYPE_CHECKING, Any
 
-from aws_durable_execution_sdk_python.config import CallbackConfig
+from aws_durable_execution_sdk_python.config import CallbackConfig, Duration
 from aws_durable_execution_sdk_python.context import DurableContext
 from aws_durable_execution_sdk_python.execution import durable_execution
-from aws_durable_execution_sdk_python.config import Duration
 
 
 if TYPE_CHECKING:
@@ -20,6 +19,4 @@ def handler(_event: Any, context: DurableContext) -> str:
         name="example_callback", config=callback_config
     )
 
-    # In a real scenario, you would pass callback.callback_id to an external system
-    # For this example, we'll just return the callback_id to show it was created
-    return f"Callback created with ID: {callback.callback_id}"
+    return callback.result()

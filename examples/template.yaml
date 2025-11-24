@@ -557,3 +557,58 @@ Resources:
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
+  CallbackSimple:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_simple.handler
+      Description: Creating a callback ID for external systems to use
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  CallbackHeartbeat:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_heartbeat.handler
+      Description: Demonstrates callback failure scenarios where the error propagates
+        and is handled by framework
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  CallbackMixedOps:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_mixed_ops.handler
+      Description: Demonstrates createCallback mixed with steps, waits, and other
+        operations
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  CallbackSerdes:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_serdes.handler
+      Description: Demonstrates createCallback with custom serialization/deserialization
+        for Date objects
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
