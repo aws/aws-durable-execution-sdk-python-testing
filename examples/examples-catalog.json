@@ -189,6 +189,17 @@
       "path": "./src/wait_for_callback/wait_for_callback_serdes.py"
     },
     {
+      "name": "Wait For Callback Timeout",
+      "description": "Usage of context.wait_for_callback() to wait for external system responses",
+      "handler": "wait_for_callback_timeout.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/wait_for_callback/wait_for_callback_timeout.py"
+    },
+    {
       "name": "Wait For Callback Nested",
       "description": "Usage of context.wait_for_callback() to wait for external system responses",
       "handler": "wait_for_callback_nested.handler",

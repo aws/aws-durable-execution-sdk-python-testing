@@ -254,6 +254,20 @@ Resources:
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
+  WaitForCallbackTimeout:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: wait_for_callback_timeout.handler
+      Description: Usage of context.wait_for_callback() to wait for external system
+        responses
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
   WaitForCallbackNested:
     Type: AWS::Serverless::Function
     Properties:
