@@ -645,7 +645,9 @@ def test_invoke_handler_success(
     mock_invoker.create_invocation_input.assert_called_once_with(
         execution=mock_execution
     )
-    mock_invoker.invoke.assert_called_once_with("test-function", mock_invocation_input)
+    mock_invoker.invoke.assert_called_once_with(
+        "test-function", mock_invocation_input, None
+    )
 
 
 def test_invoke_handler_execution_already_complete(

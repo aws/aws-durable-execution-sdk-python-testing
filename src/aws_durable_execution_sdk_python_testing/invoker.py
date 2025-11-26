@@ -15,6 +15,7 @@ from aws_durable_execution_sdk_python.execution import (
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
+    ServiceException,
 )
 from aws_durable_execution_sdk_python_testing.model import LambdaContext
 
@@ -63,6 +64,7 @@ class Invoker(Protocol):
         self,
         function_name: str,
         input: DurableExecutionInvocationInput,
+        endpoint_url: str | None = None,
     ) -> DurableExecutionInvocationOutput: ...  # pragma: no cover
 
     def update_endpoint(
@@ -93,6 +95,7 @@ class InProcessInvoker(Invoker):
         self,
         function_name: str,  # noqa: ARG002
         input: DurableExecutionInvocationInput,
+        endpoint_url: str | None = None,  # noqa: ARG002
     ) -> DurableExecutionInvocationOutput:
         # TODO: reasses if function_name will be used in future
         input_with_client = DurableExecutionInvocationInputWithClient.from_durable_execution_invocation_input(
@@ -140,19 +143,19 @@ class LambdaInvoker(Invoker):
         self._current_endpoint = endpoint_url
 
     def _get_client_for_execution(
-        self, durable_execution_arn: str, lambda_endpoint: str | None = None
+        self,
+        durable_execution_arn: str,
+        lambda_endpoint: str | None = None,
+        region_name: str | None = None,
     ) -> Any:
         """Get the appropriate client for this execution."""
         # Use provided endpoint or fall back to cached endpoint for this execution
         if lambda_endpoint:
-            # Client should already exist from update_endpoint() call
             if lambda_endpoint not in self._endpoint_clients:
-                from aws_durable_execution_sdk_python_testing.exceptions import (
-                    ServiceException,
-                )
-
-                raise ServiceException(
-                    f"Lambda endpoint {lambda_endpoint} not configured. update_endpoint() must be called first."
+                self._endpoint_clients[lambda_endpoint] = boto3.client(
+                    "lambdainternal",
+                    endpoint_url=lambda_endpoint,
+                    region_name=region_name or "us-east-1",
                 )
             return self._endpoint_clients[lambda_endpoint]
 
@@ -188,12 +191,14 @@ class LambdaInvoker(Invoker):
         self,
         function_name: str,
         input: DurableExecutionInvocationInput,
+        endpoint_url: str | None = None,
     ) -> DurableExecutionInvocationOutput:
         """Invoke AWS Lambda function and return durable execution result.
 
         Args:
             function_name: Name of the Lambda function to invoke
             input: Durable execution invocation input
+            endpoint_url: Lambda endpoint url
 
         Returns:
             DurableExecutionInvocationOutput: Result of the function execution
@@ -214,7 +219,9 @@ class LambdaInvoker(Invoker):
             raise InvalidParameterValueException(msg)
 
         # Get the client for this execution
-        client = self._get_client_for_execution(input.durable_execution_arn)
+        client = self._get_client_for_execution(
+            input.durable_execution_arn, endpoint_url
+        )
 
         try:
             # Invoke AWS Lambda function using standard invoke method

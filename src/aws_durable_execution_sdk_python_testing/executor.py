@@ -770,7 +770,9 @@ class Executor(ExecutionObserver):
                 self._store.save(execution)
 
                 response: DurableExecutionInvocationOutput = self._invoker.invoke(
-                    execution.start_input.function_name, invocation_input
+                    execution.start_input.function_name,
+                    invocation_input,
+                    execution.start_input.lambda_endpoint,
                 )
 
                 # Reload execution after invocation in case it was completed via checkpoint
