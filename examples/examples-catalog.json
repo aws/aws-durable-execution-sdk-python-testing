@@ -444,6 +444,50 @@
         "ExecutionTimeout": 300
       },
       "path": "./src/none_results/none_results.py"
+    },
+    {
+      "name": "Create Callback Failures Uncaught",
+      "description": "Demonstrates callback failure scenarios where the error propagates and is handled by framework",
+      "handler": "callback_failure.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/callback/callback_failure.py"
+    },
+    {
+      "name": "Create Callback Failures Caught Error",
+      "description": "Demonstrates callback failure scenarios where the error is caught in the code",
+      "handler": "callback_failure.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/callback/callback_failure.py"
+    },
+    {
+      "name": "Callback With Heartbeat Timeout",
+      "description": "Demonstrates callback timeout scenarios (heartbeat timeout and general timeout)",
+      "handler": "callback_with_timeout.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/callback/callback_with_timeout.py"
+    },
+    {
+      "name": "Callback With General Timeout",
+      "description": "Demonstrates callback timeout scenarios (heartbeat timeout and general timeout)",
+      "handler": "callback_with_timeout.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/callback/callback_with_timeout.py"
     }
   ]
 }

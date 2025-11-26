@@ -10,14 +10,18 @@ if TYPE_CHECKING:
 
 
 @durable_execution
-def handler(_event: Any, context: DurableContext) -> str:
-    # Callback with custom timeout configuration
-    config = CallbackConfig(
-        timeout=Duration.from_seconds(60), heartbeat_timeout=Duration.from_seconds(30)
-    )
+def handler(event: Any, context: DurableContext) -> str:
+    timeout_type = event.get("timeoutType", "general")
+    if timeout_type == "heartbeat":
+        config = CallbackConfig(
+            timeout=Duration.from_seconds(10),
+            heartbeat_timeout=Duration.from_seconds(1),
+        )
+    else:
+        config = CallbackConfig(timeout=Duration.from_seconds(1))
 
     callback: Callback[str] = context.create_callback(
         name="timeout_callback", config=config
     )
 
-    return f"Callback created with 60s timeout: {callback.callback_id}"
+    return callback.result()
