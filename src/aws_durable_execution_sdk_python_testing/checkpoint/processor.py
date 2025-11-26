@@ -9,6 +9,7 @@ from aws_durable_execution_sdk_python.lambda_service import (
     CheckpointUpdatedExecutionState,
     OperationUpdate,
     StateOutput,
+    Operation,
 )
 
 from aws_durable_execution_sdk_python_testing.checkpoint.transformer import (
@@ -88,14 +89,37 @@ class CheckpointProcessor:
     def get_execution_state(
         self,
         checkpoint_token: str,
-        next_marker: str,  # noqa: ARG002
-        max_items: int = 1000,  # noqa: ARG002
+        next_marker: str | None = None,
+        max_items: int = 1000,
     ) -> StateOutput:
-        """Get current execution state."""
+        """Get current execution state with batched checkpoint token validation and pagination."""
+        if not checkpoint_token:
+            msg: str = "Checkpoint token is required"
+            raise InvalidParameterValueException(msg)
+
         token: CheckpointToken = CheckpointToken.from_str(checkpoint_token)
         execution: Execution = self._store.load(token.execution_arn)
+        execution.validate_checkpoint_token(checkpoint_token)
 
-        # TODO: paging when size or max
+        # Get all operations
+        all_operations: list[Operation] = execution.get_navigable_operations()
+
+        # Apply pagination
+        start_index: int = 0
+        if next_marker:
+            try:
+                start_index = int(next_marker)
+            except ValueError:
+                start_index = 0
+
+        end_index: int = start_index + max_items
+        paginated_operations: list[Operation] = all_operations[start_index:end_index]
+
+        # Determine next marker
+        next_marker_result: str | None = (
+            str(end_index) if end_index < len(all_operations) else None
+        )
+
         return StateOutput(
-            operations=execution.get_navigable_operations(), next_marker=None
+            operations=paginated_operations, next_marker=next_marker_result
         )

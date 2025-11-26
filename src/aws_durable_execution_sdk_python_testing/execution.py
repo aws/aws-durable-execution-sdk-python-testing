@@ -60,7 +60,7 @@ class Execution:
         self.start_input: StartDurableExecutionInput = start_input
         self.operations: list[Operation] = operations
         self.updates: list[OperationUpdate] = []
-        self.used_tokens: set[str] = set()
+        self.generated_tokens: set[str] = set()
         # TODO: this will need to persist/rehydrate depending on inmemory vs sqllite store
         self._token_sequence: int = 0
         self._state_lock: Lock = Lock()
@@ -101,7 +101,7 @@ class Execution:
             "StartInput": self.start_input.to_dict(),
             "Operations": [op.to_dict() for op in self.operations],
             "Updates": [update.to_dict() for update in self.updates],
-            "UsedTokens": list(self.used_tokens),
+            "GeneratedTokens": list(self.generated_tokens),
             "TokenSequence": self._token_sequence,
             "IsComplete": self.is_complete,
             "Result": self.result.to_dict() if self.result else None,
@@ -129,7 +129,7 @@ class Execution:
         execution.updates = [
             OperationUpdate.from_dict(update_data) for update_data in data["Updates"]
         ]
-        execution.used_tokens = set(data["UsedTokens"])
+        execution.generated_tokens = set(data["GeneratedTokens"])
         execution._token_sequence = data["TokenSequence"]  # noqa: SLF001
         execution.is_complete = data["IsComplete"]
         execution.result = (
@@ -184,12 +184,37 @@ class Execution:
                 token_sequence=new_token_sequence,
             )
             token_str = token.to_str()
-            self.used_tokens.add(token_str)
+            self.generated_tokens.add(token_str)
             return token_str
 
     def get_navigable_operations(self) -> list[Operation]:
         """Get list of operations, but exclude child operations where the parent has already completed."""
         return self.operations
+
+    def validate_checkpoint_token(
+        self,
+        token: str | None,
+        checkpoint_required_msg: str | None = None,
+    ) -> None:
+        """Validate checkpoint token against this execution."""
+        if not token:
+            msg: str = checkpoint_required_msg or "Checkpoint token is required"
+            raise InvalidParameterValueException(msg)
+
+        checkpoint_token: CheckpointToken = CheckpointToken.from_str(token)
+        if checkpoint_token.execution_arn != self.durable_execution_arn:
+            msg = "Checkpoint token does not match execution ARN"
+            raise InvalidParameterValueException(msg)
+
+        if self.is_complete or checkpoint_token.token_sequence > self.token_sequence:
+            msg = "Invalid or expired checkpoint token"
+            raise InvalidParameterValueException(msg)
+
+        # Check if token has been generated
+        token_str: str = checkpoint_token.to_str()
+        if token_str not in self.generated_tokens:
+            msg = f"Invalid checkpoint token: {token_str}"
+            raise InvalidParameterValueException(msg)
 
     def get_assertable_operations(self) -> list[Operation]:
         """Get list of operations, but exclude the EXECUTION operations"""

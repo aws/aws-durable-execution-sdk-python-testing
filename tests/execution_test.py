@@ -43,7 +43,7 @@ def test_execution_init():
     assert execution.start_input == start_input
     assert execution.operations == operations
     assert execution.updates == []
-    assert execution.used_tokens == set()
+    assert execution.generated_tokens == set()
     assert execution.token_sequence == 0
     assert execution.is_complete is False
     assert execution.consecutive_failed_invocation_attempts == 0
@@ -154,8 +154,8 @@ def test_get_new_checkpoint_token():
     token2 = execution.get_new_checkpoint_token()
 
     assert execution.token_sequence == 2
-    assert token1 in execution.used_tokens
-    assert token2 in execution.used_tokens
+    assert token1 in execution.generated_tokens
+    assert token2 in execution.generated_tokens
     assert token1 != token2
 
 
@@ -801,7 +801,7 @@ def test_from_dict_with_none_result():
         "StartInput": {"function_name": "test"},
         "Operations": [],
         "Updates": [],
-        "UsedTokens": [],
+        "GeneratedTokens": [],
         "TokenSequence": 0,
         "IsComplete": False,
         "Result": None,  # None result

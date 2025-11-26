@@ -47,6 +47,7 @@ from aws_durable_execution_sdk_python_testing.observer import (
 )
 from aws_durable_execution_sdk_python_testing.token import (
     CallbackToken,
+    CheckpointToken,
 )
 
 
@@ -304,7 +305,6 @@ def test_should_complete_workflow_with_error_when_invocation_fails(
             handler = mock_scheduler.call_later.call_args[0][0]
 
             # Execute the handler to trigger the invocation logic
-            import asyncio
 
             asyncio.run(handler())
 
@@ -348,7 +348,6 @@ def test_should_complete_workflow_with_result_when_invocation_succeeds(
             handler = mock_scheduler.call_later.call_args[0][0]
 
             # Execute the handler to trigger the invocation logic
-            import asyncio
 
             asyncio.run(handler())
 
@@ -389,7 +388,6 @@ def test_should_handle_pending_status_when_operations_exist(
         handler = mock_scheduler.call_later.call_args[0][0]
 
         # Execute the handler to trigger the invocation logic
-        import asyncio
 
         asyncio.run(handler())
 
@@ -428,7 +426,6 @@ def test_should_ignore_response_when_execution_already_complete(
         handler = mock_scheduler.call_later.call_args[0][0]
 
         # Execute the handler to trigger the invocation logic
-        import asyncio
 
         asyncio.run(handler())
 
@@ -918,7 +915,6 @@ def test_should_fail_execution_when_function_not_found(
             handler = mock_scheduler.call_later.call_args[0][0]
 
             # Execute the handler to trigger the invocation logic
-            import asyncio
 
             asyncio.run(handler())
 
@@ -962,7 +958,6 @@ def test_should_fail_execution_when_retries_exhausted(
             handler = mock_scheduler.call_later.call_args[0][0]
 
             # Execute the handler to trigger the invocation logic
-            import asyncio
 
             asyncio.run(handler())
 
@@ -1049,7 +1044,6 @@ def test_should_retry_invocation_when_under_limit_through_public_api(
 
         # Simulate scheduler executing the initial invocation handler
         initial_handler = mock_scheduler.call_later.call_args[0][0]
-        import asyncio
 
         asyncio.run(initial_handler())
 
@@ -2041,9 +2035,15 @@ def test_get_execution_not_found(executor, mock_store):
 
 def test_get_execution_state(executor, mock_store):
     """Test get_execution_state method."""
-
     mock_execution = Mock()
-    mock_execution.used_tokens = {"token1", "token2"}
+    mock_execution.durable_execution_arn = "test-arn"
+    mock_execution.token_sequence = 5
+    mock_execution.is_complete = False
+
+    # Create valid token and add to used_tokens
+    token = CheckpointToken("test-arn", 3)
+    valid_token = token.to_str()
+    mock_execution.used_tokens = {valid_token}
 
     # Create mock operations
     operations = [
@@ -2068,7 +2068,7 @@ def test_get_execution_state(executor, mock_store):
 
     mock_store.load.return_value = mock_execution
 
-    result = executor.get_execution_state("test-arn", checkpoint_token="token1")  # noqa: S106
+    result = executor.get_execution_state("test-arn", checkpoint_token=valid_token)
 
     assert len(result.operations) == 2
     assert result.next_marker is None
@@ -2077,14 +2077,22 @@ def test_get_execution_state(executor, mock_store):
 
 def test_get_execution_state_invalid_token(executor, mock_store):
     """Test get_execution_state with invalid checkpoint token."""
-    mock_execution = Mock()
-    mock_execution.used_tokens = {"token1", "token2"}
-    mock_store.load.return_value = mock_execution
+    # Use real Execution object so validation actually runs
+    real_execution = Execution("test-arn", Mock(), [])
+    real_execution._token_sequence = 10  # noqa: SLF001
+    # Don't add the token to used_tokens so it will be invalid
+    real_execution.generated_tokens = {"other-token"}
+
+    mock_store.load.return_value = real_execution
+
+    token = CheckpointToken("invalid-arn", 3)  # Different ARN
+    invalid_token = token.to_str()
 
     with pytest.raises(
-        InvalidParameterValueException, match="Invalid checkpoint token"
+        InvalidParameterValueException,
+        match="Checkpoint token does not match execution ARN",
     ):
-        executor.get_execution_state("test-arn", checkpoint_token="invalid-token")  # noqa: S106
+        executor.get_execution_state("test-arn", checkpoint_token=invalid_token)
 
 
 def test_get_execution_history(executor, mock_store):
@@ -2236,13 +2244,22 @@ def test_get_execution_history_invalid_marker(executor, mock_store):
 def test_checkpoint_execution(executor, mock_store):
     """Test checkpoint_execution method."""
     mock_execution = Mock()
-    mock_execution.used_tokens = {"token1", "token2"}
-    mock_execution.get_new_checkpoint_token.return_value = "new-token"
+    mock_execution.durable_execution_arn = "test-arn"
+    mock_execution.token_sequence = 5
+    mock_execution.is_complete = False
+    new_token = "new-token"  # noqa:S105
+    mock_execution.get_new_checkpoint_token.return_value = new_token
+
+    # Create valid token and add to used_tokens
+    token = CheckpointToken("test-arn", 3)
+    valid_token = token.to_str()
+    mock_execution.used_tokens = {valid_token}
+
     mock_store.load.return_value = mock_execution
 
-    result = executor.checkpoint_execution("test-arn", "token1")
+    result = executor.checkpoint_execution("test-arn", valid_token)
 
-    assert result.checkpoint_token == "new-token"  # noqa: S105
+    assert result.checkpoint_token == new_token
     assert result.new_execution_state is None
     mock_store.load.assert_called_once_with("test-arn")
     mock_execution.get_new_checkpoint_token.assert_called_once()
@@ -2250,14 +2267,19 @@ def test_checkpoint_execution(executor, mock_store):
 
 def test_checkpoint_execution_invalid_token(executor, mock_store):
     """Test checkpoint_execution with invalid checkpoint token."""
-    mock_execution = Mock()
-    mock_execution.used_tokens = {"token1", "token2"}
-    mock_store.load.return_value = mock_execution
-
+    execution_arn = "test_arn"
+    start_durable_execution_input = Mock()
+    execution = Execution(execution_arn, start_durable_execution_input, [])
+    execution.generated_tokens = {"token1", "token2"}
+    execution.durable_execution_arn = execution_arn
+    mock_store.load.return_value = execution
+    token = CheckpointToken("execution-arn", 3)
+    invalid_token = token.to_str()
     with pytest.raises(
-        InvalidParameterValueException, match="Invalid checkpoint token"
+        InvalidParameterValueException,
+        match="Checkpoint token does not match execution ARN",
     ):
-        executor.checkpoint_execution("test-arn", "invalid-token")
+        executor.checkpoint_execution(execution_arn, invalid_token)
 
 
 # Callback method tests
@@ -2802,3 +2824,41 @@ def test_notify_stopped():
     notifier.notify_stopped("test-arn", error)
 
     observer.on_stopped.assert_called_once_with(execution_arn="test-arn", error=error)
+
+
+def test_get_execution_state_no_token_with_marker_active_execution(
+    mock_store, mock_scheduler, mock_invoker, mock_checkpoint_processor
+):
+    """Test get_execution_state fails when no token provided with marker on active execution."""
+    executor = Executor(
+        mock_store, mock_scheduler, mock_invoker, mock_checkpoint_processor
+    )
+    execution_arn = "test-arn"
+
+    # Create an active execution
+    execution = Execution(execution_arn, "test-function", {})
+    execution.is_complete = False
+    mock_store.load.return_value = execution
+
+    with pytest.raises(
+        InvalidParameterValueException, match="Checkpoint token is required"
+    ):
+        executor.get_execution_state(execution_arn, marker="some-marker")
+
+
+def test_checkpoint_execution_no_token(
+    mock_store, mock_scheduler, mock_invoker, mock_checkpoint_processor
+):
+    """Test checkpoint_execution fails when no token provided."""
+    executor = Executor(
+        mock_store, mock_scheduler, mock_invoker, mock_checkpoint_processor
+    )
+    execution_arn = "test-arn"
+
+    execution = Execution(execution_arn, "test-function", {})
+    mock_store.load.return_value = execution
+
+    with pytest.raises(
+        InvalidParameterValueException, match="Checkpoint token is required"
+    ):
+        executor.checkpoint_execution(execution_arn, "", [], "client-token")

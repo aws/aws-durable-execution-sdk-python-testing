@@ -2,9 +2,14 @@
 
 import base64
 import json
+from unittest.mock import Mock
 
 import pytest
 
+from aws_durable_execution_sdk_python_testing.exceptions import (
+    InvalidParameterValueException,
+)
+from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.token import (
     CallbackToken,
     CheckpointToken,
@@ -130,3 +135,82 @@ def test_callback_token_frozen_dataclass():
 
     with pytest.raises(AttributeError):
         token.operation_id = "new-op"
+
+
+def test_checkpoint_token_validate_for_execution_success():
+    """Test successful token validation."""
+    token = CheckpointToken("test-arn", 5)
+    execution = Execution("test-arn", Mock(), [])
+    execution._token_sequence = 10  # noqa: SLF001
+    execution.generated_tokens = {token.to_str()}
+
+    execution.validate_checkpoint_token(token.to_str())
+
+
+def test_checkpoint_token_validate_for_execution_arn_mismatch():
+    """Test token validation fails when ARN doesn't match."""
+    token = CheckpointToken("test-arn", 5)
+    execution = Execution("different-arn", "test-name", "test-input")
+    execution._token_sequence = 10  # noqa: SLF001
+
+    with pytest.raises(
+        InvalidParameterValueException, match="does not match execution ARN"
+    ):
+        execution.validate_checkpoint_token(token.to_str())
+
+
+def test_checkpoint_token_validate_for_execution_completed():
+    """Test token validation fails when execution is complete."""
+    token = CheckpointToken("test-arn", 5)
+    start_input = Mock()
+    execution = Execution("test-arn", start_input, [])
+    execution.generated_tokens = {token.to_str()}  # Add token to used_tokens
+    execution.is_complete = True
+
+    with pytest.raises(InvalidParameterValueException, match="Invalid or expired"):
+        execution.validate_checkpoint_token(token.to_str())
+
+
+def test_checkpoint_token_validate_for_execution_future_sequence():
+    """Test token validation fails when token sequence is from future."""
+    token = CheckpointToken("test-arn", 15)
+    execution = Execution("test-arn", "test-name", "test-input")
+    execution._token_sequence = 10  # noqa: SLF001
+
+    with pytest.raises(InvalidParameterValueException, match="Invalid or expired"):
+        execution.validate_checkpoint_token(token.to_str())
+
+
+def test_checkpoint_token_validate_for_execution_equal_sequence():
+    """Test token validation succeeds when sequences are equal."""
+    token = CheckpointToken("test-arn", 10)
+    execution = Execution("test-arn", "test-name", "test-input")
+    execution._token_sequence = 10  # noqa: SLF001
+    execution.generated_tokens = {token.to_str()}
+
+    execution.validate_checkpoint_token(token.to_str())
+
+
+def test_checkpoint_token_validate_for_execution_not_in_used_tokens():
+    """Test token validation fails when token not in used_tokens."""
+    token = CheckpointToken("test-arn", 5)
+    execution = Execution("test-arn", "test-name", "test-input")
+    execution._token_sequence = 10  # noqa: SLF001
+    execution.generated_tokens = {"other-token"}
+
+    with pytest.raises(
+        InvalidParameterValueException, match="Invalid checkpoint token"
+    ):
+        execution.validate_checkpoint_token(token.to_str())
+
+
+def test_checkpoint_token_validate_for_execution_in_used_tokens():
+    """Test token validation succeeds when token is in used_tokens."""
+    token = CheckpointToken("test-arn", 5)
+    execution = Execution("test-arn", "test-name", "test-input")
+    execution._token_sequence = 10  # noqa: SLF001
+    # Mock the token string that would be generated
+    token_str = token.to_str()
+    execution.generated_tokens = {token_str}
+
+    execution.validate_checkpoint_token(token_str)

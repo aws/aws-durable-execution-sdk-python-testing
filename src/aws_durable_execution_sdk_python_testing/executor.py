@@ -60,6 +60,8 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
     from concurrent.futures import Future
 
+    from aws_durable_execution_sdk_python.lambda_service import Operation
+
     from aws_durable_execution_sdk_python_testing.checkpoint.processor import (
         CheckpointProcessor,
     )
@@ -348,32 +350,33 @@ class Executor(ExecutionObserver):
             ResourceNotFoundException: If execution does not exist
             InvalidParameterValueException: If checkpoint token is invalid
         """
-        execution = self.get_execution(execution_arn)
+        execution: Execution = self.get_execution(execution_arn)
+        is_checkpoint_required: bool = not execution.is_complete and marker is not None
 
-        # TODO: Validate checkpoint token if provided
-        if checkpoint_token and checkpoint_token not in execution.used_tokens:
-            msg: str = f"Invalid checkpoint token: {checkpoint_token}"
-            raise InvalidParameterValueException(msg)
+        if is_checkpoint_required or checkpoint_token:
+            checkpoint_required_msg: str = "Checkpoint token is required for paginated requests on active executions"
+            execution.validate_checkpoint_token(
+                checkpoint_token, checkpoint_required_msg
+            )
 
         # Get operations (excluding the initial EXECUTION operation for state)
-        operations = execution.get_assertable_operations()
+        operations: list[Operation] = execution.get_assertable_operations()
 
         # Apply pagination
         if max_items is None:
             max_items = 100
 
-        # Simple pagination - in real implementation would need proper marker handling
-        start_index = 0
+        start_index: int = 0
         if marker:
             try:
                 start_index = int(marker)
             except ValueError:
                 start_index = 0
 
-        end_index = start_index + max_items
-        paginated_operations = operations[start_index:end_index]
+        end_index: int = start_index + max_items
+        paginated_operations: list[Operation] = operations[start_index:end_index]
 
-        next_marker = None
+        next_marker: str | None = None
         if end_index < len(operations):
             next_marker = str(end_index)
 
@@ -542,11 +545,10 @@ class Executor(ExecutionObserver):
             InvalidParameterValueException: If checkpoint token is invalid
         """
         execution = self.get_execution(execution_arn)
-
-        # Validate checkpoint token
-        if checkpoint_token not in execution.used_tokens:
-            msg: str = f"Invalid checkpoint token: {checkpoint_token}"
-            raise InvalidParameterValueException(msg)
+        execution.validate_checkpoint_token(
+            checkpoint_token,
+            checkpoint_required_msg="Checkpoint token is required for checkpoint operations",
+        )
 
         if updates:
             checkpoint_output = self._checkpoint_processor.process_checkpoint(
