@@ -1147,9 +1147,9 @@ class Executor(ExecutionObserver):
                 f"Callback timed out: {CallbackTimeoutType.TIMEOUT.value}"
             )
             execution.complete_callback_timeout(callback_id, timeout_error)
-            execution.complete_fail(timeout_error)
             self._store.update(execution)
             logger.warning("[%s] Callback %s timed out", execution_arn, callback_id)
+            self._invoke_execution(callback_token.execution_arn)
         except Exception:
             logger.exception(
                 "[%s] Error processing callback timeout for %s",
@@ -1174,11 +1174,11 @@ class Executor(ExecutionObserver):
                 f"Callback heartbeat timed out: {CallbackTimeoutType.HEARTBEAT.value}"
             )
             execution.complete_callback_timeout(callback_id, heartbeat_error)
-            execution.complete_fail(heartbeat_error)
             self._store.update(execution)
             logger.warning(
                 "[%s] Callback %s heartbeat timed out", execution_arn, callback_id
             )
+            self._invoke_execution(callback_token.execution_arn)
         except Exception:
             logger.exception(
                 "[%s] Error processing callback heartbeat timeout for %s",

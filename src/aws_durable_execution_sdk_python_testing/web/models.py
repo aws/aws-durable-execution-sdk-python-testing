@@ -121,7 +121,10 @@ class HTTPRequest:
         else:
             # Use standard JSON deserialization
             try:
-                body_dict = json.loads(body_bytes.decode("utf-8"))
+                if body_bytes == b"":
+                    body_dict = {}
+                else:
+                    body_dict = json.loads(body_bytes.decode("utf-8"))
                 logger.debug("Successfully deserialized request using standard JSON")
             except (json.JSONDecodeError, UnicodeDecodeError) as e:
                 msg = f"JSON deserialization failed: {e}"
