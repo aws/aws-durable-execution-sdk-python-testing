@@ -13,6 +13,9 @@ from aws_durable_execution_sdk_python.lambda_service import (
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.callback import (
     CallbackProcessor,
 )
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.chained_invoke import (
+    ChainedInvokeProcessor,
+)
 from aws_durable_execution_sdk_python_testing.checkpoint.processors.context import (
     ContextProcessor,
 )
@@ -49,6 +52,7 @@ class OperationTransformer:
         OperationType.CONTEXT: ContextProcessor(),
         OperationType.CALLBACK: CallbackProcessor(),
         OperationType.EXECUTION: ExecutionProcessor(),
+        OperationType.CHAINED_INVOKE: ChainedInvokeProcessor(),
     }
 
     def __init__(

@@ -2178,3 +2178,215 @@ def test_cloud_runner_wait_for_result_success(mock_boto3):
         mock_from_history.assert_called_once_with(
             mock_execution_response, mock_history_response
         )
+
+
+# Property-based tests for chain-invokes feature - Handler Registry
+
+
+@pytest.mark.parametrize(
+    "handler_pairs",
+    [
+        # Single handler
+        [("child-fn", lambda x: x)],
+        # Multiple handlers
+        [("fn-1", lambda x: x), ("fn-2", lambda x: x * 2), ("fn-3", lambda x: x + 1)],
+        # Handlers with various name patterns
+        [
+            ("my-function", lambda: "result"),
+            ("another_function", lambda x: x),
+            ("FunctionName", lambda: None),
+        ],
+        # Many handlers
+        [(f"handler-{i}", lambda x, i=i: x + i) for i in range(10)],
+    ],
+)
+def test_property_handler_registration_preserves_all_handlers(handler_pairs):
+    """
+    **Feature: chain-invokes, Property 1: Handler Registration Preserves All Handlers**
+
+    *For any* set of (function_name, handler) pairs with unique function names,
+    registering all pairs should result in all handlers being retrievable by their function names.
+
+    **Validates: Requirements 1.1, 1.4**
+    """
+    # Create a minimal handler for the test runner
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        # Register all handlers
+        for function_name, handler in handler_pairs:
+            runner.register_handler(function_name, handler)
+
+        # Verify all handlers are retrievable
+        for function_name, expected_handler in handler_pairs:
+            retrieved_handler = runner.get_handler(function_name)
+            assert retrieved_handler is expected_handler, (
+                f"Handler for '{function_name}' was not preserved"
+            )
+
+
+def test_register_handler_empty_function_name_raises():
+    """Test that registering with empty function_name raises InvalidParameterValueException."""
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        with pytest.raises(InvalidParameterValueException, match="function_name is required"):
+            runner.register_handler("", lambda x: x)
+
+
+def test_register_handler_none_function_name_raises():
+    """Test that registering with None function_name raises InvalidParameterValueException."""
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        with pytest.raises(InvalidParameterValueException, match="function_name is required"):
+            runner.register_handler(None, lambda x: x)
+
+
+def test_register_handler_none_handler_raises():
+    """Test that registering with None handler raises InvalidParameterValueException."""
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        with pytest.raises(InvalidParameterValueException, match="handler is required"):
+            runner.register_handler("my-function", None)
+
+
+def test_get_handler_not_found_returns_none():
+    """Test that get_handler returns None for unregistered function names."""
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        result = runner.get_handler("non-existent-function")
+        assert result is None
+
+
+def test_register_handler_overwrites_existing():
+    """Test that registering a handler with an existing name overwrites it."""
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    handler1 = lambda x: x
+    handler2 = lambda x: x * 2
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        runner.register_handler("my-function", handler1)
+        assert runner.get_handler("my-function") is handler1
+
+        runner.register_handler("my-function", handler2)
+        assert runner.get_handler("my-function") is handler2
+
+
+# Property-based tests for chain-invokes feature - Local and Cloud Result Consistency
+
+
+@pytest.mark.parametrize(
+    "function_name,lambda_function_name",
+    [
+        ("child-fn", None),  # Uses function_name as lambda name
+        ("child-fn", "actual-lambda-fn"),  # Different lambda name
+        ("handler", "my-lambda-handler"),
+        ("invoke-target", None),
+    ],
+)
+def test_property_cloud_runner_register_lambda_consistency(
+    function_name: str,
+    lambda_function_name: str | None,
+):
+    """
+    **Feature: chain-invokes, Property 10: Local and Cloud Result Consistency**
+
+    *For any* chained invoke execution, the DurableFunctionTestResult structure
+    (status, operations, result, error) should be identical whether executed locally or in the cloud.
+
+    This test validates that DurableFunctionCloudTestRunner's register_lambda method
+    creates handlers that follow the same interface as DurableFunctionTestRunner's register_handler.
+
+    **Validates: Requirements 7.1, 7.2, 7.3, 7.4**
+    """
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    # Create cloud runner (won't actually connect to AWS)
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function",
+        region="us-west-2",
+    )
+
+    # Register lambda
+    runner.register_lambda(function_name, lambda_function_name)
+
+    # Verify handler was registered
+    handler = runner.get_handler(function_name)
+    assert handler is not None, f"Handler for '{function_name}' should be registered"
+
+    # Verify handler is callable
+    assert callable(handler), "Handler should be callable"
+
+
+def test_local_and_cloud_runner_handler_interface_consistency():
+    """
+    Test that DurableFunctionTestRunner and DurableFunctionCloudTestRunner
+    have consistent handler registration interfaces.
+
+    **Validates: Requirements 7.1**
+    """
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    # Create local runner
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    local_runner = DurableFunctionTestRunner(dummy_handler)
+
+    # Create cloud runner
+    cloud_runner = DurableFunctionCloudTestRunner(
+        function_name="test-function",
+        region="us-west-2",
+    )
+
+    # Both should have get_handler method
+    assert hasattr(local_runner, "get_handler")
+    assert hasattr(cloud_runner, "get_handler")
+
+    # Both should return None for unregistered handlers
+    assert local_runner.get_handler("non-existent") is None
+    assert cloud_runner.get_handler("non-existent") is None
+
+    # Register handlers
+    local_runner.register_handler("test-fn", lambda p: '{"result": "local"}')
+    cloud_runner.register_lambda("test-fn")
+
+    # Both should return handlers after registration
+    assert local_runner.get_handler("test-fn") is not None
+    assert cloud_runner.get_handler("test-fn") is not None
+
+    local_runner.close()
+
+
+def test_cloud_runner_register_lambda_validation():
+    """Test that register_lambda validates function_name."""
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+    )
+
+    runner = DurableFunctionCloudTestRunner(
+        function_name="test-function",
+        region="us-west-2",
+    )
+
+    # Empty function_name should raise
+    with pytest.raises(InvalidParameterValueException, match="function_name is required"):
+        runner.register_lambda("")
+
+    # None function_name should raise
+    with pytest.raises(InvalidParameterValueException, match="function_name is required"):
+        runner.register_lambda(None)

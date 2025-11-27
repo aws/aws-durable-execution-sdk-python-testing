@@ -348,6 +348,8 @@ class CallbackOperation(ContextOperation):
 class InvokeOperation(Operation):
     result: OperationPayload | None = None
     error: ErrorObject | None = None
+    function_name: str | None = None
+    input_payload: str | None = None
 
     @staticmethod
     def from_svc_operation(
@@ -357,6 +359,15 @@ class InvokeOperation(Operation):
         if operation.operation_type != OperationType.CHAINED_INVOKE:
             msg: str = f"Expected INVOKE operation, got {operation.operation_type}"
             raise InvalidParameterValueException(msg)
+
+        # Extract function_name from chained_invoke_options if available
+        function_name: str | None = None
+        input_payload: str | None = None
+        if operation.chained_invoke_details:
+            # Note: function_name and input_payload would need to be added to
+            # ChainedInvokeDetails in the SDK, or extracted from operation metadata
+            pass
+
         return InvokeOperation(
             operation_id=operation.operation_id,
             operation_type=operation.operation_type,
@@ -372,6 +383,8 @@ class InvokeOperation(Operation):
             error=operation.chained_invoke_details.error
             if operation.chained_invoke_details
             else None,
+            function_name=function_name,
+            input_payload=input_payload,
         )
 
 
@@ -575,6 +588,7 @@ class DurableFunctionTestRunner:
         self._scheduler.start()
         self._store = InMemoryExecutionStore()
         self.poll_interval = poll_interval
+        self._handler_registry: dict[str, Callable] = {}
         self._checkpoint_processor = CheckpointProcessor(
             store=self._store, scheduler=self._scheduler
         )
@@ -585,6 +599,7 @@ class DurableFunctionTestRunner:
             scheduler=self._scheduler,
             invoker=self._invoker,
             checkpoint_processor=self._checkpoint_processor,
+            handler_registry=self._handler_registry,
         )
 
         # Wire up observer pattern - CheckpointProcessor uses this to notify executor of state changes
@@ -598,6 +613,33 @@ class DurableFunctionTestRunner:
 
     def close(self):
         self._scheduler.stop()
+
+    def register_handler(self, function_name: str, handler: Callable) -> None:
+        """Register a child function handler for local chained invoke testing.
+
+        Args:
+            function_name: The name of the function to register
+            handler: The handler callable to invoke
+
+        Raises:
+            InvalidParameterValueException: If function_name is empty/None or handler is None
+        """
+        if not function_name:
+            raise InvalidParameterValueException("function_name is required")
+        if handler is None:
+            raise InvalidParameterValueException("handler is required")
+        self._handler_registry[function_name] = handler
+
+    def get_handler(self, function_name: str) -> Callable | None:
+        """Get a registered handler by function name.
+
+        Args:
+            function_name: The name of the function to look up
+
+        Returns:
+            The registered handler callable, or None if not found
+        """
+        return self._handler_registry.get(function_name)
 
     def run(
         self,
@@ -734,6 +776,8 @@ class WebRunner:
         self._store: ExecutionStore | None = None
         self._invoker: LambdaInvoker | None = None
         self._executor: Executor | None = None
+        self._endpoint_registry: dict[str, str] = {}
+        self._handler_registry: dict[str, Callable] = {}
 
     def __enter__(self) -> Self:
         """Context manager entry point.
@@ -789,6 +833,7 @@ class WebRunner:
             scheduler=self._scheduler,
             invoker=self._invoker,
             checkpoint_processor=checkpoint_processor,
+            handler_registry=self._handler_registry,
         )
 
         # Add executor as observer to the checkpoint processor
@@ -846,6 +891,36 @@ class WebRunner:
         self._invoker = None
         self._executor = None
 
+    def register_endpoint(self, function_name: str, endpoint: str) -> None:
+        """Register an HTTP endpoint for a function name.
+
+        When a chained invoke targets this function_name, the WebRunner will
+        make an HTTP POST request to the endpoint with the payload.
+
+        Args:
+            function_name: The name of the function to register
+            endpoint: The HTTP endpoint URL to call
+
+        Raises:
+            InvalidParameterValueException: If function_name is empty/None or endpoint is empty/None
+        """
+        import requests
+
+        if not function_name:
+            raise InvalidParameterValueException("function_name is required")
+        if not endpoint:
+            raise InvalidParameterValueException("endpoint is required")
+
+        self._endpoint_registry[function_name] = endpoint
+
+        # Create a handler that makes HTTP calls to the endpoint
+        def http_handler(payload: str | None) -> str | None:
+            response = requests.post(endpoint, data=payload, timeout=300)
+            response.raise_for_status()
+            return response.text if response.text else None
+
+        self._handler_registry[function_name] = http_handler
+
     def _create_boto3_client(self) -> Any:
         """Create boto3 client for lambdainternal service.
 
@@ -900,6 +975,7 @@ class DurableFunctionCloudTestRunner:
         self.region = region
         self.lambda_endpoint = lambda_endpoint
         self.poll_interval = poll_interval
+        self._handler_registry: dict[str, Callable] = {}
 
         # Set up AWS data path for custom boto models (durable execution fields)
         package_path = os.path.dirname(aws_durable_execution_sdk_python.__file__)
@@ -913,6 +989,58 @@ class DurableFunctionCloudTestRunner:
             region_name=region,
             config=client_config,
         )
+
+    def register_lambda(
+        self,
+        function_name: str,
+        lambda_function_name: str | None = None,
+    ) -> None:
+        """Register a Lambda function for chained invoke.
+
+        When a chained invoke targets this function_name, the runner will
+        invoke the specified Lambda function with the payload.
+
+        Args:
+            function_name: The chained invoke target name
+            lambda_function_name: The actual Lambda function name (defaults to function_name)
+
+        Raises:
+            InvalidParameterValueException: If function_name is empty/None
+        """
+        if not function_name:
+            raise InvalidParameterValueException("function_name is required")
+
+        target_lambda = lambda_function_name or function_name
+
+        def lambda_handler(payload: str | None) -> str | None:
+            """Invoke Lambda function and return response payload."""
+            response = self.lambda_client.invoke(
+                FunctionName=target_lambda,
+                InvocationType="RequestResponse",
+                Payload=payload or "",
+            )
+
+            # Check for function errors
+            if "FunctionError" in response:
+                error_payload = response["Payload"].read().decode("utf-8")
+                raise DurableFunctionsTestError(
+                    f"Lambda function {target_lambda} failed: {error_payload}"
+                )
+
+            return response["Payload"].read().decode("utf-8")
+
+        self._handler_registry[function_name] = lambda_handler
+
+    def get_handler(self, function_name: str) -> Callable | None:
+        """Get a registered handler by function name.
+
+        Args:
+            function_name: The name of the function to look up
+
+        Returns:
+            The registered handler callable, or None if not found
+        """
+        return self._handler_registry.get(function_name)
 
     def run(
         self,
