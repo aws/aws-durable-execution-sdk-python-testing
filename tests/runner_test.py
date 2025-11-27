@@ -2338,6 +2338,7 @@ def test_local_and_cloud_runner_result_structure_consistency():
 
     # Check DurableFunctionTestResult has expected attributes
     for attr in result_attrs:
-        assert hasattr(DurableFunctionTestResult, attr) or attr in DurableFunctionTestResult.__dataclass_fields__, (
-            f"DurableFunctionTestResult should have '{attr}' attribute"
-        )
+        assert (
+            hasattr(DurableFunctionTestResult, attr)
+            or attr in DurableFunctionTestResult.__dataclass_fields__
+        ), f"DurableFunctionTestResult should have '{attr}' attribute"

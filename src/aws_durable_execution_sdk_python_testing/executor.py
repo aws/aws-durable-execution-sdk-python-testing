@@ -16,6 +16,7 @@ from aws_durable_execution_sdk_python.lambda_service import (
     CallbackTimeoutType,
     ErrorObject,
     Operation,
+    OperationAction,
     OperationUpdate,
     OperationStatus,
     OperationType,
@@ -1133,11 +1134,6 @@ class Executor(ExecutionObserver):
         result: str | None,
     ) -> None:
         """Checkpoint a successful chained invoke."""
-        from aws_durable_execution_sdk_python.lambda_service import (
-            OperationAction,
-            OperationUpdate,
-        )
-
         execution = self._store.load(execution_arn)
         checkpoint_token = execution.get_new_checkpoint_token()
 
@@ -1163,11 +1159,6 @@ class Executor(ExecutionObserver):
         error: ErrorObject,
     ) -> None:
         """Checkpoint a failed chained invoke."""
-        from aws_durable_execution_sdk_python.lambda_service import (
-            OperationAction,
-            OperationUpdate,
-        )
-
         execution = self._store.load(execution_arn)
         checkpoint_token = execution.get_new_checkpoint_token()
 

@@ -18,6 +18,7 @@ from typing import (
 
 import aws_durable_execution_sdk_python
 import boto3  # type: ignore
+import requests  # type: ignore
 from botocore.exceptions import ClientError  # type: ignore
 from aws_durable_execution_sdk_python.execution import (
     InvocationStatus,
@@ -25,6 +26,7 @@ from aws_durable_execution_sdk_python.execution import (
 )
 from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
+    OperationAction,
     OperationPayload,
     OperationStatus,
     OperationSubType,
@@ -348,8 +350,6 @@ class CallbackOperation(ContextOperation):
 class InvokeOperation(Operation):
     result: OperationPayload | None = None
     error: ErrorObject | None = None
-    function_name: str | None = None
-    input_payload: str | None = None
 
     @staticmethod
     def from_svc_operation(
@@ -359,14 +359,6 @@ class InvokeOperation(Operation):
         if operation.operation_type != OperationType.CHAINED_INVOKE:
             msg: str = f"Expected INVOKE operation, got {operation.operation_type}"
             raise InvalidParameterValueException(msg)
-
-        # Extract function_name from chained_invoke_options if available
-        function_name: str | None = None
-        input_payload: str | None = None
-        if operation.chained_invoke_details:
-            # Note: function_name and input_payload would need to be added to
-            # ChainedInvokeDetails in the SDK, or extracted from operation metadata
-            pass
 
         return InvokeOperation(
             operation_id=operation.operation_id,
@@ -383,8 +375,6 @@ class InvokeOperation(Operation):
             error=operation.chained_invoke_details.error
             if operation.chained_invoke_details
             else None,
-            function_name=function_name,
-            input_payload=input_payload,
         )
 
 
@@ -916,7 +906,6 @@ class WebRunner:
         Raises:
             InvalidParameterValueException: If function_name is empty/None or endpoint is empty/None
         """
-        import requests
 
         if not function_name:
             raise InvalidParameterValueException("function_name is required")

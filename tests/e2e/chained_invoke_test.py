@@ -51,16 +51,16 @@ class TestChainedInvokeIntegration:
         def dummy_handler(event, context):
             return {"status": "ok"}
 
-        def child_handler(payload: str | None) -> str | None:
-            return json.dumps({"result": "child_result"})
+        def child_handler(event, context):
+            return {"result": "child_result"}
 
         with DurableFunctionTestRunner(handler=dummy_handler) as runner:
             # Register handler
             runner.register_handler("child-function", child_handler)
 
-            # Verify handler can be retrieved
+            # Verify handler can be retrieved (returns wrapped marshalled handler)
             retrieved = runner.get_handler("child-function")
-            assert retrieved is child_handler
+            assert retrieved is not None
 
             # Verify non-existent handler returns None
             assert runner.get_handler("non-existent") is None
@@ -76,9 +76,9 @@ class TestChainedInvokeIntegration:
             return {"status": "ok"}
 
         handlers = {
-            "handler-a": lambda p: '{"result": "a"}',
-            "handler-b": lambda p: '{"result": "b"}',
-            "handler-c": lambda p: '{"result": "c"}',
+            "handler-a": lambda event, context: {"result": "a"},
+            "handler-b": lambda event, context: {"result": "b"},
+            "handler-c": lambda event, context: {"result": "c"},
         }
 
         with DurableFunctionTestRunner(handler=dummy_handler) as runner:
@@ -86,9 +86,9 @@ class TestChainedInvokeIntegration:
             for name, handler in handlers.items():
                 runner.register_handler(name, handler)
 
-            # Verify all handlers are retrievable
-            for name, handler in handlers.items():
-                assert runner.get_handler(name) is handler
+            # Verify all handlers are retrievable (returns wrapped marshalled handlers)
+            for name in handlers:
+                assert runner.get_handler(name) is not None
 
     def test_handler_registration_validation(self):
         """
@@ -360,10 +360,10 @@ class TestNonDurableFunctionExecution:
         """
         execution_order = []
 
-        def child_handler(payload: str | None) -> str | None:
+        def child_handler(event, context):
             execution_order.append("child_executed")
-            data = json.loads(payload) if payload else {}
-            return json.dumps({"processed": data.get("value", 0) * 2})
+            value = event.get("value", 0) if event else 0
+            return {"processed": value * 2}
 
         def dummy_handler(event, context):
             return {"status": "ok"}
@@ -371,11 +371,11 @@ class TestNonDurableFunctionExecution:
         with DurableFunctionTestRunner(handler=dummy_handler) as runner:
             runner.register_handler("sync-child", child_handler)
 
-            # Get the handler and invoke it directly (simulating synchronous execution)
+            # Get the marshalled handler and invoke it directly (simulating synchronous execution)
             handler = runner.get_handler("sync-child")
             assert handler is not None
 
-            # Execute synchronously
+            # Execute synchronously (marshalled handler takes JSON string payload)
             result = handler('{"value": 21}')
             execution_order.append("after_child")
 
@@ -390,17 +390,15 @@ class TestNonDurableFunctionExecution:
         _Requirements: 8.2_
         """
 
-        def child_handler(payload: str | None) -> str | None:
-            # Handler returns serialized JSON string
-            return json.dumps(
-                {
-                    "string": "value",
-                    "number": 123,
-                    "boolean": True,
-                    "array": [1, 2, 3],
-                    "nested": {"key": "value"},
-                }
-            )
+        def child_handler(event, context):
+            # Handler returns dict (Lambda-style), marshalled handler serializes it
+            return {
+                "string": "value",
+                "number": 123,
+                "boolean": True,
+                "array": [1, 2, 3],
+                "nested": {"key": "value"},
+            }
 
         def dummy_handler(event, context):
             return {"status": "ok"}
@@ -411,7 +409,7 @@ class TestNonDurableFunctionExecution:
             handler = runner.get_handler("serializing-child")
             result = handler(None)
 
-            # Verify result is valid JSON
+            # Verify result is valid JSON (marshalled handler serializes the dict)
             parsed = json.loads(result)
             assert parsed["string"] == "value"
             assert parsed["number"] == 123
@@ -426,7 +424,7 @@ class TestNonDurableFunctionExecution:
         _Requirements: 8.3_
         """
 
-        def failing_child(payload: str | None) -> str | None:
+        def failing_child(event, context):
             raise RuntimeError("Child function failed")
 
         def dummy_handler(event, context):
@@ -437,6 +435,6 @@ class TestNonDurableFunctionExecution:
 
             handler = runner.get_handler("failing-child")
 
-            # Verify exception is raised
+            # Verify exception is raised (marshalled handler propagates exceptions)
             with pytest.raises(RuntimeError, match="Child function failed"):
                 handler('{"input": "data"}')
