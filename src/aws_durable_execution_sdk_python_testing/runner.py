@@ -619,7 +619,7 @@ class DurableFunctionTestRunner:
 
         Args:
             function_name: The name of the function to register
-            handler: The handler callable to invoke
+            handler: The handler callable to invoke (same signature as Lambda: handler(event, context))
 
         Raises:
             InvalidParameterValueException: If function_name is empty/None or handler is None
@@ -628,7 +628,19 @@ class DurableFunctionTestRunner:
             raise InvalidParameterValueException("function_name is required")
         if handler is None:
             raise InvalidParameterValueException("handler is required")
-        self._handler_registry[function_name] = handler
+
+        # Wrap handler with Lambda-style marshalling (JSON str -> object -> handler -> object -> JSON str)
+        def marshalled_handler(payload: str | None) -> str | None:
+            # Deserialize input payload (like Lambda does)
+            event = json.loads(payload) if payload else None
+
+            # Call handler with event and a mock context (Lambda signature)
+            result = handler(event, None)
+
+            # Serialize result back to JSON string (like Lambda does)
+            return json.dumps(result) if result is not None else None
+
+        self._handler_registry[function_name] = marshalled_handler
 
     def get_handler(self, function_name: str) -> Callable | None:
         """Get a registered handler by function name.
@@ -975,7 +987,6 @@ class DurableFunctionCloudTestRunner:
         self.region = region
         self.lambda_endpoint = lambda_endpoint
         self.poll_interval = poll_interval
-        self._handler_registry: dict[str, Callable] = {}
 
         # Set up AWS data path for custom boto models (durable execution fields)
         package_path = os.path.dirname(aws_durable_execution_sdk_python.__file__)
@@ -989,58 +1000,6 @@ class DurableFunctionCloudTestRunner:
             region_name=region,
             config=client_config,
         )
-
-    def register_lambda(
-        self,
-        function_name: str,
-        lambda_function_name: str | None = None,
-    ) -> None:
-        """Register a Lambda function for chained invoke.
-
-        When a chained invoke targets this function_name, the runner will
-        invoke the specified Lambda function with the payload.
-
-        Args:
-            function_name: The chained invoke target name
-            lambda_function_name: The actual Lambda function name (defaults to function_name)
-
-        Raises:
-            InvalidParameterValueException: If function_name is empty/None
-        """
-        if not function_name:
-            raise InvalidParameterValueException("function_name is required")
-
-        target_lambda = lambda_function_name or function_name
-
-        def lambda_handler(payload: str | None) -> str | None:
-            """Invoke Lambda function and return response payload."""
-            response = self.lambda_client.invoke(
-                FunctionName=target_lambda,
-                InvocationType="RequestResponse",
-                Payload=payload or "",
-            )
-
-            # Check for function errors
-            if "FunctionError" in response:
-                error_payload = response["Payload"].read().decode("utf-8")
-                raise DurableFunctionsTestError(
-                    f"Lambda function {target_lambda} failed: {error_payload}"
-                )
-
-            return response["Payload"].read().decode("utf-8")
-
-        self._handler_registry[function_name] = lambda_handler
-
-    def get_handler(self, function_name: str) -> Callable | None:
-        """Get a registered handler by function name.
-
-        Args:
-            function_name: The name of the function to look up
-
-        Returns:
-            The registered handler callable, or None if not found
-        """
-        return self._handler_registry.get(function_name)
 
     def run(
         self,
