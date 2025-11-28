@@ -2118,6 +2118,17 @@ class Event:
         callback_id: str | None = (
             callback_details.callback_id if callback_details else None
         )
+        callback_options: CallbackOptions | None = (
+            context.operation_update.callback_options
+            if context.operation_update
+            else None
+        )
+        timeout: int | None = (
+            callback_options.timeout_seconds if callback_options else None
+        )
+        heartbeat_timeout: int | None = (
+            callback_options.heartbeat_timeout_seconds if callback_options else None
+        )
         return cls(
             event_type=EventType.CALLBACK_STARTED.value,
             event_timestamp=context.start_timestamp,
@@ -2126,7 +2137,11 @@ class Event:
             operation_id=context.operation.operation_id,
             name=context.operation.name,
             parent_id=context.operation.parent_id,
-            callback_started_details=CallbackStartedDetails(callback_id=callback_id),
+            callback_started_details=CallbackStartedDetails(
+                callback_id=callback_id,
+                timeout=timeout,
+                heartbeat_timeout=heartbeat_timeout,
+            ),
         )
 
     @classmethod
