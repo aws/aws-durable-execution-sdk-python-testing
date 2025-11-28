@@ -2,9 +2,9 @@
 
 from typing import Any
 
+from aws_durable_execution_sdk_python.config import Duration
 from aws_durable_execution_sdk_python.context import DurableContext
 from aws_durable_execution_sdk_python.execution import durable_execution
-from aws_durable_execution_sdk_python.config import Duration
 
 
 @durable_execution
@@ -14,7 +14,7 @@ def handler(_event: Any, context: DurableContext) -> dict[str, Any]:
     context.wait(Duration.from_seconds(1), name="wait-invocation-1")
 
     # First callback operation
-    def first_submitter(callback_id: str) -> None:
+    def first_submitter(callback_id: str, _context) -> None:
         """Submitter for first callback."""
         print(f"First callback submitted with ID: {callback_id}")
         return None
@@ -34,7 +34,7 @@ def handler(_event: Any, context: DurableContext) -> dict[str, Any]:
     context.wait(Duration.from_seconds(1), name="wait-invocation-2")
 
     # Second callback operation
-    def second_submitter(callback_id: str) -> None:
+    def second_submitter(callback_id: str, _context) -> None:
         """Submitter for second callback."""
         print(f"Second callback submitted with ID: {callback_id}")
         return None
