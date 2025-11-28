@@ -2,20 +2,20 @@
 
 from typing import Any
 
+from aws_durable_execution_sdk_python.config import Duration, WaitForCallbackConfig
 from aws_durable_execution_sdk_python.context import DurableContext
 from aws_durable_execution_sdk_python.execution import durable_execution
 from aws_durable_execution_sdk_python.retries import (
     RetryStrategyConfig,
     create_retry_strategy,
 )
-from aws_durable_execution_sdk_python.config import Duration, WaitForCallbackConfig
 
 
 @durable_execution
 def handler(event: dict[str, Any], context: DurableContext) -> dict[str, Any]:
     """Handler demonstrating waitForCallback with submitter retry and exponential backoff."""
 
-    def submitter(callback_id: str) -> None:
+    def submitter(callback_id: str, _context) -> None:
         """Submitter function that can fail based on event parameter."""
         print(f"Submitting callback to external system - callbackId: {callback_id}")
         raise Exception("Simulated submitter failure")
