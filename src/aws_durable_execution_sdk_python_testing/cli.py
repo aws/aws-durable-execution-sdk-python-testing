@@ -115,6 +115,7 @@ class CliApp:
                 level=level,
                 format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             )
+            logging.getLogger("botocore").setLevel(logging.WARNING)
 
             # Execute the appropriate command
             return parsed_args.func(parsed_args)
