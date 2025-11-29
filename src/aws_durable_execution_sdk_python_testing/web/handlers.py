@@ -187,13 +187,11 @@ class EndpointHandler(ABC):
     def _parse_callback_result_payload(self, request: HTTPRequest) -> bytes:
         """Parse callback result payload from request body.
 
-        Expects JSON payload with base64-encoded Result field.
-
         Args:
-            request: The HTTP request containing the JSON payload
+            request: The HTTP request containing the binary payload
 
         Returns:
-            bytes: The decoded result payload
+            bytes: The result payload
 
         Raises:
             InvalidParameterValueException: If payload parsing fails
@@ -201,19 +199,7 @@ class EndpointHandler(ABC):
         if not request.body or not isinstance(request.body, bytes):
             return b""
 
-        try:
-            payload = json.loads(request.body.decode("utf-8"))
-            if isinstance(payload, dict) and "Result" in payload:
-                result_value = payload["Result"]
-                if isinstance(result_value, str):
-                    return base64.b64decode(result_value)
-            return b""
-        except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            msg = f"Failed to parse JSON payload: {e}"
-            raise InvalidParameterValueException(msg) from e
-        except ValueError as e:
-            msg = f"Failed to decode base64 result: {e}"
-            raise InvalidParameterValueException(msg) from e
+        return request.body
 
     def _parse_query_param(self, request: HTTPRequest, param_name: str) -> str | None:
         """Parse a single query parameter from the request.
