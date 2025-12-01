@@ -32,12 +32,12 @@ before you deploy it.
 ### A Durable Function under test
 
 ```python
-from durable_executions_python_language_sdk.context import (
+from aws_durable_execution_sdk_python.context import (
     DurableContext,
     durable_step,
     durable_with_child_context,
 )
-from durable_executions_python_language_sdk.execution import durable_execution
+from aws_durable_execution_sdk_python.execution import durable_execution
 from aws_durable_execution_sdk_python.config import Duration
 
 
