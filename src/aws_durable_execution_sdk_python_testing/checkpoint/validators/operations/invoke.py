@@ -17,6 +17,8 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
 VALID_ACTIONS_FOR_INVOKE = frozenset(
     [
         OperationAction.START,
+        OperationAction.SUCCEED,
+        OperationAction.FAIL,
         OperationAction.CANCEL,
     ]
 )
@@ -27,6 +29,13 @@ class ChainedInvokeOperationValidator:
 
     _ALLOWED_STATUS_TO_CANCEL = frozenset(
         [
+            OperationStatus.STARTED,
+        ]
+    )
+
+    _ALLOWED_STATUS_TO_COMPLETE = frozenset(
+        [
+            OperationStatus.PENDING,
             OperationStatus.STARTED,
         ]
     )
@@ -42,6 +51,14 @@ class ChainedInvokeOperationValidator:
                     )
 
                     raise InvalidParameterValueException(msg_invoke_exists)
+            case OperationAction.SUCCEED | OperationAction.FAIL:
+                if (
+                    current_state is None
+                    or current_state.status
+                    not in ChainedInvokeOperationValidator._ALLOWED_STATUS_TO_COMPLETE
+                ):
+                    msg_invoke_complete: str = "Cannot complete an INVOKE that does not exist or has already completed."
+                    raise InvalidParameterValueException(msg_invoke_complete)
             case OperationAction.CANCEL:
                 if (
                     current_state is None

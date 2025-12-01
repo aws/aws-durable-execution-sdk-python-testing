@@ -16,6 +16,7 @@ from aws_durable_execution_sdk_python.lambda_service import (
     CallbackTimeoutType,
     ErrorObject,
     Operation,
+    OperationAction,
     OperationUpdate,
     OperationStatus,
     OperationType,
@@ -80,11 +81,15 @@ class Executor(ExecutionObserver):
         scheduler: Scheduler,
         invoker: Invoker,
         checkpoint_processor: CheckpointProcessor,
+        handler_registry: dict[str, Callable] | None = None,
     ):
         self._store = store
         self._scheduler = scheduler
         self._invoker = invoker
         self._checkpoint_processor = checkpoint_processor
+        # if we want to share the registry, we need to check against None explicitly.
+        # a = {}; b = {}; (a or b) is b
+        self._handler_registry = handler_registry if handler_registry is not None else {}
         self._completion_events: dict[str, Event] = {}
         self._callback_timeouts: dict[str, Future] = {}
         self._callback_heartbeats: dict[str, Future] = {}
@@ -1031,6 +1036,160 @@ class Executor(ExecutionObserver):
 
         # Schedule callback timeouts if configured
         self._schedule_callback_timeouts(execution_arn, callback_options, callback_id)
+
+    def on_chained_invoke_started(
+        self,
+        execution_arn: str,
+        operation_id: str,
+        function_name: str,
+        payload: str | None,
+    ) -> None:
+        """Handle chained invoke start. Observer method triggered by notifier.
+
+        Looks up the handler from the registry and schedules async invocation.
+        If the handler is not found, schedules a failure checkpoint instead.
+
+        Note: This executor only handles chained invokes for executions it owns
+        (i.e., executions in its _completion_events). This allows multiple executors
+        to share the same checkpoint processor without interfering with each other.
+        """
+        # Only handle chained invokes for executions this executor owns
+        completion_event = self._completion_events.get(execution_arn)
+        if completion_event is None:
+            # This execution is not owned by this executor, skip
+            return
+
+        logger.debug(
+            "[%s] Chained invoke started for operation %s, function: %s",
+            execution_arn,
+            operation_id,
+            function_name,
+        )
+
+        handler = self._handler_registry.get(function_name)
+
+        if handler is None:
+            # Handler not found - raise exception immediately
+            # This is a test configuration error, not a runtime failure
+            msg = f"No handler registered for function: {function_name}. Did you forget to call runner.register_handler('{function_name}', handler)?"
+            raise ResourceNotFoundException(msg)
+
+        def invoke_handler() -> None:
+            self._invoke_child_handler(
+                execution_arn, operation_id, function_name, handler, payload
+            )
+
+        self._scheduler.call_later(
+            invoke_handler,
+            delay=0,
+            completion_event=completion_event,
+        )
+
+    def _invoke_child_handler(
+        self,
+        execution_arn: str,
+        operation_id: str,
+        function_name: str,
+        handler: Callable,
+        payload: str | None,
+    ) -> None:
+        """Execute the child handler and checkpoint the result.
+
+        Args:
+            execution_arn: The parent execution ARN
+            operation_id: The operation ID for the chained invoke
+            function_name: The name of the child function
+            handler: The handler callable to invoke
+            payload: The raw input payload string for the handler (handler is responsible for parsing)
+        """
+        try:
+            # Validate payload is string or None
+            assert payload is None or isinstance(payload, str), (
+                f"payload must be a string or None, got {type(payload).__name__}"
+            )
+
+            # Execute the handler with raw payload
+            # Handler is responsible for parsing input and returning serialized result
+            result_payload = handler(payload)
+
+            # Validate result is string or None
+            assert result_payload is None or isinstance(result_payload, str), (
+                f"handler must return a string or None, got {type(result_payload).__name__}"
+            )
+
+            # Checkpoint SUCCEED
+            self._checkpoint_chained_invoke_succeed(
+                execution_arn, operation_id, result_payload
+            )
+            logger.info(
+                "[%s] Chained invoke %s succeeded for function %s",
+                execution_arn,
+                operation_id,
+                function_name,
+            )
+
+        except Exception as e:
+            # Checkpoint FAIL
+            error = ErrorObject.from_message(str(e))
+            self._checkpoint_chained_invoke_fail(execution_arn, operation_id, error)
+            logger.exception(
+                "[%s] Chained invoke %s failed for function %s",
+                execution_arn,
+                operation_id,
+                function_name,
+            )
+
+    def _checkpoint_chained_invoke_succeed(
+        self,
+        execution_arn: str,
+        operation_id: str,
+        result: str | None,
+    ) -> None:
+        """Checkpoint a successful chained invoke."""
+        execution = self._store.load(execution_arn)
+        checkpoint_token = execution.get_new_checkpoint_token()
+
+        update = OperationUpdate(
+            operation_id=operation_id,
+            operation_type=OperationType.CHAINED_INVOKE,
+            action=OperationAction.SUCCEED,
+            payload=result,
+        )
+
+        self._checkpoint_processor.process_checkpoint(
+            checkpoint_token=checkpoint_token,
+            updates=[update],
+            client_token=None,
+        )
+
+        # Re-invoke the parent execution to continue
+        self._invoke_execution(execution_arn)
+
+    def _checkpoint_chained_invoke_fail(
+        self,
+        execution_arn: str,
+        operation_id: str,
+        error: ErrorObject,
+    ) -> None:
+        """Checkpoint a failed chained invoke."""
+        execution = self._store.load(execution_arn)
+        checkpoint_token = execution.get_new_checkpoint_token()
+
+        update = OperationUpdate(
+            operation_id=operation_id,
+            operation_type=OperationType.CHAINED_INVOKE,
+            action=OperationAction.FAIL,
+            error=error,
+        )
+
+        self._checkpoint_processor.process_checkpoint(
+            checkpoint_token=checkpoint_token,
+            updates=[update],
+            client_token=None,
+        )
+
+        # Re-invoke the parent execution to continue
+        self._invoke_execution(execution_arn)
 
     # endregion ExecutionObserver
 

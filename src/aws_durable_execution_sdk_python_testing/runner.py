@@ -18,6 +18,7 @@ from typing import (
 
 import aws_durable_execution_sdk_python
 import boto3  # type: ignore
+import requests  # type: ignore
 from botocore.exceptions import ClientError  # type: ignore
 from aws_durable_execution_sdk_python.execution import (
     InvocationStatus,
@@ -25,6 +26,7 @@ from aws_durable_execution_sdk_python.execution import (
 )
 from aws_durable_execution_sdk_python.lambda_service import (
     ErrorObject,
+    OperationAction,
     OperationPayload,
     OperationStatus,
     OperationSubType,
@@ -357,6 +359,7 @@ class InvokeOperation(Operation):
         if operation.operation_type != OperationType.CHAINED_INVOKE:
             msg: str = f"Expected INVOKE operation, got {operation.operation_type}"
             raise InvalidParameterValueException(msg)
+
         return InvokeOperation(
             operation_id=operation.operation_id,
             operation_type=operation.operation_type,
@@ -575,6 +578,7 @@ class DurableFunctionTestRunner:
         self._scheduler.start()
         self._store = InMemoryExecutionStore()
         self.poll_interval = poll_interval
+        self._handler_registry: dict[str, Callable] = {}
         self._checkpoint_processor = CheckpointProcessor(
             store=self._store, scheduler=self._scheduler
         )
@@ -585,6 +589,7 @@ class DurableFunctionTestRunner:
             scheduler=self._scheduler,
             invoker=self._invoker,
             checkpoint_processor=self._checkpoint_processor,
+            handler_registry=self._handler_registry,
         )
 
         # Wire up observer pattern - CheckpointProcessor uses this to notify executor of state changes
@@ -598,6 +603,157 @@ class DurableFunctionTestRunner:
 
     def close(self):
         self._scheduler.stop()
+
+    def register_handler(
+        self, function_name: str, handler: Callable, *, durable: bool = False
+    ) -> None:
+        """Register a child function handler for local chained invoke testing.
+
+        Args:
+            function_name: The name of the function to register
+            handler: The handler callable to invoke (same signature as Lambda: handler(event, context))
+            durable: If True, the handler is a @durable_execution decorated function that will
+                     be run as a separate durable execution. If False (default), the handler
+                     is a simple function that runs synchronously.
+
+        Raises:
+            InvalidParameterValueException: If function_name is empty/None or handler is None
+        """
+        if not function_name:
+            raise InvalidParameterValueException("function_name is required")
+        if handler is None:
+            raise InvalidParameterValueException("handler is required")
+
+        if durable:
+            # For durable handlers, we need to run them through a separate execution
+            self._register_durable_handler(function_name, handler)
+        else:
+            # Wrap handler with Lambda-style marshalling (JSON str -> object -> handler -> object -> JSON str)
+            def marshalled_handler(payload: str | None) -> str | None:
+                # Deserialize input payload (like Lambda does)
+                event = json.loads(payload) if payload else None
+
+                # Call handler with event and a mock context (Lambda signature)
+                result = handler(event, None)
+
+                # Serialize result back to JSON string (like Lambda does)
+                return json.dumps(result) if result is not None else None
+
+            self._handler_registry[function_name] = marshalled_handler
+
+    def _register_durable_handler(self, function_name: str, handler: Callable) -> None:
+        """Register a durable child function handler.
+
+        Registers the durable handler in the invoker's handler registry.
+        When a chained invoke targets this function, the invoker will use this handler
+        to run the durable function as a separate execution.
+
+        Architecture:
+        - Uses a single executor and invoker instance for all executions
+        - The scheduler coordinates between parent and child executions
+        - Child executions can have wait operations that the scheduler processes
+
+        Threading Model:
+        - When a chained invoke is triggered, the executor calls scheduler.call_later()
+        - scheduler.call_later() runs the handler via asyncio.to_thread() in a thread pool
+        - This means durable_child_handler runs in a THREAD POOL THREAD, not the main thread
+        - Blocking in durable_child_handler (via wait_until_complete) blocks only that
+          thread pool thread, NOT the scheduler's event loop
+        - The scheduler's event loop continues to process other tasks (like wait timers)
+        - This allows child executions with context.wait() to work correctly
+
+        Args:
+            function_name: The name of the function to register
+            handler: The @durable_execution decorated handler
+        """
+        import uuid
+
+        # Register the durable handler in the invoker's handler registry
+        # This is REQUIRED because when durable_child_handler starts a new execution:
+        # 1. executor.start_execution() is called
+        # 2. This schedules _invoke_handler() which calls invoker.invoke(function_name)
+        # 3. The invoker looks up the handler by function_name in its _handler_registry
+        # Without this registration, the invoker would fall back to the default handler
+        # (the parent function), causing incorrect behavior
+        self._invoker.register_handler(function_name, handler)
+
+        # Register a handler in the executor's handler registry
+        # This handler is called when a chained invoke checkpoint targets this function
+        def durable_child_handler(payload: str | None) -> str | None:
+            # NOTE: This function runs in a thread pool thread via asyncio.to_thread(),
+            # scheduled by scheduler.call_later(). Blocking here does NOT block the
+            # scheduler's event loop, which continues to process wait timers and other
+            # scheduled tasks.
+
+            # Generate unique execution name for the child
+            child_execution_name = f"child-{function_name}-{uuid.uuid4().hex[:8]}"
+
+            # Start the child execution using the SAME executor
+            # The executor uses the invoker which looks up the handler by function_name
+            start_input = StartDurableExecutionInput(
+                account_id="123456789012",
+                function_name=function_name,
+                function_qualifier="$LATEST",
+                execution_name=child_execution_name,
+                execution_timeout_seconds=900,
+                execution_retention_period_days=7,
+                invocation_id=f"inv-{uuid.uuid4().hex}",
+                trace_fields={"trace_id": "child", "span_id": "child"},
+                tenant_id="tenant-001",
+                input=payload,
+            )
+
+            output = self._executor.start_execution(start_input)
+
+            if output.execution_arn is None:
+                raise DurableFunctionsTestError(
+                    "Child execution ARN must exist to run"
+                )
+
+            # Wait for the child execution to complete
+            # This blocks the current THREAD POOL THREAD but NOT the scheduler's event loop
+            # The scheduler continues to process wait timers, allowing child executions
+            # with context.wait() to complete properly
+            completed = self._executor.wait_until_complete(
+                output.execution_arn, timeout=900
+            )
+
+            if not completed:
+                raise TimeoutError(
+                    "Child execution did not complete within timeout"
+                )
+
+            # Get the result from the child execution
+            execution: Execution = self._store.load(output.execution_arn)
+
+            if execution.result is None:
+                raise DurableFunctionsTestError(
+                    "Child execution result must exist"
+                )
+
+            if execution.result.status == InvocationStatus.FAILED:
+                # Re-raise the error from the child execution
+                error_msg = (
+                    execution.result.error.message
+                    if execution.result.error
+                    else "Child execution failed"
+                )
+                raise Exception(error_msg)  # noqa: TRY002
+
+            return execution.result.result
+
+        self._handler_registry[function_name] = durable_child_handler
+
+    def get_handler(self, function_name: str) -> Callable | None:
+        """Get a registered handler by function name.
+
+        Args:
+            function_name: The name of the function to look up
+
+        Returns:
+            The registered handler callable, or None if not found
+        """
+        return self._handler_registry.get(function_name)
 
     def run(
         self,
@@ -698,10 +854,7 @@ class DurableFunctionTestRunner:
 
         # Timeout reached
         elapsed = time.time() - start_time
-        msg = (
-            f"Callback did not available within {timeout}s "
-            f"(elapsed: {elapsed:.1f}s."
-        )
+        msg = f"Callback did not available within {timeout}s (elapsed: {elapsed:.1f}s."
         raise TimeoutError(msg)
 
 
@@ -737,6 +890,8 @@ class WebRunner:
         self._store: ExecutionStore | None = None
         self._invoker: LambdaInvoker | None = None
         self._executor: Executor | None = None
+        self._endpoint_registry: dict[str, str] = {}
+        self._handler_registry: dict[str, Callable] = {}
 
     def __enter__(self) -> Self:
         """Context manager entry point.
@@ -792,6 +947,7 @@ class WebRunner:
             scheduler=self._scheduler,
             invoker=self._invoker,
             checkpoint_processor=checkpoint_processor,
+            handler_registry=self._handler_registry,
         )
 
         # Add executor as observer to the checkpoint processor
@@ -848,6 +1004,35 @@ class WebRunner:
         self._store = None
         self._invoker = None
         self._executor = None
+
+    def register_endpoint(self, function_name: str, endpoint: str) -> None:
+        """Register an HTTP endpoint for a function name.
+
+        When a chained invoke targets this function_name, the WebRunner will
+        make an HTTP POST request to the endpoint with the payload.
+
+        Args:
+            function_name: The name of the function to register
+            endpoint: The HTTP endpoint URL to call
+
+        Raises:
+            InvalidParameterValueException: If function_name is empty/None or endpoint is empty/None
+        """
+
+        if not function_name:
+            raise InvalidParameterValueException("function_name is required")
+        if not endpoint:
+            raise InvalidParameterValueException("endpoint is required")
+
+        self._endpoint_registry[function_name] = endpoint
+
+        # Create a handler that makes HTTP calls to the endpoint
+        def http_handler(payload: str | None) -> str | None:
+            response = requests.post(endpoint, data=payload, timeout=300)
+            response.raise_for_status()
+            return response.text if response.text else None
+
+        self._handler_registry[function_name] = http_handler
 
     def _create_boto3_client(self) -> Any:
         """Create boto3 client for lambdainternal service.
@@ -1154,10 +1339,7 @@ class DurableFunctionCloudTestRunner:
 
         # Timeout reached
         elapsed = time.time() - start_time
-        msg = (
-            f"Callback did not available within {timeout}s "
-            f"(elapsed: {elapsed:.1f}s."
-        )
+        msg = f"Callback did not available within {timeout}s (elapsed: {elapsed:.1f}s."
         raise TimeoutError(msg)
 
     def _fetch_execution_history(

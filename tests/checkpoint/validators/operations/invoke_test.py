@@ -99,11 +99,59 @@ def test_validate_cancel_action_with_completed_state():
 
 def test_validate_invalid_action():
     """Test invalid action raises error."""
+    # Use RETRY which is not a valid action for INVOKE operations
+    update = OperationUpdate(
+        operation_id="test-id",
+        operation_type=OperationType.CHAINED_INVOKE,
+        action=OperationAction.RETRY,
+    )
+
+    with pytest.raises(InvalidParameterValueException, match="Invalid INVOKE action"):
+        ChainedInvokeOperationValidator.validate(None, update)
+
+
+def test_validate_succeed_action_with_no_current_state():
+    """Test SUCCEED action with no current state raises error."""
     update = OperationUpdate(
         operation_id="test-id",
         operation_type=OperationType.CHAINED_INVOKE,
         action=OperationAction.SUCCEED,
     )
 
-    with pytest.raises(InvalidParameterValueException, match="Invalid INVOKE action"):
+    with pytest.raises(
+        InvalidParameterValueException,
+        match="Cannot complete an INVOKE that does not exist or has already completed",
+    ):
         ChainedInvokeOperationValidator.validate(None, update)
+
+
+def test_validate_succeed_action_with_started_state():
+    """Test SUCCEED action with STARTED state succeeds."""
+    current_state = Operation(
+        operation_id="test-id",
+        operation_type=OperationType.CHAINED_INVOKE,
+        status=OperationStatus.STARTED,
+    )
+    update = OperationUpdate(
+        operation_id="test-id",
+        operation_type=OperationType.CHAINED_INVOKE,
+        action=OperationAction.SUCCEED,
+    )
+    # Should not raise
+    ChainedInvokeOperationValidator.validate(current_state, update)
+
+
+def test_validate_fail_action_with_started_state():
+    """Test FAIL action with STARTED state succeeds."""
+    current_state = Operation(
+        operation_id="test-id",
+        operation_type=OperationType.CHAINED_INVOKE,
+        status=OperationStatus.STARTED,
+    )
+    update = OperationUpdate(
+        operation_id="test-id",
+        operation_type=OperationType.CHAINED_INVOKE,
+        action=OperationAction.FAIL,
+    )
+    # Should not raise
+    ChainedInvokeOperationValidator.validate(current_state, update)

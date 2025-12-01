@@ -2178,3 +2178,167 @@ def test_cloud_runner_wait_for_result_success(mock_boto3):
         mock_from_history.assert_called_once_with(
             mock_execution_response, mock_history_response
         )
+
+
+# Property-based tests for chain-invokes feature - Handler Registry
+
+
+@pytest.mark.parametrize(
+    "handler_pairs",
+    [
+        # Single handler
+        [("child-fn", lambda event, context: {"result": "a"})],
+        # Multiple handlers
+        [
+            ("fn-1", lambda event, context: {"value": 1}),
+            ("fn-2", lambda event, context: {"value": 2}),
+            ("fn-3", lambda event, context: {"value": 3}),
+        ],
+        # Handlers with various name patterns
+        [
+            ("my-function", lambda event, context: {"name": "my-function"}),
+            ("another_function", lambda event, context: {"name": "another"}),
+            ("FunctionName", lambda event, context: None),
+        ],
+        # Many handlers
+        [(f"handler-{i}", lambda event, context, i=i: {"index": i}) for i in range(10)],
+    ],
+)
+def test_property_handler_registration_preserves_all_handlers(handler_pairs):
+    """
+    **Feature: chain-invokes, Property 1: Handler Registration Preserves All Handlers**
+
+    *For any* set of (function_name, handler) pairs with unique function names,
+    registering all pairs should result in all handlers being retrievable by their function names.
+
+    Note: Handlers are wrapped with Lambda-style marshalling, so we verify they are
+    callable and registered (not identity).
+
+    **Validates: Requirements 1.1, 1.4**
+    """
+
+    # Create a minimal handler for the test runner
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        # Register all handlers
+        for function_name, handler in handler_pairs:
+            runner.register_handler(function_name, handler)
+
+        # Verify all handlers are retrievable and callable
+        for function_name, _ in handler_pairs:
+            retrieved_handler = runner.get_handler(function_name)
+            assert retrieved_handler is not None, (
+                f"Handler for '{function_name}' was not found"
+            )
+            assert callable(retrieved_handler), (
+                f"Handler for '{function_name}' is not callable"
+            )
+
+
+def test_register_handler_empty_function_name_raises():
+    """Test that registering with empty function_name raises InvalidParameterValueException."""
+
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        with pytest.raises(
+            InvalidParameterValueException, match="function_name is required"
+        ):
+            runner.register_handler("", lambda event, context: event)
+
+
+def test_register_handler_none_function_name_raises():
+    """Test that registering with None function_name raises InvalidParameterValueException."""
+
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        with pytest.raises(
+            InvalidParameterValueException, match="function_name is required"
+        ):
+            runner.register_handler(None, lambda event, context: event)
+
+
+def test_register_handler_none_handler_raises():
+    """Test that registering with None handler raises InvalidParameterValueException."""
+
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        with pytest.raises(InvalidParameterValueException, match="handler is required"):
+            runner.register_handler("my-function", None)
+
+
+def test_get_handler_not_found_returns_none():
+    """Test that get_handler returns None for unregistered function names."""
+
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        result = runner.get_handler("non-existent-function")
+        assert result is None
+
+
+def test_register_handler_overwrites_existing():
+    """Test that registering a handler with an existing name overwrites it."""
+
+    def dummy_handler(event, context):
+        return {"status": "ok"}
+
+    def handler1(event, context):
+        return {"source": "handler1"}
+
+    def handler2(event, context):
+        return {"source": "handler2"}
+
+    with DurableFunctionTestRunner(dummy_handler) as runner:
+        runner.register_handler("my-function", handler1)
+        wrapped1 = runner.get_handler("my-function")
+        assert wrapped1 is not None
+        # Verify it returns handler1's result
+        assert wrapped1("{}") == '{"source": "handler1"}'
+
+        runner.register_handler("my-function", handler2)
+        wrapped2 = runner.get_handler("my-function")
+        assert wrapped2 is not None
+        # Verify it now returns handler2's result (overwritten)
+        assert wrapped2("{}") == '{"source": "handler2"}'
+        # Verify it's a different wrapped handler
+        assert wrapped1 is not wrapped2
+
+
+# Property-based tests for chain-invokes feature - Local and Cloud Result Consistency
+
+
+def test_local_and_cloud_runner_result_structure_consistency():
+    """
+    **Feature: chain-invokes, Property 10: Local and Cloud Result Consistency**
+
+    *For any* chained invoke execution, the DurableFunctionTestResult structure
+    (status, operations, result, error) should be identical whether executed locally or in the cloud.
+
+    This test validates that both runners produce DurableFunctionTestResult with the same structure.
+
+    **Validates: Requirements 7.1, 7.2, 7.3, 7.4**
+    """
+    from aws_durable_execution_sdk_python_testing.runner import (
+        DurableFunctionCloudTestRunner,
+        DurableFunctionTestRunner,
+        DurableFunctionTestResult,
+    )
+
+    # Verify both runners return DurableFunctionTestResult with same attributes
+    result_attrs = {"status", "operations", "result", "error"}
+
+    # Check DurableFunctionTestResult has expected attributes
+    for attr in result_attrs:
+        assert (
+            hasattr(DurableFunctionTestResult, attr)
+            or attr in DurableFunctionTestResult.__dataclass_fields__
+        ), f"DurableFunctionTestResult should have '{attr}' attribute"

@@ -110,6 +110,16 @@ class MockExecutionObserver(ExecutionObserver):
         """Capture stop events."""
         pass  # Not needed for current tests
 
+    def on_chained_invoke_started(
+        self,
+        execution_arn: str,
+        operation_id: str,
+        function_name: str,
+        payload: str | None,
+    ) -> None:
+        """Capture chained invoke start events."""
+        pass  # Not needed for current tests
+
 
 @pytest.fixture
 def test_observer():
@@ -2804,3 +2814,227 @@ def test_notify_stopped():
     notifier.notify_stopped("test-arn", error)
 
     observer.on_stopped.assert_called_once_with(execution_arn="test-arn", error=error)
+
+
+# Property-based tests for chain-invokes feature - Executor Handler Invocation
+
+
+@pytest.mark.parametrize(
+    "function_name,payload",
+    [
+        ("child-fn", '{"key": "value"}'),
+        ("handler-fn", '{"data": 123}'),
+        ("my-function", None),
+        ("lambda-handler", ""),
+        ("complex-fn", '{"nested": {"array": [1, 2, 3]}}'),
+    ],
+)
+def test_property_registered_handler_invocation(
+    function_name: str,
+    payload: str | None,
+):
+    """
+    **Feature: chain-invokes, Property 2: Registered Handler Invocation**
+
+    *For any* registered handler and valid input payload, when a parent function
+    performs a chained invoke, the handler should be called with the exact input payload provided.
+
+    **Validates: Requirements 2.1**
+    """
+    # Arrange
+    received_payloads = []
+
+    def test_handler(p: str | None) -> str | None:
+        received_payloads.append(p)
+        return '{"result": "ok"}'
+
+    handler_registry = {function_name: test_handler}
+
+    mock_store = Mock()
+    mock_scheduler = Mock()
+    mock_invoker = Mock()
+    mock_checkpoint_processor = Mock()
+
+    executor = Executor(
+        store=mock_store,
+        scheduler=mock_scheduler,
+        invoker=mock_invoker,
+        checkpoint_processor=mock_checkpoint_processor,
+        handler_registry=handler_registry,
+    )
+
+    # Mock the checkpoint methods
+    mock_execution = Mock()
+    mock_execution.get_new_checkpoint_token.return_value = "token-123"
+    mock_store.load.return_value = mock_execution
+
+    # Act - directly call _invoke_child_handler
+    executor._invoke_child_handler(
+        execution_arn="test-arn",
+        operation_id="op-123",
+        function_name=function_name,
+        handler=test_handler,
+        payload=payload,
+    )
+
+    # Assert: Handler was called with exact payload
+    assert len(received_payloads) == 1
+    assert received_payloads[0] == payload
+
+
+@pytest.mark.parametrize(
+    "result_payload",
+    [
+        '{"result": "success"}',
+        '{"data": {"items": [1, 2, 3]}}',
+        '"simple string"',
+        None,
+        "",
+    ],
+)
+def test_property_successful_handler_result_capture(result_payload: str | None):
+    """
+    **Feature: chain-invokes, Property 3: Successful Handler Result Capture**
+
+    *For any* registered handler that returns a value, the invoke operation should
+    have status SUCCEEDED and contain the serialized result.
+
+    **Validates: Requirements 2.3, 9.3**
+    """
+
+    # Arrange
+    def test_handler(p: str | None) -> str | None:
+        return result_payload
+
+    mock_store = Mock()
+    mock_scheduler = Mock()
+    mock_invoker = Mock()
+    mock_checkpoint_processor = Mock()
+
+    executor = Executor(
+        store=mock_store,
+        scheduler=mock_scheduler,
+        invoker=mock_invoker,
+        checkpoint_processor=mock_checkpoint_processor,
+        handler_registry={"test-fn": test_handler},
+    )
+
+    # Mock the checkpoint methods
+    mock_execution = Mock()
+    mock_execution.get_new_checkpoint_token.return_value = "token-123"
+    mock_store.load.return_value = mock_execution
+
+    checkpoint_calls = []
+    mock_checkpoint_processor.process_checkpoint.side_effect = (
+        lambda **kwargs: checkpoint_calls.append(kwargs)
+    )
+
+    # Act
+    executor._invoke_child_handler(
+        execution_arn="test-arn",
+        operation_id="op-123",
+        function_name="test-fn",
+        handler=test_handler,
+        payload='{"input": "data"}',
+    )
+
+    # Assert: Checkpoint was called with SUCCEED action and result
+    assert len(checkpoint_calls) == 1
+    updates = checkpoint_calls[0]["updates"]
+    assert len(updates) == 1
+    assert updates[0].action == OperationAction.SUCCEED
+    assert updates[0].payload == result_payload
+
+
+@pytest.mark.parametrize(
+    "error_message",
+    [
+        "Something went wrong",
+        "Handler failed",
+        "Timeout error",
+        "Resource not found",
+    ],
+)
+def test_property_failed_handler_error_capture(error_message: str):
+    """
+    **Feature: chain-invokes, Property 4: Failed Handler Error Capture**
+
+    *For any* registered handler that raises an exception, the invoke operation should
+    have status FAILED and contain an ErrorObject with the exception details.
+
+    **Validates: Requirements 2.4, 9.4**
+    """
+
+    # Arrange
+    def failing_handler(p: str | None) -> str | None:
+        raise ValueError(error_message)
+
+    mock_store = Mock()
+    mock_scheduler = Mock()
+    mock_invoker = Mock()
+    mock_checkpoint_processor = Mock()
+
+    executor = Executor(
+        store=mock_store,
+        scheduler=mock_scheduler,
+        invoker=mock_invoker,
+        checkpoint_processor=mock_checkpoint_processor,
+        handler_registry={"test-fn": failing_handler},
+    )
+
+    # Mock the checkpoint methods
+    mock_execution = Mock()
+    mock_execution.get_new_checkpoint_token.return_value = "token-123"
+    mock_store.load.return_value = mock_execution
+
+    checkpoint_calls = []
+    mock_checkpoint_processor.process_checkpoint.side_effect = (
+        lambda **kwargs: checkpoint_calls.append(kwargs)
+    )
+
+    # Act
+    executor._invoke_child_handler(
+        execution_arn="test-arn",
+        operation_id="op-123",
+        function_name="test-fn",
+        handler=failing_handler,
+        payload='{"input": "data"}',
+    )
+
+    # Assert: Checkpoint was called with FAIL action and error
+    assert len(checkpoint_calls) == 1
+    updates = checkpoint_calls[0]["updates"]
+    assert len(updates) == 1
+    assert updates[0].action == OperationAction.FAIL
+    assert updates[0].error is not None
+    assert error_message in updates[0].error.message
+
+
+def test_on_chained_invoke_started_handler_not_found():
+    """Test that on_chained_invoke_started raises ResourceNotFoundException for unregistered handler."""
+    mock_store = Mock()
+    mock_scheduler = Mock()
+    mock_invoker = Mock()
+    mock_checkpoint_processor = Mock()
+
+    executor = Executor(
+        store=mock_store,
+        scheduler=mock_scheduler,
+        invoker=mock_invoker,
+        checkpoint_processor=mock_checkpoint_processor,
+        handler_registry={},  # Empty registry
+    )
+
+    # Set up completion event so the executor doesn't skip this execution
+    mock_completion_event = Mock()
+    executor._completion_events["test-arn"] = mock_completion_event
+
+    with pytest.raises(
+        ResourceNotFoundException, match="No handler registered for function"
+    ):
+        executor.on_chained_invoke_started(
+            execution_arn="test-arn",
+            operation_id="op-123",
+            function_name="non-existent-fn",
+            payload='{"test": true}',
+        )

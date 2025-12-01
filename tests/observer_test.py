@@ -25,6 +25,7 @@ class MockExecutionObserver(ExecutionObserver):
         self.on_wait_timer_scheduled_calls = []
         self.on_step_retry_scheduled_calls = []
         self.on_callback_created_calls = []
+        self.on_chained_invoke_started_calls = []
 
     def on_completed(self, execution_arn: str, result: str | None = None) -> None:
         self.on_completed_calls.append((execution_arn, result))
@@ -57,6 +58,17 @@ class MockExecutionObserver(ExecutionObserver):
     ) -> None:
         self.on_callback_created_calls.append(
             (execution_arn, operation_id, callback_options, callback_token)
+        )
+
+    def on_chained_invoke_started(
+        self,
+        execution_arn: str,
+        operation_id: str,
+        function_name: str,
+        payload: str | None,
+    ) -> None:
+        self.on_chained_invoke_started_calls.append(
+            (execution_arn, operation_id, function_name, payload)
         )
 
 
@@ -353,3 +365,121 @@ def test_execution_notifier_all_notification_methods():
     # Test notify_step_retry_scheduled
     notifier.notify_step_retry_scheduled("arn5", "op2", 10.5)
     assert observer.on_step_retry_scheduled_calls[-1] == ("arn5", "op2", 10.5)
+
+
+# Property-based tests for chain-invokes feature
+
+
+@pytest.mark.parametrize(
+    "num_observers,execution_arn,operation_id,function_name,payload",
+    [
+        # Single observer with payload
+        (
+            1,
+            "arn:aws:lambda:us-east-1:123456789012:function:test",
+            "op-1",
+            "child-fn",
+            '{"key": "value"}',
+        ),
+        # Multiple observers with payload
+        (
+            3,
+            "arn:aws:lambda:us-west-2:987654321098:function:parent",
+            "op-abc",
+            "handler-fn",
+            '{"data": 123}',
+        ),
+        # Single observer with None payload
+        (1, "test-arn", "operation-id", "my-function", None),
+        # Multiple observers with None payload
+        (5, "exec-arn-123", "op-xyz", "lambda-handler", None),
+        # Edge case: empty string payload
+        (2, "arn:test", "op-empty", "fn-name", ""),
+        # Edge case: complex payload
+        (
+            4,
+            "complex-arn",
+            "op-complex",
+            "complex-fn",
+            '{"nested": {"array": [1, 2, 3]}}',
+        ),
+    ],
+)
+def test_property_observer_notification_broadcast(
+    num_observers: int,
+    execution_arn: str,
+    operation_id: str,
+    function_name: str,
+    payload: str | None,
+):
+    """
+    **Feature: chain-invokes, Property 9: Observer Notification Broadcast**
+
+    *For any* registered ExecutionObserver, when notify_chained_invoke_started is called,
+    all observers should receive the on_chained_invoke_started callback with the correct parameters.
+
+    **Validates: Requirements 6.2**
+    """
+    # Arrange: Create notifier and register multiple observers
+    notifier = ExecutionNotifier()
+    observers = [MockExecutionObserver() for _ in range(num_observers)]
+    for observer in observers:
+        notifier.add_observer(observer)
+
+    # Act: Notify chained invoke started
+    notifier.notify_chained_invoke_started(
+        execution_arn=execution_arn,
+        operation_id=operation_id,
+        function_name=function_name,
+        payload=payload,
+    )
+
+    # Assert: All observers received the callback with correct parameters
+    for i, observer in enumerate(observers):
+        assert len(observer.on_chained_invoke_started_calls) == 1, (
+            f"Observer {i} should have received exactly one notification"
+        )
+        received = observer.on_chained_invoke_started_calls[0]
+        assert received == (execution_arn, operation_id, function_name, payload), (
+            f"Observer {i} received incorrect parameters: {received}"
+        )
+
+
+def test_notify_chained_invoke_started_no_observers():
+    """Test that notify_chained_invoke_started works with no observers registered."""
+    notifier = ExecutionNotifier()
+
+    # Should not raise any exceptions
+    notifier.notify_chained_invoke_started(
+        execution_arn="test-arn",
+        operation_id="op-id",
+        function_name="test-fn",
+        payload='{"test": true}',
+    )
+
+
+def test_notify_chained_invoke_started_single_observer():
+    """Test notify_chained_invoke_started with a single observer."""
+    notifier = ExecutionNotifier()
+    observer = MockExecutionObserver()
+    notifier.add_observer(observer)
+
+    execution_arn = "test-execution-arn"
+    operation_id = "test-operation-id"
+    function_name = "child-function"
+    payload = '{"input": "data"}'
+
+    notifier.notify_chained_invoke_started(
+        execution_arn=execution_arn,
+        operation_id=operation_id,
+        function_name=function_name,
+        payload=payload,
+    )
+
+    assert len(observer.on_chained_invoke_started_calls) == 1
+    assert observer.on_chained_invoke_started_calls[0] == (
+        execution_arn,
+        operation_id,
+        function_name,
+        payload,
+    )

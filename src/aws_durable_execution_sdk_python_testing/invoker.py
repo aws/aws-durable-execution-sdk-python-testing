@@ -73,9 +73,29 @@ class Invoker(Protocol):
 
 
 class InProcessInvoker(Invoker):
-    def __init__(self, handler: Callable, service_client: InMemoryServiceClient):
+    """Invoker that runs handlers in-process.
+
+    Supports both a default handler and a registry of handlers keyed by function name.
+    When invoking, it first looks up the handler by function name in the registry,
+    falling back to the default handler if not found.
+    """
+
+    def __init__(
+        self,
+        handler: Callable,
+        service_client: InMemoryServiceClient,
+        handler_registry: dict[str, Callable] | None = None,
+    ):
         self.handler = handler
         self.service_client = service_client
+        # Registry of handlers keyed by function name for durable child functions
+        self._handler_registry: dict[str, Callable] = (
+            handler_registry if handler_registry is not None else {}
+        )
+
+    def register_handler(self, function_name: str, handler: Callable) -> None:
+        """Register a handler for a specific function name."""
+        self._handler_registry[function_name] = handler
 
     def create_invocation_input(
         self, execution: Execution
@@ -93,16 +113,18 @@ class InProcessInvoker(Invoker):
 
     def invoke(
         self,
-        function_name: str,  # noqa: ARG002
+        function_name: str,
         input: DurableExecutionInvocationInput,
         endpoint_url: str | None = None,  # noqa: ARG002
     ) -> DurableExecutionInvocationOutput:
-        # TODO: reasses if function_name will be used in future
+        # Look up handler by function name, fall back to default handler
+        handler = self._handler_registry.get(function_name, self.handler)
+
         input_with_client = DurableExecutionInvocationInputWithClient.from_durable_execution_invocation_input(
             input, self.service_client
         )
         context = create_test_lambda_context()
-        response_dict = self.handler(input_with_client, context)
+        response_dict = handler(input_with_client, context)
         return DurableExecutionInvocationOutput.from_dict(response_dict)
 
     def update_endpoint(self, endpoint_url: str, region_name: str) -> None:

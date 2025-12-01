@@ -58,6 +58,16 @@ class ExecutionObserver(ABC):
     ) -> None:
         """Called when callback is created."""
 
+    @abstractmethod
+    def on_chained_invoke_started(
+        self,
+        execution_arn: str,
+        operation_id: str,
+        function_name: str,
+        payload: str | None,
+    ) -> None:
+        """Called when a chained invoke operation is started."""
+
 
 class ExecutionNotifier:
     """Notifies observers about execution events. Thread-safe."""
@@ -139,6 +149,22 @@ class ExecutionNotifier:
             operation_id=operation_id,
             callback_options=callback_options,
             callback_token=callback_token,
+        )
+
+    def notify_chained_invoke_started(
+        self,
+        execution_arn: str,
+        operation_id: str,
+        function_name: str,
+        payload: str | None,
+    ) -> None:
+        """Notify observers about chained invoke start."""
+        self._notify_observers(
+            ExecutionObserver.on_chained_invoke_started,
+            execution_arn=execution_arn,
+            operation_id=operation_id,
+            function_name=function_name,
+            payload=payload,
         )
 
     # endregion event emitters
