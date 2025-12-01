@@ -285,7 +285,7 @@ def test_should_complete_workflow_with_error_when_invocation_fails(
     failed_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.FAILED, error=ErrorObject.from_message("Test error")
     )
-    mock_invoker.invoke.return_value = failed_response
+    mock_invoker.invoke.return_value = (failed_response, "test-request-id")
 
     # Mock execution creation and store behavior
     with patch(
@@ -329,7 +329,7 @@ def test_should_complete_workflow_with_result_when_invocation_succeeds(
     success_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.SUCCEEDED, result="success result"
     )
-    mock_invoker.invoke.return_value = success_response
+    mock_invoker.invoke.return_value = (success_response, "test-request-id")
 
     # Mock execution creation and store behavior
     with patch(
@@ -372,7 +372,7 @@ def test_should_handle_pending_status_when_operations_exist(
     mock_invocation_input = Mock()
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     pending_response = DurableExecutionInvocationOutput(status=InvocationStatus.PENDING)
-    mock_invoker.invoke.return_value = pending_response
+    mock_invoker.invoke.return_value = (pending_response, "test-request-id")
 
     # Mock execution creation and store behavior
     with patch(
@@ -409,8 +409,9 @@ def test_should_ignore_response_when_execution_already_complete(
 
     # Mock invoker - this shouldn't be called since execution is complete
     mock_invoker.create_invocation_input.return_value = Mock()
-    mock_invoker.invoke.return_value = DurableExecutionInvocationOutput(
-        status=InvocationStatus.SUCCEEDED
+    mock_invoker.invoke.return_value = (
+        DurableExecutionInvocationOutput(status=InvocationStatus.SUCCEEDED),
+        "test-request-id",
     )
 
     # Mock execution creation and store behavior
@@ -452,7 +453,7 @@ def test_should_retry_when_response_has_no_status(
     mock_invocation_input = Mock()
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     no_status_response = DurableExecutionInvocationOutput(status=None)
-    mock_invoker.invoke.return_value = no_status_response
+    mock_invoker.invoke.return_value = (no_status_response, "test-request-id")
 
     # Mock execution creation and store behavior
     with patch(
@@ -495,7 +496,7 @@ def test_should_retry_when_failed_response_has_result(
     invalid_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.FAILED, result="should not have result"
     )
-    mock_invoker.invoke.return_value = invalid_response
+    mock_invoker.invoke.return_value = (invalid_response, "test-request-id")
 
     # Mock execution creation and store behavior
     with patch(
@@ -539,7 +540,7 @@ def test_should_retry_when_success_response_has_error(
         status=InvocationStatus.SUCCEEDED,
         error=ErrorObject.from_message("should not have error"),
     )
-    mock_invoker.invoke.return_value = invalid_response
+    mock_invoker.invoke.return_value = (invalid_response, "test-request-id")
 
     # Mock execution creation and store behavior
     with patch(
@@ -581,7 +582,7 @@ def test_should_retry_when_pending_response_has_no_operations(
     mock_invocation_input = Mock()
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     pending_response = DurableExecutionInvocationOutput(status=InvocationStatus.PENDING)
-    mock_invoker.invoke.return_value = pending_response
+    mock_invoker.invoke.return_value = (pending_response, "test-request-id")
 
     # Mock execution creation and store behavior
     with patch(
@@ -622,7 +623,7 @@ def test_invoke_handler_success(
     mock_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.SUCCEEDED, result="test"
     )
-    mock_invoker.invoke.return_value = mock_response
+    mock_invoker.invoke.return_value = (mock_response, "test-request-id")
 
     # Mock execution creation and store behavior
     with patch(
@@ -694,7 +695,7 @@ def test_invoke_handler_execution_completed_during_invocation(
     mock_invocation_input = Mock()
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     mock_response = Mock()
-    mock_invoker.invoke.return_value = mock_response
+    mock_invoker.invoke.return_value = (mock_response, "test-request-id")
 
     # Create a completed execution mock
     completed_execution = Mock()
@@ -1037,7 +1038,10 @@ def test_should_retry_invocation_when_under_limit_through_public_api(
     success_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.SUCCEEDED, result="final success"
     )
-    mock_invoker.invoke.side_effect = [invalid_response, success_response]
+    mock_invoker.invoke.side_effect = [
+        (invalid_response, "test-request-id-1"),
+        (success_response, "test-request-id-2"),
+    ]
 
     # Mock execution creation and store behavior
     with patch(
@@ -1435,7 +1439,7 @@ def test_should_retry_when_response_has_unexpected_status(
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     unexpected_response = Mock()
     unexpected_response.status = "UNKNOWN_STATUS"
-    mock_invoker.invoke.return_value = unexpected_response
+    mock_invoker.invoke.return_value = (unexpected_response, "test-request-id")
 
     # Mock execution creation and store behavior
     with patch(
@@ -1480,7 +1484,7 @@ def test_invoke_handler_execution_completed_during_invocation_async(
     mock_invocation_input = Mock()
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     mock_response = Mock()
-    mock_invoker.invoke.return_value = mock_response
+    mock_invoker.invoke.return_value = (mock_response, "test-request-id")
 
     # Mock execution creation
     with patch(
@@ -1566,7 +1570,7 @@ def test_invoke_handler_general_exception_async(
     success_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.SUCCEEDED, result="success"
     )
-    mock_invoker.invoke.return_value = success_response
+    mock_invoker.invoke.return_value = (success_response, "test-request-id")
 
     # Mock execution creation and store behavior
     with patch(
@@ -2094,6 +2098,7 @@ def test_get_execution_history(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = []  # Empty operations list
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2123,6 +2128,7 @@ def test_get_execution_history_with_events(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = [op1]
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2148,6 +2154,7 @@ def test_get_execution_history_reverse_order(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = [op1]
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2178,6 +2185,7 @@ def test_get_execution_history_pagination(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = operations
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2206,6 +2214,7 @@ def test_get_execution_history_pagination_with_marker(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = operations
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2223,6 +2232,7 @@ def test_get_execution_history_invalid_marker(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = []
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2399,6 +2409,7 @@ def test_send_callback_heartbeat(executor, mock_store):
     mock_operation.status = OperationStatus.STARTED
     mock_execution.find_callback_operation.return_value = (0, mock_operation)
     mock_execution.updates = []  # No callback options to reset timeout
+    mock_execution.invocation_completions = []
     mock_store.load.return_value = mock_execution
 
     result = executor.send_callback_heartbeat(callback_id)
@@ -2651,6 +2662,7 @@ def test_schedule_callback_timeouts_no_callback_options(executor, mock_store):
     mock_execution = Mock()
     mock_execution.find_operation.return_value = (0, operation)
     mock_execution.updates = []  # No updates with callback options
+    mock_execution.invocation_completions = []
     mock_store.load.return_value = mock_execution
 
     # Should return early without scheduling

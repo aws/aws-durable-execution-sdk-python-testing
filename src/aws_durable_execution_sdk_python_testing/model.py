@@ -1329,6 +1329,7 @@ class Event:
     callback_succeeded_details: CallbackSucceededDetails | None = None
     callback_failed_details: CallbackFailedDetails | None = None
     callback_timed_out_details: CallbackTimedOutDetails | None = None
+    invocation_completed_details: dict[str, Any] | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> Event:
@@ -1447,6 +1448,8 @@ class Event:
         if details_data := data.get("CallbackTimedOutDetails"):
             callback_timed_out_details = CallbackTimedOutDetails.from_dict(details_data)
 
+        invocation_completed_details = data.get("InvocationCompletedDetails")
+
         return cls(
             event_type=data["EventType"],
             event_timestamp=data["EventTimestamp"],
@@ -1479,6 +1482,7 @@ class Event:
             callback_succeeded_details=callback_succeeded_details,
             callback_failed_details=callback_failed_details,
             callback_timed_out_details=callback_timed_out_details,
+            invocation_completed_details=invocation_completed_details,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -1563,6 +1567,8 @@ class Event:
             result["CallbackTimedOutDetails"] = (
                 self.callback_timed_out_details.to_dict()
             )
+        if self.invocation_completed_details is not None:
+            result["InvocationCompletedDetails"] = self.invocation_completed_details
         return result
 
     # region execution

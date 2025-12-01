@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -413,6 +414,20 @@ class Executor(ExecutionObserver):
         updates_dict: dict[str, OperationUpdate] = {u.operation_id: u for u in updates}
         durable_execution_arn: str = execution.durable_execution_arn
 
+        # Add InvocationCompleted events
+        for start_ts, end_ts, request_id in execution.invocation_completions:
+            invocation_event = HistoryEvent(
+                event_id=0,  # Temporary, will be reassigned
+                event_type="InvocationCompleted",
+                event_timestamp=datetime.fromtimestamp(end_ts, tz=UTC),
+                invocation_completed_details={
+                    "StartTimestamp": start_ts,
+                    "EndTimestamp": end_ts,
+                    "RequestId": request_id,
+                },
+            )
+            all_events.append(invocation_event)
+
         # Generate all events first (without final event IDs)
         for op in ops:
             operation_update: OperationUpdate | None = updates_dict.get(
@@ -769,14 +784,23 @@ class Executor(ExecutionObserver):
 
                 self._store.save(execution)
 
-                response: DurableExecutionInvocationOutput = self._invoker.invoke(
+                invocation_start = time.time()
+                response, request_id = self._invoker.invoke(
                     execution.start_input.function_name,
                     invocation_input,
                     execution.start_input.lambda_endpoint,
                 )
+                invocation_end = time.time()
 
                 # Reload execution after invocation in case it was completed via checkpoint
                 execution = self._store.load(execution_arn)
+
+                # Record invocation completion and save immediately
+                execution.record_invocation_completion(
+                    invocation_start, invocation_end, request_id
+                )
+                self._store.save(execution)
+
                 if execution.is_complete:
                     logger.info(
                         "[%s] Execution completed during invocation, ignoring result",
