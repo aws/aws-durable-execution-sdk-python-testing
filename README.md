@@ -1,7 +1,7 @@
-# aws-durable-functions-sdk-python
+# AWS Durable Execution Testing SDK for Python
 
-[![PyPI - Version](https://img.shields.io/pypi/v/aws-durable-functions-sdk-python.svg)](https://pypi.org/project/aws-durable-functions-sdk-python)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/aws-durable-functions-sdk-python.svg)](https://pypi.org/project/aws-durable-functions-sdk-python)
+[![PyPI - Version](https://img.shields.io/pypi/v/aws-durable-execution-sdk-python-testing.svg)](https://pypi.org/project/aws-durable-execution-sdk-python-testing)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/aws-durable-execution-sdk-python-testing.svg)](https://pypi.org/project/aws-durable-execution-sdk-python-testing)
 
 -----
 
@@ -22,14 +22,14 @@ pip install aws-durable-functions-sdk-python-testing
 
 ## Overview
 
-Use the Durable Functions Python Testing Framework to test your Python Durable Functions locally.
+Use the AWS Durable Execution Testing SDK for Python to test your Python durable functions locally.
 
-The test framework contains a local runner, so you can run and test your Durable Function locally
+The test framework contains a local runner, so you can run and test your durable function locally
 before you deploy it.
 
 ## Quick Start
 
-### A Durable Function under test
+### A durable function under test
 
 ```python
 from aws_durable_execution_sdk_python.context import (
