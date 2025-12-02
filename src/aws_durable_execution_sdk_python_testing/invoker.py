@@ -136,9 +136,7 @@ class LambdaInvoker(Invoker):
     def create(endpoint_url: str, region_name: str) -> LambdaInvoker:
         """Create with the boto lambda client."""
         invoker = LambdaInvoker(
-            boto3.client(
-                "lambda", endpoint_url=endpoint_url, region_name=region_name
-            )
+            boto3.client("lambda", endpoint_url=endpoint_url, region_name=region_name)
         )
         invoker._current_endpoint = endpoint_url
         invoker._endpoint_clients[endpoint_url] = invoker.lambda_client

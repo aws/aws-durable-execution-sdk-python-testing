@@ -698,10 +698,7 @@ class DurableFunctionTestRunner:
 
         # Timeout reached
         elapsed = time.time() - start_time
-        msg = (
-            f"Callback did not available within {timeout}s "
-            f"(elapsed: {elapsed:.1f}s."
-        )
+        msg = f"Callback did not available within {timeout}s (elapsed: {elapsed:.1f}s."
         raise TimeoutError(msg)
 
 
@@ -1143,10 +1140,7 @@ class DurableFunctionCloudTestRunner:
 
         # Timeout reached
         elapsed = time.time() - start_time
-        msg = (
-            f"Callback did not available within {timeout}s "
-            f"(elapsed: {elapsed:.1f}s."
-        )
+        msg = f"Callback did not available within {timeout}s (elapsed: {elapsed:.1f}s."
         raise TimeoutError(msg)
 
     def _fetch_execution_history(
