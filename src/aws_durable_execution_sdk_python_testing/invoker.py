@@ -137,7 +137,7 @@ class LambdaInvoker(Invoker):
         """Create with the boto lambda client."""
         invoker = LambdaInvoker(
             boto3.client(
-                "lambdainternal", endpoint_url=endpoint_url, region_name=region_name
+                "lambda", endpoint_url=endpoint_url, region_name=region_name
             )
         )
         invoker._current_endpoint = endpoint_url
@@ -150,7 +150,7 @@ class LambdaInvoker(Invoker):
         with self._lock:
             if endpoint_url not in self._endpoint_clients:
                 self._endpoint_clients[endpoint_url] = boto3.client(
-                    "lambdainternal", endpoint_url=endpoint_url, region_name=region_name
+                    "lambda", endpoint_url=endpoint_url, region_name=region_name
                 )
             self.lambda_client = self._endpoint_clients[endpoint_url]
         self._current_endpoint = endpoint_url
@@ -166,7 +166,7 @@ class LambdaInvoker(Invoker):
         if lambda_endpoint:
             if lambda_endpoint not in self._endpoint_clients:
                 self._endpoint_clients[lambda_endpoint] = boto3.client(
-                    "lambdainternal",
+                    "lambda",
                     endpoint_url=lambda_endpoint,
                     region_name=region_name or "us-east-1",
                 )

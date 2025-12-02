@@ -85,7 +85,7 @@ def test_aws_rest_json_serializer_should_create_serializer_with_boto_components(
 
     # Verify boto setup calls
     mock_loader.load_service_model.assert_called_once_with(
-        "lambdainternal", "service-2"
+        "lambda", "service-2"
     )
     mock_service_model_class.assert_called_once_with(mock_raw_model)
     mock_create_serializer.assert_called_once_with("rest-json", include_validation=True)
@@ -271,7 +271,7 @@ def test_aws_rest_json_deserializer_should_create_deserializer_with_boto_compone
 
     # Verify boto setup calls
     mock_loader.load_service_model.assert_called_once_with(
-        "lambdainternal", "service-2"
+        "lambda", "service-2"
     )
     mock_service_model_class.assert_called_once_with(mock_raw_model)
     mock_create_parser.assert_called_once_with("rest-json")
