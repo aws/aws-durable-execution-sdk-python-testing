@@ -120,24 +120,19 @@ class Executor(ExecutionObserver):
         self._completion_events[execution.durable_execution_arn] = completion_event
 
         # Schedule execution timeout
-        try:
-            timeout_seconds = input.execution_timeout_seconds
-            if timeout_seconds and timeout_seconds > 0:
+        if input.execution_timeout_seconds > 0:
 
-                def timeout_handler():
-                    error = ErrorObject.from_message(
-                        f"Execution timed out after {timeout_seconds} seconds."
-                    )
-                    self.on_timed_out(execution.durable_execution_arn, error)
-
-                self._execution_timeout = self._scheduler.call_later(
-                    timeout_handler,
-                    delay=timeout_seconds,
-                    completion_event=completion_event,
+            def timeout_handler():
+                error = ErrorObject.from_message(
+                    f"Execution timed out after {input.execution_timeout_seconds} seconds."
                 )
-        except (AttributeError, TypeError):
-            # Handle Mock objects or invalid timeout values in tests
-            pass
+                self.on_timed_out(execution.durable_execution_arn, error)
+
+            self._execution_timeout = self._scheduler.call_later(
+                timeout_handler,
+                delay=input.execution_timeout_seconds,
+                completion_event=completion_event,
+            )
 
         # Schedule initial invocation to run immediately
         self._invoke_execution(execution.durable_execution_arn)

@@ -1213,6 +1213,7 @@ def test_wait_until_complete_success(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     result = executor.wait_until_complete("test-arn", timeout=10)
@@ -1236,6 +1237,7 @@ def test_wait_until_complete_timeout(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     result = executor.wait_until_complete("test-arn", timeout=10)
@@ -1290,6 +1292,7 @@ def test_should_schedule_wait_timer_correctly(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     # Act - schedule wait timer through public method
@@ -1444,6 +1447,7 @@ def test_on_wait_timer_scheduled(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     with patch.object(executor, "_on_wait_succeeded"):
@@ -1654,6 +1658,7 @@ def test_invoke_execution_with_delay_through_wait_timer(executor, mock_scheduler
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     # Test delay behavior through wait timer scheduling
@@ -1681,6 +1686,7 @@ def test_invoke_execution_no_delay_through_start_execution(executor, mock_schedu
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     # Verify scheduler was called with no delay for initial execution
@@ -1704,6 +1710,7 @@ def test_on_step_retry_scheduled(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     with patch.object(executor, "_on_retry_ready"):
@@ -1733,6 +1740,7 @@ def test_wait_handler_execution(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     with patch.object(executor, "_on_wait_succeeded") as mock_wait:
@@ -1764,6 +1772,7 @@ def test_retry_handler_execution(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     with patch.object(executor, "_on_retry_ready") as mock_retry:
