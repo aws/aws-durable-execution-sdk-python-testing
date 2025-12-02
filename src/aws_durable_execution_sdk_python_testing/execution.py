@@ -28,6 +28,7 @@ from aws_durable_execution_sdk_python_testing.exceptions import (
 
 # Import AWS exceptions
 from aws_durable_execution_sdk_python_testing.model import (
+    InvocationCompletedDetails,
     StartDurableExecutionInput,
 )
 from aws_durable_execution_sdk_python_testing.token import (
@@ -60,6 +61,7 @@ class Execution:
         self.start_input: StartDurableExecutionInput = start_input
         self.operations: list[Operation] = operations
         self.updates: list[OperationUpdate] = []
+        self.invocation_completions: list[InvocationCompletedDetails] = []
         self.used_tokens: set[str] = set()
         # TODO: this will need to persist/rehydrate depending on inmemory vs sqllite store
         self._token_sequence: int = 0
@@ -101,6 +103,9 @@ class Execution:
             "StartInput": self.start_input.to_dict(),
             "Operations": [op.to_dict() for op in self.operations],
             "Updates": [update.to_dict() for update in self.updates],
+            "InvocationCompletions": [
+                completion.to_dict() for completion in self.invocation_completions
+            ],
             "UsedTokens": list(self.used_tokens),
             "TokenSequence": self._token_sequence,
             "IsComplete": self.is_complete,
@@ -128,6 +133,10 @@ class Execution:
         # Set additional fields
         execution.updates = [
             OperationUpdate.from_dict(update_data) for update_data in data["Updates"]
+        ]
+        execution.invocation_completions = [
+            InvocationCompletedDetails.from_dict(item)
+            for item in data.get("InvocationCompletions", [])
         ]
         execution.used_tokens = set(data["UsedTokens"])
         execution._token_sequence = data["TokenSequence"]  # noqa: SLF001
@@ -214,6 +223,18 @@ class Execution:
             ):
                 return True
         return False
+
+    def record_invocation_completion(
+        self, start_timestamp: datetime, end_timestamp: datetime, request_id: str
+    ) -> None:
+        """Record an invocation completion event."""
+        self.invocation_completions.append(
+            InvocationCompletedDetails(
+                start_timestamp=start_timestamp,
+                end_timestamp=end_timestamp,
+                request_id=request_id,
+            )
+        )
 
     def complete_success(self, result: str | None) -> None:
         """Complete execution successfully (DecisionType.COMPLETE_WORKFLOW_EXECUTION)."""
