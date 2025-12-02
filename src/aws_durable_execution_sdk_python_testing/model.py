@@ -1227,8 +1227,8 @@ class CallbackTimedOutDetails:
 class InvocationCompletedDetails:
     """Invocation completed event details."""
 
-    start_timestamp: float
-    end_timestamp: float
+    start_timestamp: datetime.datetime
+    end_timestamp: datetime.datetime
     request_id: str
 
     @classmethod
@@ -2261,8 +2261,8 @@ class Event:
         cls,
         event_id: int,
         event_timestamp: datetime.datetime,
-        start_timestamp: float,
-        end_timestamp: float,
+        start_timestamp: datetime.datetime,
+        end_timestamp: datetime.datetime,
         request_id: str,
     ) -> Event:
         """Create invocation completed event."""

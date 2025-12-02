@@ -419,9 +419,7 @@ class Executor(ExecutionObserver):
         for completion in execution.invocation_completions:
             invocation_event = HistoryEvent.create_invocation_completed(
                 event_id=0,  # Temporary, will be reassigned
-                event_timestamp=datetime.fromtimestamp(
-                    completion.end_timestamp, tz=UTC
-                ),
+                event_timestamp=completion.end_timestamp,
                 start_timestamp=completion.start_timestamp,
                 end_timestamp=completion.end_timestamp,
                 request_id=completion.request_id,
@@ -784,13 +782,13 @@ class Executor(ExecutionObserver):
 
                 self._store.save(execution)
 
-                invocation_start = time.time()
+                invocation_start = datetime.now(UTC)
                 invoke_response = self._invoker.invoke(
                     execution.start_input.function_name,
                     invocation_input,
                     execution.start_input.lambda_endpoint,
                 )
-                invocation_end = time.time()
+                invocation_end = datetime.now(UTC)
 
                 # Reload execution after invocation in case it was completed via checkpoint
                 execution = self._store.load(execution_arn)

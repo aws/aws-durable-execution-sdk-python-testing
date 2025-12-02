@@ -225,7 +225,7 @@ class Execution:
         return False
 
     def record_invocation_completion(
-        self, start_timestamp: float, end_timestamp: float, request_id: str
+        self, start_timestamp: datetime, end_timestamp: datetime, request_id: str
     ) -> None:
         """Record an invocation completion event."""
         self.invocation_completions.append(
