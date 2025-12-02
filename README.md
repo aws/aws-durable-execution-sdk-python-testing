@@ -17,7 +17,7 @@
 ## Installation
 
 ```console
-pip install aws-durable-functions-sdk-python-testing
+pip install aws-durable-execution-sdk-python-testing
 ```
 
 ## Overview
