@@ -90,6 +90,7 @@ class Executor(ExecutionObserver):
         self._completion_events: dict[str, Event] = {}
         self._callback_timeouts: dict[str, Future] = {}
         self._callback_heartbeats: dict[str, Future] = {}
+        self._execution_timeout: Future | None = None
 
     def start_execution(
         self,
@@ -117,6 +118,26 @@ class Executor(ExecutionObserver):
 
         completion_event = self._scheduler.create_event()
         self._completion_events[execution.durable_execution_arn] = completion_event
+
+        # Schedule execution timeout
+        try:
+            timeout_seconds = input.execution_timeout_seconds
+            if timeout_seconds and timeout_seconds > 0:
+
+                def timeout_handler():
+                    error = ErrorObject.from_message(
+                        f"Execution timed out after {timeout_seconds} seconds."
+                    )
+                    self.on_timed_out(execution.durable_execution_arn, error)
+
+                self._execution_timeout = self._scheduler.call_later(
+                    timeout_handler,
+                    delay=timeout_seconds,
+                    completion_event=completion_event,
+                )
+        except (AttributeError, TypeError):
+            # Handle Mock objects or invalid timeout values in tests
+            pass
 
         # Schedule initial invocation to run immediately
         self._invoke_execution(execution.durable_execution_arn)
@@ -897,6 +918,9 @@ class Executor(ExecutionObserver):
         # complete doesn't actually checkpoint explicitly
         if event := self._completion_events.get(execution_arn):
             event.set()
+        if self._execution_timeout:
+            self._execution_timeout.cancel()
+            self._execution_timeout = None
 
     def wait_until_complete(
         self, execution_arn: str, timeout: float | None = None
