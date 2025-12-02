@@ -919,9 +919,9 @@ def test_router_constructor_with_all_default_route_types():
 
     for path, method, expected_type in test_cases:
         route = router.find_route(path, method)
-        assert isinstance(route, expected_type), (
-            f"Expected {expected_type.__name__} for {method} {path}"
-        )
+        assert isinstance(
+            route, expected_type
+        ), f"Expected {expected_type.__name__} for {method} {path}"
 
 
 def test_router_constructor_with_subset_of_route_types():
