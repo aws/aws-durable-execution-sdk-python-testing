@@ -417,13 +417,14 @@ class Executor(ExecutionObserver):
 
         # Add InvocationCompleted events
         for completion in execution.invocation_completions:
-            invocation_event = HistoryEvent(
+            invocation_event = HistoryEvent.create_invocation_completed(
                 event_id=0,  # Temporary, will be reassigned
-                event_type=EventType.INVOCATION_COMPLETED.value,
                 event_timestamp=datetime.fromtimestamp(
                     completion.end_timestamp, tz=UTC
                 ),
-                invocation_completed_details=completion,
+                start_timestamp=completion.start_timestamp,
+                end_timestamp=completion.end_timestamp,
+                request_id=completion.request_id,
             )
             all_events.append(invocation_event)
 
