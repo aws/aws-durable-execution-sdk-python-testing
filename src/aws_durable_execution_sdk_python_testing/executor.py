@@ -33,6 +33,8 @@ from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import (
     CheckpointDurableExecutionResponse,
     CheckpointUpdatedExecutionState,
+    EventCreationContext,
+    EventType,
     GetDurableExecutionHistoryResponse,
     GetDurableExecutionResponse,
     GetDurableExecutionStateResponse,
@@ -45,7 +47,6 @@ from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionOutput,
     StopDurableExecutionResponse,
     TERMINAL_STATUSES,
-    EventCreationContext,
 )
 from aws_durable_execution_sdk_python_testing.model import (
     Event as HistoryEvent,
@@ -415,16 +416,14 @@ class Executor(ExecutionObserver):
         durable_execution_arn: str = execution.durable_execution_arn
 
         # Add InvocationCompleted events
-        for start_ts, end_ts, request_id in execution.invocation_completions:
+        for completion in execution.invocation_completions:
             invocation_event = HistoryEvent(
                 event_id=0,  # Temporary, will be reassigned
-                event_type="InvocationCompleted",
-                event_timestamp=datetime.fromtimestamp(end_ts, tz=UTC),
-                invocation_completed_details={
-                    "StartTimestamp": start_ts,
-                    "EndTimestamp": end_ts,
-                    "RequestId": request_id,
-                },
+                event_type=EventType.INVOCATION_COMPLETED.value,
+                event_timestamp=datetime.fromtimestamp(
+                    completion.end_timestamp, tz=UTC
+                ),
+                invocation_completed_details=completion,
             )
             all_events.append(invocation_event)
 
@@ -785,7 +784,7 @@ class Executor(ExecutionObserver):
                 self._store.save(execution)
 
                 invocation_start = time.time()
-                response, request_id = self._invoker.invoke(
+                invoke_response = self._invoker.invoke(
                     execution.start_input.function_name,
                     invocation_input,
                     execution.start_input.lambda_endpoint,
@@ -797,7 +796,7 @@ class Executor(ExecutionObserver):
 
                 # Record invocation completion and save immediately
                 execution.record_invocation_completion(
-                    invocation_start, invocation_end, request_id
+                    invocation_start, invocation_end, invoke_response.request_id
                 )
                 self._store.save(execution)
 
@@ -809,6 +808,7 @@ class Executor(ExecutionObserver):
                     return
 
                 # Process successful received response - validate status and handle accordingly
+                response = invoke_response.invocation_output
                 try:
                     self._validate_invocation_response_and_store(
                         execution_arn, response, execution

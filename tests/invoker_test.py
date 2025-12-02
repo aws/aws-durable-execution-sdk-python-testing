@@ -87,12 +87,12 @@ def test_in_process_invoker_invoke():
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
     )
 
-    result, request_id = invoker.invoke("test-function", input_data)
+    response = invoker.invoke("test-function", input_data)
 
-    assert isinstance(result, DurableExecutionInvocationOutput)
-    assert result.status == InvocationStatus.SUCCEEDED
-    assert result.result == "test-result"
-    assert isinstance(request_id, str)
+    assert isinstance(response.invocation_output, DurableExecutionInvocationOutput)
+    assert response.invocation_output.status == InvocationStatus.SUCCEEDED
+    assert response.invocation_output.result == "test-result"
+    assert isinstance(response.request_id, str)
 
     # Verify handler was called with correct arguments
     handler.assert_called_once()
@@ -174,12 +174,12 @@ def test_lambda_invoker_invoke_success():
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
     )
 
-    result, request_id = invoker.invoke("test-function", input_data)
+    response = invoker.invoke("test-function", input_data)
 
-    assert isinstance(result, DurableExecutionInvocationOutput)
-    assert result.status == InvocationStatus.SUCCEEDED
-    assert result.result == "lambda-result"
-    assert request_id == "test-request-id"
+    assert isinstance(response.invocation_output, DurableExecutionInvocationOutput)
+    assert response.invocation_output.status == InvocationStatus.SUCCEEDED
+    assert response.invocation_output.result == "lambda-result"
+    assert response.request_id == "test-request-id"
 
     # Verify lambda client was called correctly
     lambda_client.invoke.assert_called_once_with(
@@ -240,11 +240,11 @@ def test_in_process_invoker_invoke_with_execution_operations():
     execution.start()  # This adds operations
 
     invocation_input = invoker.create_invocation_input(execution)
-    result, request_id = invoker.invoke("test-function", invocation_input)
+    response = invoker.invoke("test-function", invocation_input)
 
-    assert isinstance(result, DurableExecutionInvocationOutput)
-    assert isinstance(request_id, str)
-    assert result.status == InvocationStatus.SUCCEEDED
+    assert isinstance(response.invocation_output, DurableExecutionInvocationOutput)
+    assert isinstance(response.request_id, str)
+    assert response.invocation_output.status == InvocationStatus.SUCCEEDED
     assert len(invocation_input.initial_execution_state.operations) > 0
 
 
@@ -339,9 +339,9 @@ def test_lambda_invoker_invoke_status_202():
         initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
     )
 
-    result, request_id = invoker.invoke("test-function", input_data)
-    assert isinstance(result, DurableExecutionInvocationOutput)
-    assert request_id == "test-request-id-202"
+    response = invoker.invoke("test-function", input_data)
+    assert isinstance(response.invocation_output, DurableExecutionInvocationOutput)
+    assert response.request_id == "test-request-id-202"
 
 
 def test_lambda_invoker_invoke_function_error():
