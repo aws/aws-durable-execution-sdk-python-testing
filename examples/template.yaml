@@ -557,3 +557,31 @@ Resources:
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
+  CallbackFailure:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_failure.handler
+      Description: Demonstrates callback failure scenarios where the error is caught
+        in the code
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  CallbackWithTimeout:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_with_timeout.handler
+      Description: Demonstrates callback timeout scenarios (heartbeat timeout and
+        general timeout)
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
