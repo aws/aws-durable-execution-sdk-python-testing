@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "boto3>=1.40.30",
+  "boto3>=1.42.1",
   "requests>=2.25.0",
   "aws_durable_execution_sdk_python>=1.0.0",
 ]
@@ -59,7 +59,7 @@ dependencies = [
   "pytest",
   "pytest-cov",
   "ruff",
-  "aws_durable_execution_sdk_python @ {env:AWS_DURABLE_SDK_URL:git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git}",
+  "aws_durable_execution_sdk_python>=1.0.0",
 ]
 
 [tool.hatch.envs.test.scripts]
@@ -72,7 +72,7 @@ cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aw
 dependencies = [
   "boto3",
   "PyYAML",
-  "aws_durable_execution_sdk_python @ {env:AWS_DURABLE_SDK_URL:git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git}",
+  "aws_durable_execution_sdk_python>=1.0.0",
 ]
 [tool.hatch.envs.examples.scripts]
 cli = "python examples/cli.py {args}"

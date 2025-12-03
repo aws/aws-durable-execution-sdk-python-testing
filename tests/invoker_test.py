@@ -121,7 +121,7 @@ def test_lambda_invoker_create():
         assert isinstance(invoker, LambdaInvoker)
         assert invoker.lambda_client is mock_client
         mock_boto3.client.assert_called_once_with(
-            "lambdainternal",
+            "lambda",
             endpoint_url="http://localhost:3001",
             region_name="us-west-2",
         )
