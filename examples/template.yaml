@@ -557,3 +557,17 @@ Resources:
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
+  CallbackConcurrency:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_concurrency.handler
+      Description: Demonstrates multiple concurrent createCallback operations using
+        context.parallel
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300

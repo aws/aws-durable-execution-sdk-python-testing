@@ -444,6 +444,21 @@
         "ExecutionTimeout": 300
       },
       "path": "./src/none_results/none_results.py"
-    }
+    },
+    {
+        "name": "Create Callback Concurrency",
+        "description": "Demonstrates multiple concurrent createCallback operations using context.parallel",
+        "handler": "callback_concurrency.handler",
+        "integration": true,
+        "durableConfig": {
+          "RetentionPeriodInDays": 7,
+          "ExecutionTimeout": 300
+        },
+        "path": "./src/callback/callback_concurrency.py",
+        "loggingConfig": {
+          "ApplicationLogLevel": "DEBUG",
+          "LogFormat": "JSON"
+        }
+      }
   ]
 }
