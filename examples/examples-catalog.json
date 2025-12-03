@@ -444,6 +444,39 @@
         "ExecutionTimeout": 300
       },
       "path": "./src/none_results/none_results.py"
+    },
+    {
+      "name": "No Replay Execution",
+      "description": "Execution with simples steps and without replay",
+      "handler": "no_replay_execution.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/no_replay_execution/no_replay_execution.py"
+    },
+    {
+      "name": "Run In Child Context With Failing Step",
+      "description": "Demonstrates runInChildContext with a failing step followed by a successful wait",
+      "handler": "run_in_child_context_step_failure.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/run_in_child_context/run_in_child_context_step_failure.py"
+    },
+    {
+      "name": "Comprehensive Operations",
+      "description": "Complex multi-operation example demonstrating all major operations",
+      "handler": "comprehensive_operations.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/comprehensive_operations/comprehensive_operations.py"
     }
   ]
 }

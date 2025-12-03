@@ -557,3 +557,43 @@ Resources:
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
+  NoReplayExecution:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: no_replay_execution.handler
+      Description: Execution with simples steps and without replay
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  RunInChildContextStepFailure:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: run_in_child_context_step_failure.handler
+      Description: Demonstrates runInChildContext with a failing step followed by
+        a successful wait
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  ComprehensiveOperations:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: comprehensive_operations.handler
+      Description: Complex multi-operation example demonstrating all major operations
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
