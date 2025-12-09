@@ -347,6 +347,17 @@
       "path": "./src/map/map_with_failure_tolerance.py"
     },
     {
+      "name": "Map Completion Config",
+      "description": "Reproduces issue where map with minSuccessful loses failure count",
+      "handler": "map_completion.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/map/map_completion.py"
+    },
+    {
       "name": "Parallel with Max Concurrency",
       "description": "Parallel operation with maxConcurrency limit",
       "handler": "parallel_with_max_concurrency.handler",
@@ -444,6 +455,94 @@
         "ExecutionTimeout": 300
       },
       "path": "./src/none_results/none_results.py"
+    },
+    {
+      "name": "Callback Success",
+      "description": "Creating a callback ID for external systems to use",
+      "handler": "callback_simple.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/callback/callback_simple.py"
+    },
+    {
+      "name": "Callback Success None",
+      "description": "Creating a callback ID for external systems to use",
+      "handler": "callback_simple.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/callback/callback_simple.py"
+    },
+    {
+      "name": "Create Callback Heartbeat",
+      "description": "Demonstrates callback failure scenarios where the error propagates and is handled by framework",
+      "handler": "callback_heartbeat.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/callback/callback_heartbeat.py"
+    },
+    {
+      "name": "Create Callback Mixed Operations",
+      "description": "Demonstrates createCallback mixed with steps, waits, and other operations",
+      "handler": "callback_mixed_ops.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/callback/callback_mixed_ops.py"
+    },
+    {
+      "name": "Create Callback Custom Serdes",
+      "description": "Demonstrates createCallback with custom serialization/deserialization for Date objects",
+      "handler": "callback_serdes.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/callback/callback_serdes.py"
+    },
+    {
+      "name": "No Replay Execution",
+      "description": "Execution with simples steps and without replay",
+      "handler": "no_replay_execution.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/no_replay_execution/no_replay_execution.py"
+    },
+    {
+      "name": "Run In Child Context With Failing Step",
+      "description": "Demonstrates runInChildContext with a failing step followed by a successful wait",
+      "handler": "run_in_child_context_step_failure.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/run_in_child_context/run_in_child_context_step_failure.py"
+    },
+    {
+      "name": "Comprehensive Operations",
+      "description": "Complex multi-operation example demonstrating all major operations",
+      "handler": "comprehensive_operations.handler",
+      "integration": true,
+      "durableConfig": {
+        "RetentionPeriodInDays": 7,
+        "ExecutionTimeout": 300
+      },
+      "path": "./src/comprehensive_operations/comprehensive_operations.py"
     },
     {
         "name": "Create Callback Concurrency",

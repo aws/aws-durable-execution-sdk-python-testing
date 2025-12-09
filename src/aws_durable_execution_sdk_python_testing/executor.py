@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -32,6 +33,8 @@ from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import (
     CheckpointDurableExecutionResponse,
     CheckpointUpdatedExecutionState,
+    EventCreationContext,
+    EventType,
     GetDurableExecutionHistoryResponse,
     GetDurableExecutionResponse,
     GetDurableExecutionStateResponse,
@@ -44,7 +47,6 @@ from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionOutput,
     StopDurableExecutionResponse,
     TERMINAL_STATUSES,
-    EventCreationContext,
 )
 from aws_durable_execution_sdk_python_testing.model import (
     Event as HistoryEvent,
@@ -88,6 +90,7 @@ class Executor(ExecutionObserver):
         self._completion_events: dict[str, Event] = {}
         self._callback_timeouts: dict[str, Future] = {}
         self._callback_heartbeats: dict[str, Future] = {}
+        self._execution_timeout: Future | None = None
 
     def start_execution(
         self,
@@ -115,6 +118,21 @@ class Executor(ExecutionObserver):
 
         completion_event = self._scheduler.create_event()
         self._completion_events[execution.durable_execution_arn] = completion_event
+
+        # Schedule execution timeout
+        if input.execution_timeout_seconds > 0:
+
+            def timeout_handler():
+                error = ErrorObject.from_message(
+                    f"Execution timed out after {input.execution_timeout_seconds} seconds."
+                )
+                self.on_timed_out(execution.durable_execution_arn, error)
+
+            self._execution_timeout = self._scheduler.call_later(
+                timeout_handler,
+                delay=input.execution_timeout_seconds,
+                completion_event=completion_event,
+            )
 
         # Schedule initial invocation to run immediately
         self._invoke_execution(execution.durable_execution_arn)
@@ -412,6 +430,17 @@ class Executor(ExecutionObserver):
         updates: list[OperationUpdate] = execution.updates
         updates_dict: dict[str, OperationUpdate] = {u.operation_id: u for u in updates}
         durable_execution_arn: str = execution.durable_execution_arn
+
+        # Add InvocationCompleted events
+        for completion in execution.invocation_completions:
+            invocation_event = HistoryEvent.create_invocation_completed(
+                event_id=0,  # Temporary, will be reassigned
+                event_timestamp=completion.end_timestamp,
+                start_timestamp=completion.start_timestamp,
+                end_timestamp=completion.end_timestamp,
+                request_id=completion.request_id,
+            )
+            all_events.append(invocation_event)
 
         # Generate all events first (without final event IDs)
         for op in ops:
@@ -769,12 +798,23 @@ class Executor(ExecutionObserver):
 
                 self._store.save(execution)
 
-                response: DurableExecutionInvocationOutput = self._invoker.invoke(
-                    execution.start_input.function_name, invocation_input
+                invocation_start = datetime.now(UTC)
+                invoke_response = self._invoker.invoke(
+                    execution.start_input.function_name,
+                    invocation_input,
+                    execution.start_input.lambda_endpoint,
                 )
+                invocation_end = datetime.now(UTC)
 
                 # Reload execution after invocation in case it was completed via checkpoint
                 execution = self._store.load(execution_arn)
+
+                # Record invocation completion and save immediately
+                execution.record_invocation_completion(
+                    invocation_start, invocation_end, invoke_response.request_id
+                )
+                self._store.save(execution)
+
                 if execution.is_complete:
                     logger.info(
                         "[%s] Execution completed during invocation, ignoring result",
@@ -783,6 +823,7 @@ class Executor(ExecutionObserver):
                     return
 
                 # Process successful received response - validate status and handle accordingly
+                response = invoke_response.invocation_output
                 try:
                     self._validate_invocation_response_and_store(
                         execution_arn, response, execution
@@ -872,6 +913,9 @@ class Executor(ExecutionObserver):
         # complete doesn't actually checkpoint explicitly
         if event := self._completion_events.get(execution_arn):
             event.set()
+        if self._execution_timeout:
+            self._execution_timeout.cancel()
+            self._execution_timeout = None
 
     def wait_until_complete(
         self, execution_arn: str, timeout: float | None = None
@@ -1147,9 +1191,9 @@ class Executor(ExecutionObserver):
                 f"Callback timed out: {CallbackTimeoutType.TIMEOUT.value}"
             )
             execution.complete_callback_timeout(callback_id, timeout_error)
-            execution.complete_fail(timeout_error)
             self._store.update(execution)
             logger.warning("[%s] Callback %s timed out", execution_arn, callback_id)
+            self._invoke_execution(callback_token.execution_arn)
         except Exception:
             logger.exception(
                 "[%s] Error processing callback timeout for %s",
@@ -1174,11 +1218,11 @@ class Executor(ExecutionObserver):
                 f"Callback heartbeat timed out: {CallbackTimeoutType.HEARTBEAT.value}"
             )
             execution.complete_callback_timeout(callback_id, heartbeat_error)
-            execution.complete_fail(heartbeat_error)
             self._store.update(execution)
             logger.warning(
                 "[%s] Callback %s heartbeat timed out", execution_arn, callback_id
             )
+            self._invoke_execution(callback_token.execution_arn)
         except Exception:
             logger.exception(
                 "[%s] Error processing callback heartbeat timeout for %s",

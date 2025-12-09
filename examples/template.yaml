@@ -440,6 +440,19 @@ Resources:
       DurableConfig:
         RetentionPeriodInDays: 7
         ExecutionTimeout: 300
+  MapCompletion:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: map_completion.handler
+      Description: Reproduces issue where map with minSuccessful loses failure count
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
   ParallelWithMaxConcurrency:
     Type: AWS::Serverless::Function
     Properties:
@@ -550,6 +563,101 @@ Resources:
       CodeUri: build/
       Handler: none_results.handler
       Description: Test handling of step operations with undefined result after replay.
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  CallbackSimple:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_simple.handler
+      Description: Creating a callback ID for external systems to use
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  CallbackHeartbeat:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_heartbeat.handler
+      Description: Demonstrates callback failure scenarios where the error propagates
+        and is handled by framework
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  CallbackMixedOps:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_mixed_ops.handler
+      Description: Demonstrates createCallback mixed with steps, waits, and other
+        operations
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  CallbackSerdes:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: callback_serdes.handler
+      Description: Demonstrates createCallback with custom serialization/deserialization
+        for Date objects
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  NoReplayExecution:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: no_replay_execution.handler
+      Description: Execution with simples steps and without replay
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  RunInChildContextStepFailure:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: run_in_child_context_step_failure.handler
+      Description: Demonstrates runInChildContext with a failing step followed by
+        a successful wait
+      Role:
+        Fn::GetAtt:
+        - DurableFunctionRole
+        - Arn
+      DurableConfig:
+        RetentionPeriodInDays: 7
+        ExecutionTimeout: 300
+  ComprehensiveOperations:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: comprehensive_operations.handler
+      Description: Complex multi-operation example demonstrating all major operations
       Role:
         Fn::GetAtt:
         - DurableFunctionRole

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Protocol
+from uuid import uuid4
 
 import boto3  # type: ignore
 from aws_durable_execution_sdk_python.execution import (
@@ -15,6 +17,7 @@ from aws_durable_execution_sdk_python.execution import (
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
+    ServiceException,
 )
 from aws_durable_execution_sdk_python_testing.model import LambdaContext
 
@@ -23,6 +26,14 @@ if TYPE_CHECKING:
 
     from aws_durable_execution_sdk_python_testing.client import InMemoryServiceClient
     from aws_durable_execution_sdk_python_testing.execution import Execution
+
+
+@dataclass(frozen=True)
+class InvokeResponse:
+    """Response from invoking a durable function."""
+
+    invocation_output: DurableExecutionInvocationOutput
+    request_id: str
 
 
 def create_test_lambda_context() -> LambdaContext:
@@ -63,7 +74,8 @@ class Invoker(Protocol):
         self,
         function_name: str,
         input: DurableExecutionInvocationInput,
-    ) -> DurableExecutionInvocationOutput: ...  # pragma: no cover
+        endpoint_url: str | None = None,
+    ) -> InvokeResponse: ...  # pragma: no cover
 
     def update_endpoint(
         self, endpoint_url: str, region_name: str
@@ -93,14 +105,18 @@ class InProcessInvoker(Invoker):
         self,
         function_name: str,  # noqa: ARG002
         input: DurableExecutionInvocationInput,
-    ) -> DurableExecutionInvocationOutput:
+        endpoint_url: str | None = None,  # noqa: ARG002
+    ) -> InvokeResponse:
         # TODO: reasses if function_name will be used in future
         input_with_client = DurableExecutionInvocationInputWithClient.from_durable_execution_invocation_input(
             input, self.service_client
         )
         context = create_test_lambda_context()
         response_dict = self.handler(input_with_client, context)
-        return DurableExecutionInvocationOutput.from_dict(response_dict)
+        output = DurableExecutionInvocationOutput.from_dict(response_dict)
+        return InvokeResponse(
+            invocation_output=output, request_id=context.aws_request_id
+        )
 
     def update_endpoint(self, endpoint_url: str, region_name: str) -> None:
         """No-op for in-process invoker."""
@@ -120,9 +136,7 @@ class LambdaInvoker(Invoker):
     def create(endpoint_url: str, region_name: str) -> LambdaInvoker:
         """Create with the boto lambda client."""
         invoker = LambdaInvoker(
-            boto3.client(
-                "lambdainternal", endpoint_url=endpoint_url, region_name=region_name
-            )
+            boto3.client("lambda", endpoint_url=endpoint_url, region_name=region_name)
         )
         invoker._current_endpoint = endpoint_url
         invoker._endpoint_clients[endpoint_url] = invoker.lambda_client
@@ -134,25 +148,25 @@ class LambdaInvoker(Invoker):
         with self._lock:
             if endpoint_url not in self._endpoint_clients:
                 self._endpoint_clients[endpoint_url] = boto3.client(
-                    "lambdainternal", endpoint_url=endpoint_url, region_name=region_name
+                    "lambda", endpoint_url=endpoint_url, region_name=region_name
                 )
             self.lambda_client = self._endpoint_clients[endpoint_url]
         self._current_endpoint = endpoint_url
 
     def _get_client_for_execution(
-        self, durable_execution_arn: str, lambda_endpoint: str | None = None
+        self,
+        durable_execution_arn: str,
+        lambda_endpoint: str | None = None,
+        region_name: str | None = None,
     ) -> Any:
         """Get the appropriate client for this execution."""
         # Use provided endpoint or fall back to cached endpoint for this execution
         if lambda_endpoint:
-            # Client should already exist from update_endpoint() call
             if lambda_endpoint not in self._endpoint_clients:
-                from aws_durable_execution_sdk_python_testing.exceptions import (
-                    ServiceException,
-                )
-
-                raise ServiceException(
-                    f"Lambda endpoint {lambda_endpoint} not configured. update_endpoint() must be called first."
+                self._endpoint_clients[lambda_endpoint] = boto3.client(
+                    "lambda",
+                    endpoint_url=lambda_endpoint,
+                    region_name=region_name or "us-east-1",
                 )
             return self._endpoint_clients[lambda_endpoint]
 
@@ -188,15 +202,17 @@ class LambdaInvoker(Invoker):
         self,
         function_name: str,
         input: DurableExecutionInvocationInput,
-    ) -> DurableExecutionInvocationOutput:
+        endpoint_url: str | None = None,
+    ) -> InvokeResponse:
         """Invoke AWS Lambda function and return durable execution result.
 
         Args:
             function_name: Name of the Lambda function to invoke
             input: Durable execution invocation input
+            endpoint_url: Lambda endpoint url
 
         Returns:
-            DurableExecutionInvocationOutput: Result of the function execution
+            InvokeResponse: Response containing invocation output and request ID
 
         Raises:
             ResourceNotFoundException: If function does not exist
@@ -214,7 +230,9 @@ class LambdaInvoker(Invoker):
             raise InvalidParameterValueException(msg)
 
         # Get the client for this execution
-        client = self._get_client_for_execution(input.durable_execution_arn)
+        client = self._get_client_for_execution(
+            input.durable_execution_arn, endpoint_url
+        )
 
         try:
             # Invoke AWS Lambda function using standard invoke method
@@ -240,8 +258,17 @@ class LambdaInvoker(Invoker):
             response_payload = response["Payload"].read().decode("utf-8")
             response_dict = json.loads(response_payload)
 
+            # Extract request ID from response headers (x-amzn-RequestId or x-amzn-request-id)
+            headers = response.get("ResponseMetadata", {}).get("HTTPHeaders", {})
+            request_id = (
+                headers.get("x-amzn-RequestId")
+                or headers.get("x-amzn-request-id")
+                or f"local-{uuid4()}"
+            )
+
             # Convert to DurableExecutionInvocationOutput
-            return DurableExecutionInvocationOutput.from_dict(response_dict)
+            output = DurableExecutionInvocationOutput.from_dict(response_dict)
+            return InvokeResponse(invocation_output=output, request_id=request_id)
 
         except client.exceptions.ResourceNotFoundException as e:
             msg = f"Function not found: {function_name}"

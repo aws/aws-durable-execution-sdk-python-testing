@@ -10,7 +10,9 @@ from aws_durable_execution_sdk_python.execution import durable_execution
 @durable_execution
 def handler(_event: Any, context: DurableContext) -> dict[str, Any]:
     """Handler demonstrating waitForCallback with anonymous submitter."""
-    result: str = context.wait_for_callback(lambda _: time.sleep(1))
+    result: str = context.wait_for_callback(
+        lambda _callback_id, _context: time.sleep(1)
+    )
 
     return {
         "callbackResult": result,

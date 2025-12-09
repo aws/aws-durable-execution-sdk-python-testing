@@ -3,13 +3,15 @@
 import time
 from typing import Any
 
-from aws_durable_execution_sdk_python.context import DurableContext
+from aws_durable_execution_sdk_python.config import Duration, WaitForCallbackConfig
+from aws_durable_execution_sdk_python.context import (
+    DurableContext,
+    WaitForCallbackContext,
+)
 from aws_durable_execution_sdk_python.execution import durable_execution
-from aws_durable_execution_sdk_python.config import Duration
-from aws_durable_execution_sdk_python.config import WaitForCallbackConfig
 
 
-def submitter(_callback_id: str) -> None:
+def submitter(_callback_id: str, _context: WaitForCallbackContext) -> None:
     """Simulate long-running submitter function."""
     time.sleep(5)
     return None

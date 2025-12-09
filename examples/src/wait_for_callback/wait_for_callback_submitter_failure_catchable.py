@@ -3,20 +3,20 @@
 import time
 from typing import Any
 
+from aws_durable_execution_sdk_python.config import Duration, WaitForCallbackConfig
 from aws_durable_execution_sdk_python.context import DurableContext
 from aws_durable_execution_sdk_python.execution import durable_execution
 from aws_durable_execution_sdk_python.retries import (
     RetryStrategyConfig,
     create_retry_strategy,
 )
-from aws_durable_execution_sdk_python.config import Duration, WaitForCallbackConfig
 
 
 @durable_execution
 def handler(_event: Any, context: DurableContext) -> dict[str, Any]:
     """Handler demonstrating waitForCallback with failing submitter."""
 
-    def submitter(_) -> None:
+    def submitter(_callback_id, _context) -> None:
         """Submitter function that fails after a delay."""
         time.sleep(0.5)
         # Submitter fails

@@ -34,6 +34,7 @@ from aws_durable_execution_sdk_python_testing.execution import (
     Execution,
 )
 from aws_durable_execution_sdk_python_testing.executor import Executor
+from aws_durable_execution_sdk_python_testing.invoker import InvokeResponse
 from aws_durable_execution_sdk_python_testing.model import (
     ListDurableExecutionsResponse,
     SendDurableExecutionCallbackFailureResponse,
@@ -215,6 +216,13 @@ def test_start_execution(
     mock_execution.start.assert_called_once()
     mock_store.save.assert_called_once_with(mock_execution)
     mock_scheduler.create_event.assert_called_once()
+
+    # Verify execution timeout was scheduled
+    assert mock_scheduler.call_later.called
+    timeout_call = mock_scheduler.call_later.call_args
+    assert timeout_call.kwargs["delay"] == start_input.execution_timeout_seconds
+    assert timeout_call.kwargs["completion_event"] == mock_event
+
     mock_invoke.assert_called_once_with("test-arn")
     assert result.execution_arn == "test-arn"
 
@@ -285,7 +293,9 @@ def test_should_complete_workflow_with_error_when_invocation_fails(
     failed_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.FAILED, error=ErrorObject.from_message("Test error")
     )
-    mock_invoker.invoke.return_value = failed_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=failed_response, request_id="test-request-id"
+    )
 
     # Mock execution creation and store behavior
     with patch(
@@ -300,8 +310,8 @@ def test_should_complete_workflow_with_error_when_invocation_fails(
             executor.start_execution(start_input)
 
             # Get the handler that was passed to the scheduler and execute it manually
-            mock_scheduler.call_later.assert_called_once()
-            handler = mock_scheduler.call_later.call_args[0][0]
+            assert mock_scheduler.call_later.call_count >= 1
+            handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
             # Execute the handler to trigger the invocation logic
             import asyncio
@@ -329,7 +339,9 @@ def test_should_complete_workflow_with_result_when_invocation_succeeds(
     success_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.SUCCEEDED, result="success result"
     )
-    mock_invoker.invoke.return_value = success_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=success_response, request_id="test-request-id"
+    )
 
     # Mock execution creation and store behavior
     with patch(
@@ -344,8 +356,8 @@ def test_should_complete_workflow_with_result_when_invocation_succeeds(
             executor.start_execution(start_input)
 
             # Get the handler that was passed to the scheduler and execute it manually
-            mock_scheduler.call_later.assert_called_once()
-            handler = mock_scheduler.call_later.call_args[0][0]
+            assert mock_scheduler.call_later.call_count >= 1
+            handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
             # Execute the handler to trigger the invocation logic
             import asyncio
@@ -372,7 +384,9 @@ def test_should_handle_pending_status_when_operations_exist(
     mock_invocation_input = Mock()
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     pending_response = DurableExecutionInvocationOutput(status=InvocationStatus.PENDING)
-    mock_invoker.invoke.return_value = pending_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=pending_response, request_id="test-request-id"
+    )
 
     # Mock execution creation and store behavior
     with patch(
@@ -385,8 +399,8 @@ def test_should_handle_pending_status_when_operations_exist(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         import asyncio
@@ -409,8 +423,9 @@ def test_should_ignore_response_when_execution_already_complete(
 
     # Mock invoker - this shouldn't be called since execution is complete
     mock_invoker.create_invocation_input.return_value = Mock()
-    mock_invoker.invoke.return_value = DurableExecutionInvocationOutput(
-        status=InvocationStatus.SUCCEEDED
+    mock_invoker.invoke.return_value = (
+        DurableExecutionInvocationOutput(status=InvocationStatus.SUCCEEDED),
+        "test-request-id",
     )
 
     # Mock execution creation and store behavior
@@ -424,8 +439,8 @@ def test_should_ignore_response_when_execution_already_complete(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         import asyncio
@@ -452,7 +467,9 @@ def test_should_retry_when_response_has_no_status(
     mock_invocation_input = Mock()
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     no_status_response = DurableExecutionInvocationOutput(status=None)
-    mock_invoker.invoke.return_value = no_status_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=no_status_response, request_id="test-request-id"
+    )
 
     # Mock execution creation and store behavior
     with patch(
@@ -465,8 +482,8 @@ def test_should_retry_when_response_has_no_status(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -474,8 +491,8 @@ def test_should_retry_when_response_has_no_status(
         # Assert - verify retry was triggered due to validation error
         assert mock_execution.consecutive_failed_invocation_attempts == 1
         mock_store.save.assert_called_with(mock_execution)
-        # Verify retry was scheduled (call_later should be called twice: initial + retry)
-        assert mock_scheduler.call_later.call_count == 2
+        # Verify retry was scheduled (call_later should be called 3 times: timeout + initial + retry)
+        assert mock_scheduler.call_later.call_count == 3
 
 
 def test_should_retry_when_failed_response_has_result(
@@ -495,7 +512,9 @@ def test_should_retry_when_failed_response_has_result(
     invalid_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.FAILED, result="should not have result"
     )
-    mock_invoker.invoke.return_value = invalid_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=invalid_response, request_id="test-request-id"
+    )
 
     # Mock execution creation and store behavior
     with patch(
@@ -508,8 +527,8 @@ def test_should_retry_when_failed_response_has_result(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -517,8 +536,8 @@ def test_should_retry_when_failed_response_has_result(
         # Assert - verify retry was triggered due to validation error
         assert mock_execution.consecutive_failed_invocation_attempts == 1
         mock_store.save.assert_called_with(mock_execution)
-        # Verify retry was scheduled (call_later should be called twice: initial + retry)
-        assert mock_scheduler.call_later.call_count == 2
+        # Verify retry was scheduled (call_later should be called 3 times: timeout + initial + retry)
+        assert mock_scheduler.call_later.call_count == 3
 
 
 def test_should_retry_when_success_response_has_error(
@@ -539,7 +558,9 @@ def test_should_retry_when_success_response_has_error(
         status=InvocationStatus.SUCCEEDED,
         error=ErrorObject.from_message("should not have error"),
     )
-    mock_invoker.invoke.return_value = invalid_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=invalid_response, request_id="test-request-id"
+    )
 
     # Mock execution creation and store behavior
     with patch(
@@ -552,8 +573,8 @@ def test_should_retry_when_success_response_has_error(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -561,8 +582,8 @@ def test_should_retry_when_success_response_has_error(
         # Assert - verify retry was triggered due to validation error
         assert mock_execution.consecutive_failed_invocation_attempts == 1
         mock_store.save.assert_called_with(mock_execution)
-        # Verify retry was scheduled (call_later should be called twice: initial + retry)
-        assert mock_scheduler.call_later.call_count == 2
+        # Verify retry was scheduled (call_later should be called 3 times: timeout + initial + retry)
+        assert mock_scheduler.call_later.call_count == 3
 
 
 def test_should_retry_when_pending_response_has_no_operations(
@@ -581,7 +602,9 @@ def test_should_retry_when_pending_response_has_no_operations(
     mock_invocation_input = Mock()
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     pending_response = DurableExecutionInvocationOutput(status=InvocationStatus.PENDING)
-    mock_invoker.invoke.return_value = pending_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=pending_response, request_id="test-request-id"
+    )
 
     # Mock execution creation and store behavior
     with patch(
@@ -594,8 +617,8 @@ def test_should_retry_when_pending_response_has_no_operations(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -603,8 +626,8 @@ def test_should_retry_when_pending_response_has_no_operations(
         # Assert - verify retry was triggered due to validation error
         assert mock_execution.consecutive_failed_invocation_attempts == 1
         mock_store.save.assert_called_with(mock_execution)
-        # Verify retry was scheduled (call_later should be called twice: initial + retry)
-        assert mock_scheduler.call_later.call_count == 2
+        # Verify retry was scheduled (call_later should be called 3 times: timeout + initial + retry)
+        assert mock_scheduler.call_later.call_count == 3
 
 
 def test_invoke_handler_success(
@@ -622,7 +645,9 @@ def test_invoke_handler_success(
     mock_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.SUCCEEDED, result="test"
     )
-    mock_invoker.invoke.return_value = mock_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=mock_response, request_id="test-request-id"
+    )
 
     # Mock execution creation and store behavior
     with patch(
@@ -635,8 +660,8 @@ def test_invoke_handler_success(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -645,7 +670,9 @@ def test_invoke_handler_success(
     mock_invoker.create_invocation_input.assert_called_once_with(
         execution=mock_execution
     )
-    mock_invoker.invoke.assert_called_once_with("test-function", mock_invocation_input)
+    mock_invoker.invoke.assert_called_once_with(
+        "test-function", mock_invocation_input, None
+    )
 
 
 def test_invoke_handler_execution_already_complete(
@@ -669,8 +696,8 @@ def test_invoke_handler_execution_already_complete(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -692,7 +719,9 @@ def test_invoke_handler_execution_completed_during_invocation(
     mock_invocation_input = Mock()
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     mock_response = Mock()
-    mock_invoker.invoke.return_value = mock_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=mock_response, request_id="test-request-id"
+    )
 
     # Create a completed execution mock
     completed_execution = Mock()
@@ -713,8 +742,8 @@ def test_invoke_handler_execution_completed_during_invocation(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -750,8 +779,8 @@ def test_invoke_handler_resource_not_found(
             executor.start_execution(start_input)
 
             # Get the handler that was passed to the scheduler and execute it manually
-            mock_scheduler.call_later.assert_called_once()
-            handler = mock_scheduler.call_later.call_args[0][0]
+            assert mock_scheduler.call_later.call_count >= 1
+            handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
             # Execute the handler to trigger the invocation logic
             asyncio.run(handler())
@@ -791,8 +820,8 @@ def test_invoke_handler_general_exception(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -800,8 +829,8 @@ def test_invoke_handler_general_exception(
         # Assert - verify retry was scheduled through observable behavior
         assert mock_execution.consecutive_failed_invocation_attempts == 1
         mock_store.save.assert_called_with(mock_execution)
-        # Verify retry was scheduled (call_later should be called twice: initial + retry)
-        assert mock_scheduler.call_later.call_count == 2
+        # Verify retry was scheduled (call_later should be called 3 times: timeout + initial + retry)
+        assert mock_scheduler.call_later.call_count == 3
 
 
 def test_invoke_execution_through_start_execution(
@@ -914,8 +943,8 @@ def test_should_fail_execution_when_function_not_found(
             executor.start_execution(start_input)
 
             # Get the handler that was passed to the scheduler and execute it manually
-            mock_scheduler.call_later.assert_called_once()
-            handler = mock_scheduler.call_later.call_args[0][0]
+            assert mock_scheduler.call_later.call_count >= 1
+            handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
             # Execute the handler to trigger the invocation logic
             import asyncio
@@ -958,8 +987,8 @@ def test_should_fail_execution_when_retries_exhausted(
             executor.start_execution(start_input)
 
             # Get the handler that was passed to the scheduler and execute it manually
-            mock_scheduler.call_later.assert_called_once()
-            handler = mock_scheduler.call_later.call_args[0][0]
+            assert mock_scheduler.call_later.call_count >= 1
+            handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
             # Execute the handler to trigger the invocation logic
             import asyncio
@@ -1002,7 +1031,7 @@ def test_should_prevent_multiple_workflow_failures_on_complete_execution(
 
         # Act & Assert - triggering workflow failure on completed execution should raise exception
         executor.start_execution(start_input)
-        handler = mock_scheduler.call_later.call_args[0][0]
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic - this should raise the exception
         with pytest.raises(
@@ -1035,7 +1064,14 @@ def test_should_retry_invocation_when_under_limit_through_public_api(
     success_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.SUCCEEDED, result="final success"
     )
-    mock_invoker.invoke.side_effect = [invalid_response, success_response]
+    mock_invoker.invoke.side_effect = [
+        InvokeResponse(
+            invocation_output=invalid_response, request_id="test-request-id-1"
+        ),
+        InvokeResponse(
+            invocation_output=success_response, request_id="test-request-id-2"
+        ),
+    ]
 
     # Mock execution creation and store behavior
     with patch(
@@ -1048,14 +1084,16 @@ def test_should_retry_invocation_when_under_limit_through_public_api(
         executor.start_execution(start_input)
 
         # Simulate scheduler executing the initial invocation handler
-        initial_handler = mock_scheduler.call_later.call_args[0][0]
+        initial_handler = mock_scheduler.call_later.call_args_list[-1][0][0]
         import asyncio
 
         asyncio.run(initial_handler())
 
         # Verify retry was scheduled due to validation error
-        assert mock_scheduler.call_later.call_count == 2  # Initial + retry
-        retry_call = mock_scheduler.call_later.call_args_list[1]
+        assert mock_scheduler.call_later.call_count == 3  # timeout + initial + retry
+        retry_call = mock_scheduler.call_later.call_args_list[
+            2
+        ]  # Third call is the retry
         retry_handler = retry_call[0][0]
         retry_delay = retry_call[1]["delay"]
 
@@ -1098,8 +1136,8 @@ def test_should_fail_workflow_when_retry_limit_exceeded(
             executor.start_execution(start_input)
 
             # Get the handler that was passed to the scheduler and execute it manually
-            mock_scheduler.call_later.assert_called_once()
-            handler = mock_scheduler.call_later.call_args[0][0]
+            assert mock_scheduler.call_later.call_count >= 1
+            handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
             # Execute the handler to trigger the invocation logic
             asyncio.run(handler())
@@ -1126,6 +1164,10 @@ def test_complete_events_through_complete_execution(
     mock_event = Mock()
     mock_scheduler.create_event.return_value = mock_event
 
+    # Mock the timeout future that will be created
+    mock_timeout_future = Mock()
+    mock_scheduler.call_later.return_value = mock_timeout_future
+
     with patch(
         "aws_durable_execution_sdk_python_testing.executor.Execution"
     ) as mock_execution_class:
@@ -1134,13 +1176,15 @@ def test_complete_events_through_complete_execution(
         mock_execution_class.new.return_value = mock_exec
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 300
         executor.start_execution(start_input)
 
-    # Now complete the execution - this should trigger event.set()
+    # Now complete the execution - this should trigger event.set() and cancel timeout
     executor.complete_execution("test-arn", "result")
 
-    # Verify the event was set through observable behavior
+    # Verify the event was set and timeout was cancelled
     mock_event.set.assert_called_once()
+    mock_timeout_future.cancel.assert_called_once()
 
 
 def test_complete_events_no_event_through_public_api(executor, mock_store):
@@ -1169,6 +1213,7 @@ def test_wait_until_complete_success(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     result = executor.wait_until_complete("test-arn", timeout=10)
@@ -1192,6 +1237,7 @@ def test_wait_until_complete_timeout(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     result = executor.wait_until_complete("test-arn", timeout=10)
@@ -1246,6 +1292,7 @@ def test_should_schedule_wait_timer_correctly(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     # Act - schedule wait timer through public method
@@ -1400,6 +1447,7 @@ def test_on_wait_timer_scheduled(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     with patch.object(executor, "_on_wait_succeeded"):
@@ -1433,7 +1481,9 @@ def test_should_retry_when_response_has_unexpected_status(
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     unexpected_response = Mock()
     unexpected_response.status = "UNKNOWN_STATUS"
-    mock_invoker.invoke.return_value = unexpected_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=unexpected_response, request_id="test-request-id"
+    )
 
     # Mock execution creation and store behavior
     with patch(
@@ -1446,8 +1496,8 @@ def test_should_retry_when_response_has_unexpected_status(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -1455,8 +1505,8 @@ def test_should_retry_when_response_has_unexpected_status(
         # Assert - verify retry was triggered due to validation error
         assert mock_execution.consecutive_failed_invocation_attempts == 1
         mock_store.save.assert_called_with(mock_execution)
-        # Verify retry was scheduled (call_later should be called twice: initial + retry)
-        assert mock_scheduler.call_later.call_count == 2
+        # Verify retry was scheduled (call_later should be called 3 times: timeout + initial + retry)
+        assert mock_scheduler.call_later.call_count == 3
 
 
 def test_invoke_handler_execution_completed_during_invocation_async(
@@ -1478,7 +1528,9 @@ def test_invoke_handler_execution_completed_during_invocation_async(
     mock_invocation_input = Mock()
     mock_invoker.create_invocation_input.return_value = mock_invocation_input
     mock_response = Mock()
-    mock_invoker.invoke.return_value = mock_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=mock_response, request_id="test-request-id"
+    )
 
     # Mock execution creation
     with patch(
@@ -1490,8 +1542,8 @@ def test_invoke_handler_execution_completed_during_invocation_async(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -1527,8 +1579,8 @@ def test_invoke_handler_resource_not_found_async(
             executor.start_execution(start_input)
 
             # Get the handler that was passed to the scheduler and execute it manually
-            mock_scheduler.call_later.assert_called_once()
-            handler = mock_scheduler.call_later.call_args[0][0]
+            assert mock_scheduler.call_later.call_count >= 1
+            handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
             # Execute the handler to trigger the invocation logic
             asyncio.run(handler())
@@ -1564,7 +1616,9 @@ def test_invoke_handler_general_exception_async(
     success_response = DurableExecutionInvocationOutput(
         status=InvocationStatus.SUCCEEDED, result="success"
     )
-    mock_invoker.invoke.return_value = success_response
+    mock_invoker.invoke.return_value = InvokeResponse(
+        invocation_output=success_response, request_id="test-request-id"
+    )
 
     # Mock execution creation and store behavior
     with patch(
@@ -1577,8 +1631,8 @@ def test_invoke_handler_general_exception_async(
         executor.start_execution(start_input)
 
         # Get the handler that was passed to the scheduler and execute it manually
-        mock_scheduler.call_later.assert_called_once()
-        handler = mock_scheduler.call_later.call_args[0][0]
+        assert mock_scheduler.call_later.call_count >= 1
+        handler = mock_scheduler.call_later.call_args_list[-1][0][0]
 
         # Execute the handler to trigger the invocation logic
         asyncio.run(handler())
@@ -1586,8 +1640,8 @@ def test_invoke_handler_general_exception_async(
         # Assert - verify retry was scheduled through observable behavior
         assert mock_execution.consecutive_failed_invocation_attempts == 1
         mock_store.save.assert_called_with(mock_execution)
-        # Verify retry was scheduled (call_later should be called twice: initial + retry)
-        assert mock_scheduler.call_later.call_count == 2
+        # Verify retry was scheduled (call_later should be called 3 times: timeout + initial + retry)
+        assert mock_scheduler.call_later.call_count == 3
 
 
 def test_invoke_execution_with_delay_through_wait_timer(executor, mock_scheduler):
@@ -1604,6 +1658,7 @@ def test_invoke_execution_with_delay_through_wait_timer(executor, mock_scheduler
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     # Test delay behavior through wait timer scheduling
@@ -1631,6 +1686,7 @@ def test_invoke_execution_no_delay_through_start_execution(executor, mock_schedu
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     # Verify scheduler was called with no delay for initial execution
@@ -1654,6 +1710,7 @@ def test_on_step_retry_scheduled(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     with patch.object(executor, "_on_retry_ready"):
@@ -1683,6 +1740,7 @@ def test_wait_handler_execution(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     with patch.object(executor, "_on_wait_succeeded") as mock_wait:
@@ -1714,6 +1772,7 @@ def test_retry_handler_execution(executor, mock_scheduler):
         mock_execution_class.new.return_value = mock_execution
 
         start_input = Mock()
+        start_input.execution_timeout_seconds = 0
         executor.start_execution(start_input)
 
     with patch.object(executor, "_on_retry_ready") as mock_retry:
@@ -2092,6 +2151,7 @@ def test_get_execution_history(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = []  # Empty operations list
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2121,6 +2181,7 @@ def test_get_execution_history_with_events(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = [op1]
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2146,6 +2207,7 @@ def test_get_execution_history_reverse_order(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = [op1]
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2176,6 +2238,7 @@ def test_get_execution_history_pagination(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = operations
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2204,6 +2267,7 @@ def test_get_execution_history_pagination_with_marker(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = operations
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2221,6 +2285,7 @@ def test_get_execution_history_invalid_marker(executor, mock_store):
     mock_execution = Mock()
     mock_execution.operations = []
     mock_execution.updates = []
+    mock_execution.invocation_completions = []
     mock_execution.durable_execution_arn = ""
     mock_execution.start_input = Mock()
     mock_execution.result = Mock()
@@ -2397,6 +2462,7 @@ def test_send_callback_heartbeat(executor, mock_store):
     mock_operation.status = OperationStatus.STARTED
     mock_execution.find_callback_operation.return_value = (0, mock_operation)
     mock_execution.updates = []  # No callback options to reset timeout
+    mock_execution.invocation_completions = []
     mock_store.load.return_value = mock_execution
 
     result = executor.send_callback_heartbeat(callback_id)
@@ -2578,7 +2644,6 @@ def test_callback_timeout_handlers(executor, mock_store):
     mock_execution.complete_callback_timeout.assert_called()
     timeout_error = mock_execution.complete_callback_timeout.call_args[0][1]
     assert "Callback timed out" in str(timeout_error.message)
-    mock_execution.complete_fail.assert_called()
 
     # Reset mocks for heartbeat test
     mock_execution.reset_mock()
@@ -2590,7 +2655,6 @@ def test_callback_timeout_handlers(executor, mock_store):
     mock_execution.complete_callback_timeout.assert_called()
     heartbeat_error = mock_execution.complete_callback_timeout.call_args[0][1]
     assert "Callback heartbeat timed out" in str(heartbeat_error.message)
-    mock_execution.complete_fail.assert_called()
 
 
 def test_callback_timeout_completed_execution(executor, mock_store):
@@ -2651,6 +2715,7 @@ def test_schedule_callback_timeouts_no_callback_options(executor, mock_store):
     mock_execution = Mock()
     mock_execution.find_operation.return_value = (0, operation)
     mock_execution.updates = []  # No updates with callback options
+    mock_execution.invocation_completions = []
     mock_store.load.return_value = mock_execution
 
     # Should return early without scheduling

@@ -3,9 +3,9 @@
 import time
 from typing import Any
 
+from aws_durable_execution_sdk_python.config import Duration
 from aws_durable_execution_sdk_python.context import DurableContext
 from aws_durable_execution_sdk_python.execution import durable_execution
-from aws_durable_execution_sdk_python.config import Duration
 
 
 @durable_execution
@@ -19,7 +19,7 @@ def handler(_event: Any, context: DurableContext) -> dict[str, Any]:
         name="fetch-user-data",
     )
 
-    def submitter(_) -> None:
+    def submitter(_callback_id, _context) -> None:
         """Submitter uses data from previous step."""
         time.sleep(0.1)
         return None
