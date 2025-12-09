@@ -345,6 +345,7 @@ def deploy_function(example_name: str, function_name: str | None = None):
             lambda_client.update_function_code,
             FunctionName=function_name,
             ZipFile=zip_content,
+            max_retries=8,
         )
         retry_on_resource_conflict(
             lambda_client.update_function_configuration, **function_config
