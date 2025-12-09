@@ -417,7 +417,7 @@ def test_should_handle_boto3_client_creation_with_custom_config():
 
         # Assert - Verify boto3 client was called with correct parameters
         mock_boto3_client.assert_called_once_with(
-            "lambdainternal-local",
+            "lambda",
             endpoint_url="http://custom-endpoint:8080",
             region_name="eu-west-1",
         )
@@ -442,7 +442,7 @@ def test_should_handle_boto3_client_creation_with_defaults():
 
         # Assert - Verify boto3 client was called with default parameters
         mock_boto3_client.assert_called_once_with(
-            "lambdainternal-local",
+            "lambda",
             endpoint_url="http://127.0.0.1:3001",  # Default lambda_endpoint value
             region_name="us-west-2",  # Default value
         )
@@ -467,30 +467,22 @@ def test_should_propagate_boto3_client_creation_exceptions():
             runner.start()
 
 
-def test_should_set_aws_data_path_during_start():
-    """Test that start() sets AWS_DATA_PATH environment variable through public API."""
+def test_should_create_boto3_client_during_start():
+    """Test that start() creates boto3 client correctly through public API."""
     # Arrange
     web_config = WebServiceConfig(host="localhost", port=5000)
     runner_config = WebRunnerConfig(web_service=web_config)
     runner = WebRunner(runner_config)
 
-    # Mock aws_durable_execution_sdk_python module path
-    mock_package_path = "/mock/path/to/aws_durable_execution_sdk_python"
-    expected_data_path = f"{mock_package_path}/botocore/data"
-
-    with (
-        patch("os.path.dirname") as mock_dirname,
-        patch("boto3.client") as mock_boto3_client,
-    ):
-        mock_dirname.return_value = mock_package_path
+    with patch("boto3.client") as mock_boto3_client:
         mock_client = Mock()
         mock_boto3_client.return_value = mock_client
 
         # Act - Test public behavior
         runner.start()
 
-        # Assert - Verify environment variable was set
-        assert os.environ["AWS_DATA_PATH"] == expected_data_path
+        # Assert - Verify boto3 client was created
+        mock_boto3_client.assert_called_once()
 
         # Verify public behavior works
         runner.stop()
@@ -773,7 +765,7 @@ def test_should_pass_correct_boto3_client_to_lambda_invoker():
 
         # Assert - Verify boto3 client was created with correct parameters
         mock_boto3_client.assert_called_once_with(
-            "lambdainternal-local",
+            "lambda",
             endpoint_url="http://test-endpoint:7777",
             region_name="ap-southeast-2",
         )

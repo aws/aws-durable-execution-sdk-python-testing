@@ -698,10 +698,7 @@ class DurableFunctionTestRunner:
 
         # Timeout reached
         elapsed = time.time() - start_time
-        msg = (
-            f"Callback did not available within {timeout}s "
-            f"(elapsed: {elapsed:.1f}s."
-        )
+        msg = f"Callback did not available within {timeout}s (elapsed: {elapsed:.1f}s."
         raise TimeoutError(msg)
 
 
@@ -850,26 +847,20 @@ class WebRunner:
         self._executor = None
 
     def _create_boto3_client(self) -> Any:
-        """Create boto3 client for lambdainternal-local service.
+        """Create boto3 client for Lambda service.
 
-        Configures AWS data path and creates a boto3 client with the
-        local runner endpoint and region from configuration.
+        Creates a boto3 client with the local runner endpoint and region from configuration.
 
         Returns:
-            Configured boto3 client for lambdainternal-local service
+            Configured boto3 client for Lambda service
 
         Raises:
             Exception: If client creation fails - exceptions propagate naturally
                       for CLI to handle as general Exception
         """
-        # Set up AWS data path for boto models
-        package_path = os.path.dirname(aws_durable_execution_sdk_python.__file__)
-        data_path = f"{package_path}/botocore/data"
-        os.environ["AWS_DATA_PATH"] = data_path
-
         # Create client with Lambda endpoint configuration
         return boto3.client(
-            "lambdainternal-local",
+            "lambda",
             endpoint_url=self._config.lambda_endpoint,
             region_name=self._config.local_runner_region,
         )
@@ -904,14 +895,9 @@ class DurableFunctionCloudTestRunner:
         self.lambda_endpoint = lambda_endpoint
         self.poll_interval = poll_interval
 
-        # Set up AWS data path for custom boto models (durable execution fields)
-        package_path = os.path.dirname(aws_durable_execution_sdk_python.__file__)
-        data_path = f"{package_path}/botocore/data"
-        os.environ["AWS_DATA_PATH"] = data_path
-
         client_config = boto3.session.Config(parameter_validation=False)
         self.lambda_client = boto3.client(
-            "lambdainternal",
+            "lambda",
             endpoint_url=lambda_endpoint,
             region_name=region,
             config=client_config,
@@ -1154,10 +1140,7 @@ class DurableFunctionCloudTestRunner:
 
         # Timeout reached
         elapsed = time.time() - start_time
-        msg = (
-            f"Callback did not available within {timeout}s "
-            f"(elapsed: {elapsed:.1f}s."
-        )
+        msg = f"Callback did not available within {timeout}s (elapsed: {elapsed:.1f}s."
         raise TimeoutError(msg)
 
     def _fetch_execution_history(

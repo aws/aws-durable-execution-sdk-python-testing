@@ -110,15 +110,10 @@ class AwsRestJsonSerializer:
             InvalidParameterValueException: If serializer creation fails
         """
         try:
-            package_path = os.path.dirname(aws_durable_execution_sdk_python.__file__)
-            data_path = f"{package_path}/botocore/data"
-
             # Load service model
-            os.environ["AWS_DATA_PATH"] = data_path
             loader = botocore.loaders.Loader()
-            loader.search_paths.append(data_path)
 
-            raw_model = loader.load_service_model("lambdainternal", "service-2")
+            raw_model = loader.load_service_model("lambda", "service-2")
             service_model = ServiceModel(raw_model)
 
             # Create serializer (rest-json protocol)
@@ -190,15 +185,10 @@ class AwsRestJsonDeserializer:
             InvalidParameterValueException: If deserializer creation fails
         """
         try:
-            package_path = os.path.dirname(aws_durable_execution_sdk_python.__file__)
-            data_path = f"{package_path}/botocore/data"
-
             # Load service model
-            os.environ["AWS_DATA_PATH"] = data_path
             loader = botocore.loaders.Loader()
-            loader.search_paths.append(data_path)
 
-            raw_model = loader.load_service_model("lambdainternal", "service-2")
+            raw_model = loader.load_service_model("lambda", "service-2")
             service_model = ServiceModel(raw_model)
 
             # Create parser (rest-json protocol)

@@ -188,6 +188,7 @@ class WebServer(ThreadingHTTPServer):
 
         # Configure logging
         logging.basicConfig(level=config.log_level)
+        logging.getLogger("botocore").setLevel(logging.WARNING)
 
         # Create shared router and endpoint handlers
         self.router = Router()  # Shared across all request handlers

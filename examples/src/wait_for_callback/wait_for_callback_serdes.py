@@ -4,9 +4,9 @@ import json
 from datetime import datetime
 from typing import Any, Optional, TypedDict
 
+from aws_durable_execution_sdk_python.config import Duration, WaitForCallbackConfig
 from aws_durable_execution_sdk_python.context import DurableContext
 from aws_durable_execution_sdk_python.execution import durable_execution
-from aws_durable_execution_sdk_python.config import Duration, WaitForCallbackConfig
 from aws_durable_execution_sdk_python.serdes import SerDes
 
 
@@ -75,7 +75,7 @@ def handler(_event: Any, context: DurableContext) -> dict[str, Any]:
     )
 
     result: CustomData = context.wait_for_callback(
-        lambda _: None,
+        lambda _callback_id, _context: None,
         name="custom-serdes-callback",
         config=config,
     )

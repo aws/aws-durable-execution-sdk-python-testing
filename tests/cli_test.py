@@ -985,29 +985,19 @@ def test_get_durable_execution_history_command_handles_connection_error() -> Non
         assert exit_code == 1
 
 
-def test_create_boto3_client_sets_up_aws_data_path() -> None:
-    """Test that _create_boto3_client sets up AWS data path correctly."""
+def test_create_boto3_client_creates_client_correctly() -> None:
+    """Test that _create_boto3_client creates boto3 client correctly."""
     app = CliApp()
 
     with patch("boto3.client") as mock_boto3_client:
-        with patch("os.environ") as mock_environ:
-            with patch("os.path.dirname") as mock_dirname:
-                mock_dirname.return_value = "/path/to/aws_durable_execution_sdk_python"
+        app._create_boto3_client()  # noqa: SLF001
 
-                app._create_boto3_client()  # noqa: SLF001
-
-                # Verify AWS_DATA_PATH is set
-                mock_environ.__setitem__.assert_called_with(
-                    "AWS_DATA_PATH",
-                    "/path/to/aws_durable_execution_sdk_python/botocore/data",
-                )
-
-                # Verify boto3 client is created with correct parameters
-                mock_boto3_client.assert_called_once_with(
-                    "lambdainternal-local",
-                    endpoint_url=app.config.local_runner_endpoint,
-                    region_name=app.config.local_runner_region,
-                )
+        # Verify boto3 client is created with correct parameters
+        mock_boto3_client.assert_called_once_with(
+            "lambda",
+            endpoint_url=app.config.local_runner_endpoint,
+            region_name=app.config.local_runner_region,
+        )
 
 
 def test_create_boto3_client_handles_creation_failure() -> None:

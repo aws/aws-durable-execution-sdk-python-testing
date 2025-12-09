@@ -5,23 +5,26 @@ build-backend = "hatchling.build"
 [project]
 name = "aws-durable-execution-sdk-python-testing"
 dynamic = ["version"]
-description = 'This the Python SDK for AWS Lambda Durable Execution.'
+description = 'AWS Durable Execution Testing SDK for Python'
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 license = "Apache-2.0"
 keywords = []
 authors = [{ name = "yaythomas", email = "tgaigher@amazon.com" }]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "boto3>=1.40.30",
+  "boto3>=1.42.1",
   "requests>=2.25.0",
-  "aws_durable_execution_sdk_python @ {env:AWS_DURABLE_SDK_URL:git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git}",
+  "aws_durable_execution_sdk_python>=1.0.0",
 ]
 
 [project.urls]
@@ -56,7 +59,7 @@ dependencies = [
   "pytest",
   "pytest-cov",
   "ruff",
-  "aws_durable_execution_sdk_python @ {env:AWS_DURABLE_SDK_URL:git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git}",
+  "aws_durable_execution_sdk_python>=1.0.0",
 ]
 
 [tool.hatch.envs.test.scripts]
@@ -69,7 +72,7 @@ cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aw
 dependencies = [
   "boto3",
   "PyYAML",
-  "aws_durable_execution_sdk_python @ {env:AWS_DURABLE_SDK_URL:git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git}",
+  "aws_durable_execution_sdk_python>=1.0.0",
 ]
 [tool.hatch.envs.examples.scripts]
 cli = "python examples/cli.py {args}"

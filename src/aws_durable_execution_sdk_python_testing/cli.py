@@ -115,6 +115,7 @@ class CliApp:
                 level=level,
                 format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             )
+            logging.getLogger("botocore").setLevel(logging.WARNING)
 
             # Execute the appropriate command
             return parsed_args.func(parsed_args)
@@ -457,7 +458,7 @@ class CliApp:
     def _create_boto3_client(
         self, endpoint_url: str | None = None, region_name: str | None = None
     ) -> Any:
-        """Create boto3 client for lambdainternal-local service.
+        """Create boto3 client for Lambda service.
 
         Args:
             endpoint_url: Optional endpoint URL override
@@ -470,18 +471,13 @@ class CliApp:
             Exception: If client creation fails
         """
         try:
-            # Set up AWS data path for boto models
-            package_path = os.path.dirname(aws_durable_execution_sdk_python.__file__)
-            data_path = f"{package_path}/botocore/data"
-            os.environ["AWS_DATA_PATH"] = data_path
-
             # Use provided values or fall back to config
             final_endpoint = endpoint_url or self.config.local_runner_endpoint
             final_region = region_name or self.config.local_runner_region
 
             # Create client with local endpoint - no AWS access keys required
             return boto3.client(
-                "lambdainternal-local",
+                "lambda",
                 endpoint_url=final_endpoint,
                 region_name=final_region,
             )

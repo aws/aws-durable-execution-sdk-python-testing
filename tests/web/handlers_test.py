@@ -2039,13 +2039,13 @@ def test_send_durable_execution_callback_success_handler():
     assert isinstance(route, CallbackSuccessRoute)
     assert route.callback_id == "test-callback-id"
 
-    result_data = base64.b64encode(b"success-result").decode("utf-8")
-    request_body = json.dumps({"Result": result_data}).encode("utf-8")
+    # Result is sent as raw binary body
+    request_body = b"success-result"
 
     request = HTTPRequest(
         method="POST",
         path=route,
-        headers={"Content-Type": "application/json"},
+        headers={},
         query_params={},
         body=request_body,
     )
@@ -2060,57 +2060,6 @@ def test_send_durable_execution_callback_success_handler():
     executor.send_callback_success.assert_called_once_with(
         callback_id="test-callback-id", result=b"success-result"
     )
-
-
-def test_send_durable_execution_callback_success_handler_invalid_json():
-    """Test SendDurableExecutionCallbackSuccessHandler with invalid JSON."""
-    executor = Mock()
-    handler = SendDurableExecutionCallbackSuccessHandler(executor)
-
-    router = Router()
-    route = router.find_route(
-        "/2025-12-01/durable-execution-callbacks/test-callback-id/succeed", "POST"
-    )
-
-    request = HTTPRequest(
-        method="POST",
-        path=route,
-        headers={"Content-Type": "application/json"},
-        query_params={},
-        body=b"invalid-json",
-    )
-
-    response = handler.handle(route, request)
-
-    assert response.status_code == 400
-    assert response.body["Type"] == "InvalidParameterValueException"
-    assert "Failed to parse JSON payload" in response.body["message"]
-
-
-def test_send_durable_execution_callback_success_handler_invalid_base64():
-    """Test SendDurableExecutionCallbackSuccessHandler with invalid base64."""
-    executor = Mock()
-    handler = SendDurableExecutionCallbackSuccessHandler(executor)
-
-    router = Router()
-    route = router.find_route(
-        "/2025-12-01/durable-execution-callbacks/test-callback-id/succeed", "POST"
-    )
-
-    request_body = json.dumps({"Result": "invalid-base64!"}).encode("utf-8")
-    request = HTTPRequest(
-        method="POST",
-        path=route,
-        headers={"Content-Type": "application/json"},
-        query_params={},
-        body=request_body,
-    )
-
-    response = handler.handle(route, request)
-
-    assert response.status_code == 400
-    assert response.body["Type"] == "InvalidParameterValueException"
-    assert "Failed to decode base64 result" in response.body["message"]
 
 
 def test_send_durable_execution_callback_success_handler_empty_body():

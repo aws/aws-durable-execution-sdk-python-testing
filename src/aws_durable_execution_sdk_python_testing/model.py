@@ -68,6 +68,7 @@ class EventType(Enum):
     CALLBACK_SUCCEEDED = "CallbackSucceeded"
     CALLBACK_FAILED = "CallbackFailed"
     CALLBACK_TIMED_OUT = "CallbackTimedOut"
+    INVOCATION_COMPLETED = "InvocationCompleted"
 
 
 TERMINAL_STATUSES: set[OperationStatus] = {
@@ -117,6 +118,7 @@ class StartDurableExecutionInput:
     trace_fields: dict | None = None
     tenant_id: str | None = None
     input: str | None = None
+    lambda_endpoint: str | None = None  # Endpoint for this specific execution
 
     @classmethod
     def from_dict(cls, data: dict) -> StartDurableExecutionInput:
@@ -146,6 +148,7 @@ class StartDurableExecutionInput:
             trace_fields=data.get("TraceFields"),
             tenant_id=data.get("TenantId"),
             input=data.get("Input"),
+            lambda_endpoint=data.get("LambdaEndpoint", None),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -165,6 +168,8 @@ class StartDurableExecutionInput:
             result["TenantId"] = self.tenant_id
         if self.input is not None:
             result["Input"] = self.input
+        if self.lambda_endpoint is not None:
+            result["LambdaEndpoint"] = self.lambda_endpoint
         return result
 
     def get_normalized_input(self):
@@ -1218,6 +1223,30 @@ class CallbackTimedOutDetails:
         return result
 
 
+@dataclass(frozen=True)
+class InvocationCompletedDetails:
+    """Invocation completed event details."""
+
+    start_timestamp: datetime.datetime
+    end_timestamp: datetime.datetime
+    request_id: str
+
+    @classmethod
+    def from_dict(cls, data: dict) -> InvocationCompletedDetails:
+        return cls(
+            start_timestamp=data["StartTimestamp"],
+            end_timestamp=data["EndTimestamp"],
+            request_id=data["RequestId"],
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "StartTimestamp": self.start_timestamp,
+            "EndTimestamp": self.end_timestamp,
+            "RequestId": self.request_id,
+        }
+
+
 # endregion event_structures
 
 
@@ -1325,6 +1354,7 @@ class Event:
     callback_succeeded_details: CallbackSucceededDetails | None = None
     callback_failed_details: CallbackFailedDetails | None = None
     callback_timed_out_details: CallbackTimedOutDetails | None = None
+    invocation_completed_details: InvocationCompletedDetails | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> Event:
@@ -1443,6 +1473,12 @@ class Event:
         if details_data := data.get("CallbackTimedOutDetails"):
             callback_timed_out_details = CallbackTimedOutDetails.from_dict(details_data)
 
+        invocation_completed_details = None
+        if details_data := data.get("InvocationCompletedDetails"):
+            invocation_completed_details = InvocationCompletedDetails.from_dict(
+                details_data
+            )
+
         return cls(
             event_type=data["EventType"],
             event_timestamp=data["EventTimestamp"],
@@ -1475,6 +1511,7 @@ class Event:
             callback_succeeded_details=callback_succeeded_details,
             callback_failed_details=callback_failed_details,
             callback_timed_out_details=callback_timed_out_details,
+            invocation_completed_details=invocation_completed_details,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -1558,6 +1595,10 @@ class Event:
         if self.callback_timed_out_details is not None:
             result["CallbackTimedOutDetails"] = (
                 self.callback_timed_out_details.to_dict()
+            )
+        if self.invocation_completed_details is not None:
+            result["InvocationCompletedDetails"] = (
+                self.invocation_completed_details.to_dict()
             )
         return result
 
@@ -2114,6 +2155,17 @@ class Event:
         callback_id: str | None = (
             callback_details.callback_id if callback_details else None
         )
+        callback_options: CallbackOptions | None = (
+            context.operation_update.callback_options
+            if context.operation_update
+            else None
+        )
+        timeout: int | None = (
+            callback_options.timeout_seconds if callback_options else None
+        )
+        heartbeat_timeout: int | None = (
+            callback_options.heartbeat_timeout_seconds if callback_options else None
+        )
         return cls(
             event_type=EventType.CALLBACK_STARTED.value,
             event_timestamp=context.start_timestamp,
@@ -2122,7 +2174,11 @@ class Event:
             operation_id=context.operation.operation_id,
             name=context.operation.name,
             parent_id=context.operation.parent_id,
-            callback_started_details=CallbackStartedDetails(callback_id=callback_id),
+            callback_started_details=CallbackStartedDetails(
+                callback_id=callback_id,
+                timeout=timeout,
+                heartbeat_timeout=heartbeat_timeout,
+            ),
         )
 
     @classmethod
@@ -2198,6 +2254,30 @@ class Event:
                 raise InvalidParameterValueException(msg)
 
     # endregion callback
+
+    # region invocation_completed
+    @classmethod
+    def create_invocation_completed(
+        cls,
+        event_id: int,
+        event_timestamp: datetime.datetime,
+        start_timestamp: datetime.datetime,
+        end_timestamp: datetime.datetime,
+        request_id: str,
+    ) -> Event:
+        """Create invocation completed event."""
+        return cls(
+            event_type=EventType.INVOCATION_COMPLETED.value,
+            event_timestamp=event_timestamp,
+            event_id=event_id,
+            invocation_completed_details=InvocationCompletedDetails(
+                start_timestamp=start_timestamp,
+                end_timestamp=end_timestamp,
+                request_id=request_id,
+            ),
+        )
+
+    # endregion invocation_completed
 
     @classmethod
     def create_event_started(cls, context: EventCreationContext) -> Event:

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
+from threading import Lock
 from typing import TYPE_CHECKING, Any, Protocol
+from uuid import uuid4
 
 import boto3  # type: ignore
 from aws_durable_execution_sdk_python.execution import (
@@ -14,6 +17,7 @@ from aws_durable_execution_sdk_python.execution import (
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
+    ServiceException,
 )
 from aws_durable_execution_sdk_python_testing.model import LambdaContext
 
@@ -22,6 +26,14 @@ if TYPE_CHECKING:
 
     from aws_durable_execution_sdk_python_testing.client import InMemoryServiceClient
     from aws_durable_execution_sdk_python_testing.execution import Execution
+
+
+@dataclass(frozen=True)
+class InvokeResponse:
+    """Response from invoking a durable function."""
+
+    invocation_output: DurableExecutionInvocationOutput
+    request_id: str
 
 
 def create_test_lambda_context() -> LambdaContext:
@@ -62,7 +74,8 @@ class Invoker(Protocol):
         self,
         function_name: str,
         input: DurableExecutionInvocationInput,
-    ) -> DurableExecutionInvocationOutput: ...  # pragma: no cover
+        endpoint_url: str | None = None,
+    ) -> InvokeResponse: ...  # pragma: no cover
 
     def update_endpoint(
         self, endpoint_url: str, region_name: str
@@ -85,7 +98,6 @@ class InProcessInvoker(Invoker):
                 operations=execution.operations,
                 next_marker="",
             ),
-            is_local_runner=False,
             service_client=self.service_client,
         )
 
@@ -93,14 +105,18 @@ class InProcessInvoker(Invoker):
         self,
         function_name: str,  # noqa: ARG002
         input: DurableExecutionInvocationInput,
-    ) -> DurableExecutionInvocationOutput:
+        endpoint_url: str | None = None,  # noqa: ARG002
+    ) -> InvokeResponse:
         # TODO: reasses if function_name will be used in future
         input_with_client = DurableExecutionInvocationInputWithClient.from_durable_execution_invocation_input(
             input, self.service_client
         )
         context = create_test_lambda_context()
         response_dict = self.handler(input_with_client, context)
-        return DurableExecutionInvocationOutput.from_dict(response_dict)
+        output = DurableExecutionInvocationOutput.from_dict(response_dict)
+        return InvokeResponse(
+            invocation_output=output, request_id=context.aws_request_id
+        )
 
     def update_endpoint(self, endpoint_url: str, region_name: str) -> None:
         """No-op for in-process invoker."""
@@ -109,21 +125,66 @@ class InProcessInvoker(Invoker):
 class LambdaInvoker(Invoker):
     def __init__(self, lambda_client: Any) -> None:
         self.lambda_client = lambda_client
+        # Maps execution_arn -> endpoint for that execution
+        # Maps endpoint -> client to reuse clients across executions
+        self._execution_endpoints: dict[str, str] = {}
+        self._endpoint_clients: dict[str, Any] = {}
+        self._current_endpoint: str = ""  # Track current endpoint for new executions
+        self._lock = Lock()
 
     @staticmethod
     def create(endpoint_url: str, region_name: str) -> LambdaInvoker:
         """Create with the boto lambda client."""
-        return LambdaInvoker(
-            boto3.client(
-                "lambdainternal", endpoint_url=endpoint_url, region_name=region_name
-            )
+        invoker = LambdaInvoker(
+            boto3.client("lambda", endpoint_url=endpoint_url, region_name=region_name)
         )
+        invoker._current_endpoint = endpoint_url
+        invoker._endpoint_clients[endpoint_url] = invoker.lambda_client
+        return invoker
 
     def update_endpoint(self, endpoint_url: str, region_name: str) -> None:
         """Update the Lambda client endpoint."""
-        self.lambda_client = boto3.client(
-            "lambdainternal", endpoint_url=endpoint_url, region_name=region_name
-        )
+        # Cache client by endpoint to reuse across executions
+        with self._lock:
+            if endpoint_url not in self._endpoint_clients:
+                self._endpoint_clients[endpoint_url] = boto3.client(
+                    "lambda", endpoint_url=endpoint_url, region_name=region_name
+                )
+            self.lambda_client = self._endpoint_clients[endpoint_url]
+        self._current_endpoint = endpoint_url
+
+    def _get_client_for_execution(
+        self,
+        durable_execution_arn: str,
+        lambda_endpoint: str | None = None,
+        region_name: str | None = None,
+    ) -> Any:
+        """Get the appropriate client for this execution."""
+        # Use provided endpoint or fall back to cached endpoint for this execution
+        if lambda_endpoint:
+            if lambda_endpoint not in self._endpoint_clients:
+                self._endpoint_clients[lambda_endpoint] = boto3.client(
+                    "lambda",
+                    endpoint_url=lambda_endpoint,
+                    region_name=region_name or "us-east-1",
+                )
+            return self._endpoint_clients[lambda_endpoint]
+
+        # Fallback to cached endpoint
+        if durable_execution_arn not in self._execution_endpoints:
+            with self._lock:
+                if durable_execution_arn not in self._execution_endpoints:
+                    self._execution_endpoints[durable_execution_arn] = (
+                        self._current_endpoint
+                    )
+
+        endpoint = self._execution_endpoints[durable_execution_arn]
+
+        # If no endpoint configured, fall back to default client
+        if not endpoint:
+            return self.lambda_client
+
+        return self._endpoint_clients[endpoint]
 
     def create_invocation_input(
         self, execution: Execution
@@ -135,22 +196,23 @@ class LambdaInvoker(Invoker):
                 operations=execution.operations,
                 next_marker="",
             ),
-            is_local_runner=False,
         )
 
     def invoke(
         self,
         function_name: str,
         input: DurableExecutionInvocationInput,
-    ) -> DurableExecutionInvocationOutput:
+        endpoint_url: str | None = None,
+    ) -> InvokeResponse:
         """Invoke AWS Lambda function and return durable execution result.
 
         Args:
             function_name: Name of the Lambda function to invoke
             input: Durable execution invocation input
+            endpoint_url: Lambda endpoint url
 
         Returns:
-            DurableExecutionInvocationOutput: Result of the function execution
+            InvokeResponse: Response containing invocation output and request ID
 
         Raises:
             ResourceNotFoundException: If function does not exist
@@ -167,9 +229,14 @@ class LambdaInvoker(Invoker):
             msg = "Function name is required"
             raise InvalidParameterValueException(msg)
 
+        # Get the client for this execution
+        client = self._get_client_for_execution(
+            input.durable_execution_arn, endpoint_url
+        )
+
         try:
             # Invoke AWS Lambda function using standard invoke method
-            response = self.lambda_client.invoke(
+            response = client.invoke(
                 FunctionName=function_name,
                 InvocationType="RequestResponse",  # Synchronous invocation
                 Payload=json.dumps(input.to_dict(), default=str),
@@ -191,52 +258,61 @@ class LambdaInvoker(Invoker):
             response_payload = response["Payload"].read().decode("utf-8")
             response_dict = json.loads(response_payload)
 
-            # Convert to DurableExecutionInvocationOutput
-            return DurableExecutionInvocationOutput.from_dict(response_dict)
+            # Extract request ID from response headers (x-amzn-RequestId or x-amzn-request-id)
+            headers = response.get("ResponseMetadata", {}).get("HTTPHeaders", {})
+            request_id = (
+                headers.get("x-amzn-RequestId")
+                or headers.get("x-amzn-request-id")
+                or f"local-{uuid4()}"
+            )
 
-        except self.lambda_client.exceptions.ResourceNotFoundException as e:
+            # Convert to DurableExecutionInvocationOutput
+            output = DurableExecutionInvocationOutput.from_dict(response_dict)
+            return InvokeResponse(invocation_output=output, request_id=request_id)
+
+        except client.exceptions.ResourceNotFoundException as e:
             msg = f"Function not found: {function_name}"
             raise ResourceNotFoundException(msg) from e
-        except self.lambda_client.exceptions.InvalidParameterValueException as e:
+        except client.exceptions.InvalidParameterValueException as e:
             msg = f"Invalid parameter: {e}"
             raise InvalidParameterValueException(msg) from e
         except (
-            self.lambda_client.exceptions.TooManyRequestsException,
-            self.lambda_client.exceptions.ServiceException,
-            self.lambda_client.exceptions.ResourceConflictException,
-            self.lambda_client.exceptions.InvalidRequestContentException,
-            self.lambda_client.exceptions.RequestTooLargeException,
-            self.lambda_client.exceptions.UnsupportedMediaTypeException,
-            self.lambda_client.exceptions.InvalidRuntimeException,
-            self.lambda_client.exceptions.InvalidZipFileException,
-            self.lambda_client.exceptions.ResourceNotReadyException,
-            self.lambda_client.exceptions.SnapStartTimeoutException,
-            self.lambda_client.exceptions.SnapStartNotReadyException,
-            self.lambda_client.exceptions.SnapStartException,
-            self.lambda_client.exceptions.RecursiveInvocationException,
+            client.exceptions.TooManyRequestsException,
+            client.exceptions.ServiceException,
+            client.exceptions.ResourceConflictException,
+            client.exceptions.InvalidRequestContentException,
+            client.exceptions.RequestTooLargeException,
+            client.exceptions.UnsupportedMediaTypeException,
+            client.exceptions.InvalidRuntimeException,
+            client.exceptions.InvalidZipFileException,
+            client.exceptions.ResourceNotReadyException,
+            client.exceptions.SnapStartTimeoutException,
+            client.exceptions.SnapStartNotReadyException,
+            client.exceptions.SnapStartException,
+            client.exceptions.RecursiveInvocationException,
         ) as e:
             msg = f"Lambda invocation failed: {e}"
             raise DurableFunctionsTestError(msg) from e
         except (
-            self.lambda_client.exceptions.InvalidSecurityGroupIDException,
-            self.lambda_client.exceptions.EC2ThrottledException,
-            self.lambda_client.exceptions.EFSMountConnectivityException,
-            self.lambda_client.exceptions.SubnetIPAddressLimitReachedException,
-            self.lambda_client.exceptions.EC2UnexpectedException,
-            self.lambda_client.exceptions.InvalidSubnetIDException,
-            self.lambda_client.exceptions.EC2AccessDeniedException,
-            self.lambda_client.exceptions.EFSIOException,
-            self.lambda_client.exceptions.ENILimitReachedException,
-            self.lambda_client.exceptions.EFSMountTimeoutException,
-            self.lambda_client.exceptions.EFSMountFailureException,
+            client.exceptions.InvalidSecurityGroupIDException,
+            client.exceptions.EC2ThrottledException,
+            client.exceptions.EFSMountConnectivityException,
+            client.exceptions.SubnetIPAddressLimitReachedException,
+            client.exceptions.EC2UnexpectedException,
+            client.exceptions.InvalidSubnetIDException,
+            client.exceptions.EC2AccessDeniedException,
+            client.exceptions.EFSIOException,
+            client.exceptions.ENILimitReachedException,
+            client.exceptions.EFSMountTimeoutException,
+            client.exceptions.EFSMountFailureException,
         ) as e:
             msg = f"Lambda infrastructure error: {e}"
             raise DurableFunctionsTestError(msg) from e
         except (
-            self.lambda_client.exceptions.KMSAccessDeniedException,
-            self.lambda_client.exceptions.KMSDisabledException,
-            self.lambda_client.exceptions.KMSNotFoundException,
-            self.lambda_client.exceptions.KMSInvalidStateException,
+            client.exceptions.KMSAccessDeniedException,
+            client.exceptions.KMSDisabledException,
+            client.exceptions.KMSNotFoundException,
+            client.exceptions.KMSInvalidStateException,
         ) as e:
             msg = f"Lambda KMS error: {e}"
             raise DurableFunctionsTestError(msg) from e
