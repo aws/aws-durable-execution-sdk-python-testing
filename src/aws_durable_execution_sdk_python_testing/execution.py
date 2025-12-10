@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
+
 from datetime import UTC, datetime
 from enum import Enum
 from threading import Lock
@@ -13,12 +13,14 @@ from aws_durable_execution_sdk_python.execution import (
     InvocationStatus,
 )
 from aws_durable_execution_sdk_python.lambda_service import (
+    CallbackDetails,
     ErrorObject,
     ExecutionDetails,
     Operation,
     OperationStatus,
     OperationType,
     OperationUpdate,
+    StepDetails,
 )
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
@@ -310,10 +312,8 @@ class Execution:
         with self._state_lock:
             self._token_sequence += 1
             # Build and assign updated operation
-            self.operations[index] = replace(
-                operation,
-                status=OperationStatus.SUCCEEDED,
-                end_timestamp=datetime.now(UTC),
+            self.operations[index] = operation.create_succeeded(
+                end_timestamp=datetime.now(UTC)
             )
             return self.operations[index]
 
@@ -334,17 +334,7 @@ class Execution:
         # Thread-safe increment sequence and operation update
         with self._state_lock:
             self._token_sequence += 1
-            # Build updated step_details with cleared next_attempt_timestamp
-            new_step_details = None
-            if operation.step_details:
-                new_step_details = replace(
-                    operation.step_details, next_attempt_timestamp=None
-                )
-
-            # Build updated operation
-            updated_operation = replace(
-                operation, status=OperationStatus.READY, step_details=new_step_details
-            )
+            updated_operation = operation.create_completed_retry()
 
             # Assign
             self.operations[index] = updated_operation
@@ -358,21 +348,11 @@ class Execution:
         if operation.status != OperationStatus.STARTED:
             msg: str = f"Callback operation [{callback_id}] is not in STARTED state"
             raise IllegalStateException(msg)
-
         with self._state_lock:
             self._token_sequence += 1
-            updated_callback_details = None
-            if operation.callback_details:
-                updated_callback_details = replace(
-                    operation.callback_details,
-                    result=result.decode() if result else None,
-                )
-
-            self.operations[index] = replace(
-                operation,
-                status=OperationStatus.SUCCEEDED,
+            self.operations[index] = operation.create_callback_result(
+                result=result.decode() if result else None,
                 end_timestamp=datetime.now(UTC),
-                callback_details=updated_callback_details,
             )
             return self.operations[index]
 
@@ -388,17 +368,9 @@ class Execution:
 
         with self._state_lock:
             self._token_sequence += 1
-            updated_callback_details = None
-            if operation.callback_details:
-                updated_callback_details = replace(
-                    operation.callback_details, error=error
-                )
-
-            self.operations[index] = replace(
-                operation,
-                status=OperationStatus.FAILED,
+            self.operations[index] = operation.create_callback_failure(
+                error=error,
                 end_timestamp=datetime.now(UTC),
-                callback_details=updated_callback_details,
             )
             return self.operations[index]
 
@@ -433,8 +405,7 @@ class Execution:
         execution_op: Operation = self.get_operation_execution_started()
         if execution_op.operation_type == OperationType.EXECUTION:
             with self._state_lock:
-                self.operations[0] = replace(
-                    execution_op,
+                self.operations[0] = execution_op.create_execution_end(
                     status=status,
                     end_timestamp=datetime.now(UTC),
                 )
