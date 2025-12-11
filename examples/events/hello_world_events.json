@@ -1,0 +1,113 @@
+{
+  "events": [
+    {
+      "event_type": "ExecutionStarted",
+      "event_timestamp": "2025-12-11T00:32:13.887857+00:00",
+      "event_id": 1,
+      "operation_id": "inv-12345678-1234-1234-1234-123456789012",
+      "name": "execution-name",
+      "execution_started_details": {
+        "input": {
+          "truncated": true
+        },
+        "execution_timeout": 60
+      }
+    },
+    {
+      "event_type": "StepStarted",
+      "event_timestamp": "2025-12-11T00:32:13.994326+00:00",
+      "sub_type": "Step",
+      "event_id": 2,
+      "operation_id": "1ced8f5be2db23a6513eba4d819c73806424748a7bc6fa0d792cc1c7d1775a97",
+      "name": "step_1",
+      "step_started_details": {}
+    },
+    {
+      "event_type": "StepSucceeded",
+      "event_timestamp": "2025-12-11T00:32:13.994354+00:00",
+      "sub_type": "Step",
+      "event_id": 3,
+      "operation_id": "1ced8f5be2db23a6513eba4d819c73806424748a7bc6fa0d792cc1c7d1775a97",
+      "name": "step_1",
+      "step_succeeded_details": {
+        "result": {
+          "truncated": true
+        },
+        "retry_details": {
+          "current_attempt": 1,
+          "next_attempt_delay_seconds": 0
+        }
+      }
+    },
+    {
+      "event_type": "WaitStarted",
+      "event_timestamp": "2025-12-11T00:32:14.099840+00:00",
+      "sub_type": "Wait",
+      "event_id": 4,
+      "operation_id": "c5faca15ac2f93578b39ef4b6bbb871bdedce4ddd584fd31f0bb66fade3947e6",
+      "wait_started_details": {
+        "duration": 10,
+        "scheduled_end_timestamp": "2025-12-11T00:32:24.099828+00:00"
+      }
+    },
+    {
+      "event_type": "InvocationCompleted",
+      "event_timestamp": "2025-12-11T00:32:14.205118+00:00",
+      "event_id": 5
+    },
+    {
+      "event_type": "WaitSucceeded",
+      "event_timestamp": "2025-12-11T00:32:24.206724+00:00",
+      "sub_type": "Wait",
+      "event_id": 6,
+      "operation_id": "c5faca15ac2f93578b39ef4b6bbb871bdedce4ddd584fd31f0bb66fade3947e6",
+      "wait_succeeded_details": {
+        "duration": 10
+      }
+    },
+    {
+      "event_type": "StepStarted",
+      "event_timestamp": "2025-12-11T00:32:24.310890+00:00",
+      "sub_type": "Step",
+      "event_id": 7,
+      "operation_id": "6f760b9e9eac89f07ab0223b0f4acb04d1e355d893a1b86a83f4d4b405adee99",
+      "name": "step_2",
+      "step_started_details": {}
+    },
+    {
+      "event_type": "StepSucceeded",
+      "event_timestamp": "2025-12-11T00:32:24.310917+00:00",
+      "sub_type": "Step",
+      "event_id": 8,
+      "operation_id": "6f760b9e9eac89f07ab0223b0f4acb04d1e355d893a1b86a83f4d4b405adee99",
+      "name": "step_2",
+      "step_succeeded_details": {
+        "result": {
+          "truncated": true
+        },
+        "retry_details": {
+          "current_attempt": 1,
+          "next_attempt_delay_seconds": 0
+        }
+      }
+    },
+    {
+      "event_type": "InvocationCompleted",
+      "event_timestamp": "2025-12-11T00:32:24.413013+00:00",
+      "event_id": 9
+    },
+    {
+      "event_type": "ExecutionSucceeded",
+      "event_timestamp": "2025-12-11T00:32:24.413238+00:00",
+      "event_id": 10,
+      "operation_id": "inv-12345678-1234-1234-1234-123456789012",
+      "name": "execution-name",
+      "execution_succeeded_details": {
+        "result": {
+          "payload": "{\"statusCode\": 200, \"body\": \"Hello from Durable Lambda! (status: 200)\"}",
+          "truncated": true
+        }
+      }
+    }
+  ]
+}

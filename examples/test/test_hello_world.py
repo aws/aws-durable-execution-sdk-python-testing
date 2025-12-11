@@ -5,6 +5,7 @@ from aws_durable_execution_sdk_python.execution import InvocationStatus
 
 from src import hello_world
 from test.conftest import deserialize_operation_payload
+from test.event_helper import assert_events
 
 
 @pytest.mark.example
@@ -22,3 +23,4 @@ def test_hello_world(durable_runner):
         "statusCode": 200,
         "body": "Hello from Durable Lambda! (status: 200)",
     }
+    assert_events("examples/events/hello_world_events.json", result.events)
