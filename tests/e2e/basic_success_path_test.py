@@ -23,7 +23,6 @@ from aws_durable_execution_sdk_python_testing.runner import (
 from aws_durable_execution_sdk_python.config import Duration
 
 
-# brazil-test-exec pytest test/runner_int_test.py
 def test_basic_durable_function() -> None:
     @durable_step
     def one(step_context: StepContext, a: int, b: int) -> str:

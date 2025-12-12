@@ -28,6 +28,7 @@ from aws_durable_execution_sdk_python_testing.model import (
     StartDurableExecutionInput,
     StartDurableExecutionOutput,
     GetDurableExecutionHistoryResponse,
+    GetDurableExecutionResponse,
 )
 from aws_durable_execution_sdk_python_testing.runner import (
     OPERATION_FACTORIES,
@@ -740,14 +741,25 @@ def test_durable_function_test_runner_run(mock_store_class, mock_executor_class)
     mock_executor.start_execution.return_value = output
     mock_executor.wait_until_complete.return_value = True
 
-    # Mock execution for result creation
-    mock_execution = Mock(spec=Execution)
-    mock_execution.operations = []
-    mock_execution.result = Mock()
-    mock_execution.result.status = InvocationStatus.SUCCEEDED
-    mock_execution.result.result = json.dumps("test-result")
-    mock_execution.result.error = None
-    mock_store.load.return_value = mock_execution
+    # Mock the new methods used by wait_for_result
+    mock_history_response = GetDurableExecutionHistoryResponse(events=[])
+    mock_execution_response = GetDurableExecutionResponse(
+        durable_execution_arn="test-arn",
+        durable_execution_name="execution-name",
+        function_arn="arn:aws:lambda:us-west-2:123456789012:function:test-function",
+        status="SUCCEEDED",
+        start_timestamp=datetime.datetime(
+            2023, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc
+        ),
+        end_timestamp=datetime.datetime(
+            2023, 1, 1, 0, 1, 0, tzinfo=datetime.timezone.utc
+        ),
+        result=json.dumps("test-result"),
+        error=None,
+    )
+
+    mock_executor.get_execution_history.return_value = mock_history_response
+    mock_executor.get_execution_details.return_value = mock_execution_response
 
     runner = DurableFunctionTestRunner(handler)
     result = runner.run("test-input")
@@ -764,8 +776,11 @@ def test_durable_function_test_runner_run(mock_store_class, mock_executor_class)
     # Verify wait_until_complete was called
     mock_executor.wait_until_complete.assert_called_once_with("test-arn", 900)
 
-    # Verify store.load was called
-    mock_store.load.assert_called_once_with("test-arn")
+    # Verify the methods are called
+    mock_executor.get_execution_history.assert_called_once_with(
+        "test-arn", include_execution_data=True
+    )
+    mock_executor.get_execution_details.assert_called_once_with("test-arn")
 
     # Verify result
     assert isinstance(result, DurableFunctionTestResult)
@@ -791,14 +806,25 @@ def test_durable_function_test_runner_run_with_custom_params(
     mock_executor.start_execution.return_value = output
     mock_executor.wait_until_complete.return_value = True
 
-    # Mock execution for result creation
-    mock_execution = Mock(spec=Execution)
-    mock_execution.operations = []
-    mock_execution.result = Mock()
-    mock_execution.result.status = InvocationStatus.SUCCEEDED
-    mock_execution.result.result = json.dumps("test-result")
-    mock_execution.result.error = None
-    mock_store.load.return_value = mock_execution
+    # Mock the new methods used by wait_for_result
+    mock_history_response = GetDurableExecutionHistoryResponse(events=[])
+    mock_execution_response = GetDurableExecutionResponse(
+        durable_execution_arn="test-arn",
+        durable_execution_name="custom-execution",
+        function_arn="arn:aws:lambda:us-west-2:987654321098:function:custom-function",
+        status="SUCCEEDED",
+        start_timestamp=datetime.datetime(
+            2023, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc
+        ),
+        end_timestamp=datetime.datetime(
+            2023, 1, 1, 0, 1, 0, tzinfo=datetime.timezone.utc
+        ),
+        result=json.dumps("test-result"),
+        error=None,
+    )
+
+    mock_executor.get_execution_history.return_value = mock_history_response
+    mock_executor.get_execution_details.return_value = mock_execution_response
 
     runner = DurableFunctionTestRunner(handler)
     result = runner.run(
@@ -819,6 +845,12 @@ def test_durable_function_test_runner_run_with_custom_params(
 
     # Verify wait_until_complete was called with custom timeout
     mock_executor.wait_until_complete.assert_called_once_with("test-arn", 1800)
+
+    # Verify the methods are called
+    mock_executor.get_execution_history.assert_called_once_with(
+        "test-arn", include_execution_data=True
+    )
+    mock_executor.get_execution_details.assert_called_once_with("test-arn")
 
     assert result.status is InvocationStatus.SUCCEEDED
 

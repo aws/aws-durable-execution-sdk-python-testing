@@ -147,6 +147,30 @@ hatch run examples:list
 hatch run examples:deploy "Hello World"
 ```
 
+### Generate Event Files for Testing
+```bash
+# Generate expected events JSON file for a function
+# This runs the function locally and captures execution events
+
+# Basic usage - hello_world example
+hatch run examples:generate-events \
+  --function-module hello_world \
+  --function-name handler \
+  --input '"test input"' \
+  --output examples/events/hello_world_events.json
+
+# Available options:
+# --function-module: Python module path (required)
+# --function-name: Function name within module (required) 
+# --input: JSON string input for the function (optional)
+# --output: Output path for events JSON file (required)
+# --timeout: Execution timeout in seconds (default: 60)
+# --verbose: Enable detailed logging
+
+# Use generated events in your tests with the event assertion helper:
+# assert_events('events/hello_world_events.json', result.events)
+```
+
 ### Other CLI Commands
 ```bash
 # Invoke deployed function
