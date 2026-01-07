@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import datetime
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 import json
@@ -2641,26 +2641,13 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
         # Merge with previous operation if it exists
         # Most fields are immutable, so they get preserved from previous events
         if previous_operation:
-            operation = replace(
-                operation,
-                name=operation.name or previous_operation.name,
-                parent_id=operation.parent_id or previous_operation.parent_id,
-                sub_type=operation.sub_type or previous_operation.sub_type,
-                start_timestamp=previous_operation.start_timestamp,
-                end_timestamp=previous_operation.end_timestamp,
-                execution_details=previous_operation.execution_details,
-                context_details=previous_operation.context_details,
-                step_details=previous_operation.step_details,
-                wait_details=previous_operation.wait_details,
-                callback_details=previous_operation.callback_details,
-                chained_invoke_details=previous_operation.chained_invoke_details,
-            )
+            operation = operation.create_merged_from_previous(previous_operation)
 
         # Set timestamps based on event configuration
         if event_config.is_start_event:
-            operation = replace(operation, start_timestamp=event.event_timestamp)
+            operation = operation.create_with_start_timestamp(event.event_timestamp)
         if event_config.is_end_event:
-            operation = replace(operation, end_timestamp=event.event_timestamp)
+            operation = operation.create_with_end_timestamp(event.event_timestamp)
 
         # Add operation-specific details incrementally
         # Each event type contributes only the fields it has
@@ -2671,11 +2658,10 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
             and event.execution_started_details
             and event.execution_started_details.input
         ):
-            operation = replace(
-                operation,
-                execution_details=ExecutionDetails(
+            operation = operation.create_with_execution_details(
+                ExecutionDetails(
                     input_payload=event.execution_started_details.input.payload
-                ),
+                )
             )
 
         # CALLBACK details - merge callback_id, result, and error from different events
@@ -2707,13 +2693,12 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
             ):
                 error = event.callback_timed_out_details.error.payload
 
-            operation = replace(
-                operation,
-                callback_details=CallbackDetails(
+            operation = operation.create_with_callback_details(
+                CallbackDetails(
                     callback_id=callback_id,
                     result=result,
                     error=error,
-                ),
+                )
             )
 
         # STEP details - only update if this event type has result data
@@ -2749,23 +2734,21 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
                             seconds=event.step_failed_details.retry_details.next_attempt_delay_seconds
                         )
 
-            operation = replace(
-                operation,
-                step_details=StepDetails(
+            operation = operation.create_with_step_details(
+                StepDetails(
                     result=result_val,
                     error=error_val,
                     attempt=attempt,
                     next_attempt_timestamp=next_attempt_ts,
-                ),
+                )
             )
 
         # WAIT details
         if operation_type == OperationType.WAIT and event.wait_started_details:
-            operation = replace(
-                operation,
-                wait_details=WaitDetails(
+            operation = operation.create_with_wait_details(
+                WaitDetails(
                     scheduled_end_timestamp=event.wait_started_details.scheduled_end_timestamp
-                ),
+                )
             )
 
         # CONTEXT details - only update if this event type has result data (matching TypeScript hasResult)
@@ -2774,20 +2757,18 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
                 event.context_succeeded_details
                 and event.context_succeeded_details.result
             ):
-                operation = replace(
-                    operation,
-                    context_details=ContextDetails(
+                operation = operation.create_with_context_details(
+                    ContextDetails(
                         result=event.context_succeeded_details.result.payload,
                         error=None,
-                    ),
+                    )
                 )
             elif event.context_failed_details and event.context_failed_details.error:
-                operation = replace(
-                    operation,
-                    context_details=ContextDetails(
+                operation = operation.create_with_context_details(
+                    ContextDetails(
                         result=None,
                         error=event.context_failed_details.error.payload,
-                    ),
+                    )
                 )
 
         # CHAINED_INVOKE details - only update if this event type has result data (matching TypeScript hasResult)
@@ -2796,23 +2777,21 @@ def events_to_operations(events: list[Event]) -> list[Operation]:
                 event.chained_invoke_succeeded_details
                 and event.chained_invoke_succeeded_details.result
             ):
-                operation = replace(
-                    operation,
-                    chained_invoke_details=ChainedInvokeDetails(
+                operation = operation.create_with_chained_invoke_details(
+                    ChainedInvokeDetails(
                         result=event.chained_invoke_succeeded_details.result.payload,
                         error=None,
-                    ),
+                    )
                 )
             elif (
                 event.chained_invoke_failed_details
                 and event.chained_invoke_failed_details.error
             ):
-                operation = replace(
-                    operation,
-                    chained_invoke_details=ChainedInvokeDetails(
+                operation = operation.create_with_chained_invoke_details(
+                    ChainedInvokeDetails(
                         result=None,
                         error=event.chained_invoke_failed_details.error.payload,
-                    ),
+                    )
                 )
 
         # Store in map
