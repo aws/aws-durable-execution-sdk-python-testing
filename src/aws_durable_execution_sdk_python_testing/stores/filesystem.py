@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import UTC, datetime
 from pathlib import Path
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
@@ -14,30 +13,6 @@ from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.stores.base import (
     BaseExecutionStore,
 )
-
-
-class DateTimeEncoder(json.JSONEncoder):
-    """Custom JSON encoder that handles datetime objects."""
-
-    def default(self, obj):
-        if isinstance(obj, datetime):
-            return obj.timestamp()
-        return super().default(obj)
-
-
-def datetime_object_hook(obj):
-    """JSON object hook to convert unix timestamps back to datetime objects."""
-    if isinstance(obj, dict):
-        for key, value in obj.items():
-            if isinstance(value, int | float) and key.endswith(
-                ("_timestamp", "_time", "Timestamp", "Time")
-            ):
-                try:  # noqa: SIM105
-                    obj[key] = datetime.fromtimestamp(value, tz=UTC)
-                except (ValueError, OSError):
-                    # Leave as number if not a valid timestamp
-                    pass
-    return obj
 
 
 class FileSystemExecutionStore(BaseExecutionStore):
@@ -69,10 +44,10 @@ class FileSystemExecutionStore(BaseExecutionStore):
     def save(self, execution: Execution) -> None:
         """Save execution to file system."""
         file_path = self._get_file_path(execution.durable_execution_arn)
-        data = execution.to_dict()
+        data = execution.to_json_dict()
 
         with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, cls=DateTimeEncoder)
+            json.dump(data, f, indent=2)
 
     def load(self, execution_arn: str) -> Execution:
         """Load execution from file system."""
@@ -82,9 +57,9 @@ class FileSystemExecutionStore(BaseExecutionStore):
             raise ResourceNotFoundException(msg)
 
         with open(file_path, encoding="utf-8") as f:
-            data = json.load(f, object_hook=datetime_object_hook)
+            data = json.load(f)
 
-        return Execution.from_dict(data)
+        return Execution.from_json_dict(data)
 
     def update(self, execution: Execution) -> None:
         """Update execution in file system (same as save)."""
@@ -96,8 +71,8 @@ class FileSystemExecutionStore(BaseExecutionStore):
         for file_path in self._storage_dir.glob("*.json"):
             try:
                 with open(file_path, encoding="utf-8") as f:
-                    data = json.load(f, object_hook=datetime_object_hook)
-                executions.append(Execution.from_dict(data))
+                    data = json.load(f)
+                executions.append(Execution.from_json_dict(data))
             except (json.JSONDecodeError, KeyError, OSError) as e:
                 logging.warning("Skipping corrupted file %s: %s", file_path, e)
                 continue

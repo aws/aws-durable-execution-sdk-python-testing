@@ -18,7 +18,6 @@ from aws_durable_execution_sdk_python.lambda_service import (
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     IllegalStateException,
-    InvalidParameterValueException,
 )
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.model import StartDurableExecutionInput
@@ -813,7 +812,7 @@ def test_from_dict_with_none_result():
         "aws_durable_execution_sdk_python_testing.model.StartDurableExecutionInput.from_dict"
     ) as mock_from_dict:
         mock_from_dict.return_value = Mock()
-        execution = Execution.from_dict(data)
+        execution = Execution.from_json_dict(data)
         assert execution.result is None
 
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import replace
 from datetime import UTC, datetime
 from enum import Enum
@@ -33,7 +32,6 @@ from aws_durable_execution_sdk_python_testing.model import (
 )
 from aws_durable_execution_sdk_python_testing.token import (
     CheckpointToken,
-    CallbackToken,
 )
 
 
@@ -96,12 +94,12 @@ class Execution:
             durable_execution_arn=str(uuid4()), start_input=input, operations=[]
         )
 
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize execution to dictionary."""
+    def to_json_dict(self) -> dict[str, Any]:
+        """Serialize execution to JSON-serializable dictionary"""
         return {
             "DurableExecutionArn": self.durable_execution_arn,
             "StartInput": self.start_input.to_dict(),
-            "Operations": [op.to_dict() for op in self.operations],
+            "Operations": [op.to_json_dict() for op in self.operations],
             "Updates": [update.to_dict() for update in self.updates],
             "InvocationCompletions": [
                 completion.to_dict() for completion in self.invocation_completions
@@ -115,13 +113,15 @@ class Execution:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Execution:
+    def from_json_dict(cls, data: dict[str, Any]) -> Execution:
         """Deserialize execution from dictionary."""
         # Reconstruct start_input
         start_input = StartDurableExecutionInput.from_dict(data["StartInput"])
 
         # Reconstruct operations
-        operations = [Operation.from_dict(op_data) for op_data in data["Operations"]]
+        operations = [
+            Operation.from_json_dict(op_data) for op_data in data["Operations"]
+        ]
 
         # Create execution
         execution = cls(

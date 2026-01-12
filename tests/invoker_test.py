@@ -12,6 +12,15 @@ from aws_durable_execution_sdk_python.execution import (
     InvocationStatus,
 )
 
+from aws_durable_execution_sdk_python.lambda_service import (
+    ExecutionDetails,
+    Operation,
+    OperationStatus,
+    OperationType,
+)
+
+from datetime import datetime, UTC
+
 from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.invoker import (
     InProcessInvoker,
@@ -168,10 +177,23 @@ def test_lambda_invoker_invoke_success():
 
     invoker = LambdaInvoker(lambda_client)
 
+    mock_operation = Operation(
+        operation_id="op-1",
+        parent_id=None,
+        name="test-execution",
+        start_timestamp=datetime.now(UTC),
+        end_timestamp=datetime.now(UTC),
+        operation_type=OperationType.EXECUTION,
+        status=OperationStatus.SUCCEEDED,
+        execution_details=ExecutionDetails(input_payload='{"test": "data"}'),
+    )
+
     input_data = DurableExecutionInvocationInput(
         durable_execution_arn="test-arn",
         checkpoint_token="test-token",  # noqa: S106
-        initial_execution_state=InitialExecutionState(operations=[], next_marker=""),
+        initial_execution_state=InitialExecutionState(
+            operations=[mock_operation], next_marker=""
+        ),
     )
 
     response = invoker.invoke("test-function", input_data)
@@ -185,7 +207,7 @@ def test_lambda_invoker_invoke_success():
     lambda_client.invoke.assert_called_once_with(
         FunctionName="test-function",
         InvocationType="RequestResponse",
-        Payload=json.dumps(input_data.to_dict(), default=str),
+        Payload=json.dumps(input_data.to_json_dict()),
     )
 
 

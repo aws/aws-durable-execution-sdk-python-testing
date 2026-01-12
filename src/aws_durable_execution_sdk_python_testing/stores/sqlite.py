@@ -17,10 +17,6 @@ from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.stores.base import (
     ExecutionStore,
 )
-from aws_durable_execution_sdk_python_testing.stores.filesystem import (
-    DateTimeEncoder,
-    datetime_object_hook,
-)
 
 
 class SQLiteExecutionStore(ExecutionStore):
@@ -102,7 +98,7 @@ class SQLiteExecutionStore(ExecutionStore):
                         execution_op.end_timestamp.timestamp()
                         if execution_op.end_timestamp
                         else None,
-                        json.dumps(execution.to_dict(), cls=DateTimeEncoder),
+                        json.dumps(execution.to_json_dict()),
                     ),
                 )
         except sqlite3.Error as e:
@@ -125,9 +121,7 @@ class SQLiteExecutionStore(ExecutionStore):
             if not row:
                 raise ResourceNotFoundException(f"Execution {execution_arn} not found")
 
-            return Execution.from_dict(
-                json.loads(row[0], object_hook=datetime_object_hook)
-            )
+            return Execution.from_json_dict(json.loads(row[0]))
         except sqlite3.Error as e:
             raise RuntimeError(f"Failed to load execution {execution_arn}: {e}") from e
         except json.JSONDecodeError as e:
@@ -222,11 +216,7 @@ class SQLiteExecutionStore(ExecutionStore):
             executions: list[Execution] = []
             for durable_execution_arn, data in rows:
                 try:
-                    executions.append(
-                        Execution.from_dict(
-                            json.loads(data, object_hook=datetime_object_hook)
-                        )
-                    )
+                    executions.append(Execution.from_json_dict(json.loads(data)))
                 except (json.JSONDecodeError, ValueError) as e:
                     # Log corrupted data but continue with other records
                     print(
