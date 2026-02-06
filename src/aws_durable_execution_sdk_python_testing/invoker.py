@@ -16,8 +16,11 @@ from aws_durable_execution_sdk_python.execution import (
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsTestError,
+    InvalidParameterValueException,
+    ResourceNotFoundException,
 )
 from aws_durable_execution_sdk_python_testing.model import LambdaContext
+
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -217,10 +220,6 @@ class LambdaInvoker(Invoker):
             InvalidParameterValueException: If parameters are invalid
             DurableFunctionsTestError: For other invocation failures
         """
-        from aws_durable_execution_sdk_python_testing.exceptions import (
-            ResourceNotFoundException,
-            InvalidParameterValueException,
-        )
 
         # Parameter validation
         if not function_name or not function_name.strip():
