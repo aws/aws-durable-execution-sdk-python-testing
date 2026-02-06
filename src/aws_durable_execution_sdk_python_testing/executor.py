@@ -115,6 +115,7 @@ class Executor(ExecutionObserver):
         execution = Execution.new(input=input)
         execution.start()
         self._store.save(execution)
+        logger.debug("Created execution with ARN: %s", execution.durable_execution_arn)
 
         completion_event = self._scheduler.create_event()
         self._completion_events[execution.durable_execution_arn] = completion_event

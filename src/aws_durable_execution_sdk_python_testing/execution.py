@@ -102,7 +102,7 @@ class Execution:
             "Operations": [op.to_json_dict() for op in self.operations],
             "Updates": [update.to_dict() for update in self.updates],
             "InvocationCompletions": [
-                completion.to_dict() for completion in self.invocation_completions
+                completion.to_json_dict() for completion in self.invocation_completions
             ],
             "UsedTokens": list(self.used_tokens),
             "TokenSequence": self._token_sequence,
@@ -135,7 +135,7 @@ class Execution:
             OperationUpdate.from_dict(update_data) for update_data in data["Updates"]
         ]
         execution.invocation_completions = [
-            InvocationCompletedDetails.from_dict(item)
+            InvocationCompletedDetails.from_json_dict(item)
             for item in data.get("InvocationCompletions", [])
         ]
         execution.used_tokens = set(data["UsedTokens"])

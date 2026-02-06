@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import datetime
+import json
 from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Any
-import json
-
-from dateutil.tz import UTC
 
 from aws_durable_execution_sdk_python.execution import DurableExecutionInvocationOutput
 
@@ -30,12 +28,14 @@ from aws_durable_execution_sdk_python.lambda_service import (
     OperationUpdate,
     StepDetails,
     StepOptions,
+    TimestampConverter,
     WaitDetails,
     WaitOptions,
 )
 from aws_durable_execution_sdk_python.types import (
     LambdaContext as LambdaContextProtocol,
 )
+from dateutil.tz import UTC
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
     InvalidParameterValueException,
@@ -1239,10 +1239,39 @@ class InvocationCompletedDetails:
             request_id=data["RequestId"],
         )
 
+    @classmethod
+    def from_json_dict(cls, data: dict) -> InvocationCompletedDetails:
+        """Deserialize from JSON dict with Unix millisecond timestamps."""
+        start_ts: datetime.datetime | None = TimestampConverter.from_unix_millis(
+            data["StartTimestamp"]
+        )  # type: ignore[arg-type]
+        end_ts: datetime.datetime | None = TimestampConverter.from_unix_millis(
+            data["EndTimestamp"]
+        )  # type: ignore[arg-type]
+
+        if start_ts is None or end_ts is None:
+            raise InvalidParameterValueException(
+                "StartTimestamp and EndTimestamp cannot be null"
+            )
+
+        return cls(
+            start_timestamp=start_ts,
+            end_timestamp=end_ts,
+            request_id=data["RequestId"],
+        )
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "StartTimestamp": self.start_timestamp,
             "EndTimestamp": self.end_timestamp,
+            "RequestId": self.request_id,
+        }
+
+    def to_json_dict(self) -> dict[str, Any]:
+        """Convert to JSON-serializable dict with Unix millisecond timestamps."""
+        return {
+            "StartTimestamp": TimestampConverter.to_unix_millis(self.start_timestamp),
+            "EndTimestamp": TimestampConverter.to_unix_millis(self.end_timestamp),
             "RequestId": self.request_id,
         }
 

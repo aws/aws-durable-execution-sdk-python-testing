@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import datetime
+import json
 
 import pytest
-
 from aws_durable_execution_sdk_python.lambda_service import (
     OperationStatus,
     OperationType,
 )
+
 from aws_durable_execution_sdk_python_testing.exceptions import (
     InvalidParameterValueException,
 )
@@ -46,6 +47,7 @@ from aws_durable_execution_sdk_python_testing.model import (
     GetDurableExecutionResponse,
     GetDurableExecutionStateRequest,
     GetDurableExecutionStateResponse,
+    InvocationCompletedDetails,
     ListDurableExecutionsByFunctionRequest,
     ListDurableExecutionsByFunctionResponse,
     ListDurableExecutionsRequest,
@@ -3564,3 +3566,102 @@ def test_events_to_operations_invalid_sub_type():
         match=f"'{invalid_sub_type}' is not a valid OperationSubType",
     ):
         events_to_operations([event])
+
+
+def test_invocation_completed_details_to_json_dict():
+    """Test InvocationCompletedDetails.to_json_dict() converts datetime to Unix milliseconds."""
+    start_time = datetime.datetime(2023, 1, 1, 0, 0, 0, 123456, tzinfo=datetime.UTC)
+    end_time = datetime.datetime(2023, 1, 1, 0, 1, 0, 456789, tzinfo=datetime.UTC)
+
+    details = InvocationCompletedDetails(
+        start_timestamp=start_time, end_timestamp=end_time, request_id="req-123"
+    )
+
+    json_dict = details.to_json_dict()
+
+    # Verify timestamps are converted to Unix milliseconds (integers)
+    assert json_dict["StartTimestamp"] == 1672531200123
+    assert json_dict["EndTimestamp"] == 1672531260456
+    assert json_dict["RequestId"] == "req-123"
+
+    # Verify all values are JSON-serializable
+    json_str = json.dumps(json_dict)
+    assert json_str is not None
+
+
+def test_invocation_completed_details_from_json_dict():
+    """Test InvocationCompletedDetails.from_json_dict() converts Unix milliseconds to datetime."""
+    json_dict = {
+        "StartTimestamp": 1672531200123,
+        "EndTimestamp": 1672531260456,
+        "RequestId": "req-456",
+    }
+
+    details = InvocationCompletedDetails.from_json_dict(json_dict)
+
+    # Verify timestamps are converted to datetime objects
+    assert details.start_timestamp == datetime.datetime(
+        2023, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.UTC
+    )
+    assert details.end_timestamp == datetime.datetime(
+        2023, 1, 1, 0, 1, 0, 456000, tzinfo=datetime.UTC
+    )
+    assert details.request_id == "req-456"
+
+
+def test_invocation_completed_details_json_round_trip():
+    """Test InvocationCompletedDetails to_json_dict/from_json_dict round-trip."""
+    original = InvocationCompletedDetails(
+        start_timestamp=datetime.datetime(
+            2023, 6, 15, 12, 30, 45, 678000, tzinfo=datetime.UTC
+        ),
+        end_timestamp=datetime.datetime(
+            2023, 6, 15, 12, 31, 50, 123000, tzinfo=datetime.UTC
+        ),
+        request_id="round-trip-test",
+    )
+
+    # Serialize to JSON dict
+    json_dict = original.to_json_dict()
+
+    # Deserialize back
+    restored = InvocationCompletedDetails.from_json_dict(json_dict)
+
+    # Verify round-trip preserves data
+    assert restored.start_timestamp == original.start_timestamp
+    assert restored.end_timestamp == original.end_timestamp
+    assert restored.request_id == original.request_id
+
+
+def test_invocation_completed_details_to_dict_preserves_datetime():
+    """Test InvocationCompletedDetails.to_dict() preserves datetime objects (not converted)."""
+    start_time = datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
+    end_time = datetime.datetime(2023, 1, 1, 0, 1, 0, tzinfo=datetime.UTC)
+
+    details = InvocationCompletedDetails(
+        start_timestamp=start_time, end_timestamp=end_time, request_id="req-789"
+    )
+
+    regular_dict = details.to_dict()
+
+    # Verify to_dict() preserves datetime objects (not converted to Unix milliseconds)
+    assert regular_dict["StartTimestamp"] == start_time
+    assert regular_dict["EndTimestamp"] == end_time
+    assert isinstance(regular_dict["StartTimestamp"], datetime.datetime)
+    assert isinstance(regular_dict["EndTimestamp"], datetime.datetime)
+
+
+def test_invocation_completed_details_from_json_dict_invalid_timestamp():
+    """Test InvocationCompletedDetails.from_json_dict() raises error for invalid timestamps."""
+    # Test with invalid timestamp that would return None
+    json_dict = {
+        "StartTimestamp": None,
+        "EndTimestamp": 1672531260456,
+        "RequestId": "req-error",
+    }
+
+    with pytest.raises(
+        InvalidParameterValueException,
+        match="StartTimestamp and EndTimestamp cannot be null",
+    ):
+        InvocationCompletedDetails.from_json_dict(json_dict)

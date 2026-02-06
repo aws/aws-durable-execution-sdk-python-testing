@@ -291,16 +291,22 @@ class StartExecutionHandler(EndpointHandler):
         Returns:
             HTTPResponse: The HTTP response to send to the client
         """
+        logger.debug("🌟 HANDLER: Received POST /start-durable-execution request")
         try:
             body_data: dict[str, Any] = self._parse_json_body(request)
+            logger.debug("🌟 HANDLER: Parsed request body successfully")
 
             start_input: StartDurableExecutionInput = (
                 StartDurableExecutionInput.from_dict(body_data)
+            )
+            logger.debug(
+                "🌟 HANDLER: Created StartDurableExecutionInput, calling executor.start_execution()"
             )
 
             start_output: StartDurableExecutionOutput = self.executor.start_execution(
                 start_input
             )
+            logger.debug("🌟 HANDLER: executor.start_execution() returned successfully")
 
             response_data: dict[str, Any] = start_output.to_dict()
 
