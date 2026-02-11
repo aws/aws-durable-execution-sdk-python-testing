@@ -323,14 +323,14 @@ class Executor(ExecutionObserver):
 
         Raises:
             ResourceNotFoundException: If execution does not exist
-            ExecutionAlreadyStartedException: If execution is already completed
         """
         execution = self.get_execution(execution_arn)
 
         if execution.is_complete:
-            # Context-aware mapping: execution already completed maps to ExecutionAlreadyStartedException
-            msg: str = f"Execution {execution_arn} is already completed"
-            raise ExecutionAlreadyStartedException(msg, execution_arn)
+            # Idempotent: return the existing stop timestamp
+            execution_op = execution.get_operation_execution_started()
+            stop_timestamp = execution_op.end_timestamp or datetime.now(UTC)
+            return StopDurableExecutionResponse(stop_timestamp=stop_timestamp)
 
         # Use provided error or create a default one
         stop_error = error or ErrorObject.from_message(
