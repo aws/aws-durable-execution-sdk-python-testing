@@ -911,14 +911,15 @@ def test_stop_durable_execution_handler_success():
 
 
 def test_stop_durable_execution_handler_execution_already_stopped():
-    """Test StopDurableExecutionHandler with execution already stopped error."""
+    """Test StopDurableExecutionHandler with execution already stopped returns idempotent response."""
 
     executor = Mock()
     handler = StopDurableExecutionHandler(executor)
 
-    # Mock executor to raise IllegalStateException
-    executor.stop_execution.side_effect = IllegalStateException(
-        "Execution test-arn is already completed"
+    # Mock executor to return stop response with timestamp
+    stop_timestamp = "2023-01-01T00:01:00Z"
+    executor.stop_execution.return_value = StopDurableExecutionResponse(
+        stop_timestamp=stop_timestamp
     )
 
     request_body = {
@@ -941,10 +942,9 @@ def test_stop_durable_execution_handler_execution_already_stopped():
 
     response = handler.handle(typed_route, request)
 
-    # Verify IllegalStateException maps to ServiceException in AWS-compliant format
-    assert response.status_code == 500
-    assert response.body["Type"] == "ServiceException"
-    assert response.body["Message"] == "Execution test-arn is already completed"
+    # Verify idempotent response with stop timestamp
+    assert response.status_code == 200
+    assert response.body["StopTimestamp"] == stop_timestamp
 
 
 def test_stop_durable_execution_handler_resource_not_found():

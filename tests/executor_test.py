@@ -41,6 +41,7 @@ from aws_durable_execution_sdk_python_testing.model import (
     SendDurableExecutionCallbackHeartbeatResponse,
     SendDurableExecutionCallbackSuccessResponse,
     StartDurableExecutionInput,
+    StopDurableExecutionResponse,
 )
 from aws_durable_execution_sdk_python_testing.observer import (
     ExecutionNotifier,
@@ -2056,13 +2057,22 @@ def test_stop_execution(executor, mock_store):
 
 
 def test_stop_execution_already_complete(executor, mock_store):
-    """Test stop_execution with already completed execution."""
+    """Test stop_execution with already completed execution returns idempotent response."""
     mock_execution = Mock()
     mock_execution.is_complete = True
+    mock_execution.durable_execution_arn = "test-arn"
+
+    # Mock the execution operation with end_timestamp
+    mock_execution_op = Mock()
+    mock_execution_op.end_timestamp = datetime(2023, 1, 1, 0, 1, 0, tzinfo=UTC)
+    mock_execution.get_operation_execution_started.return_value = mock_execution_op
+
     mock_store.load.return_value = mock_execution
 
-    with pytest.raises(ExecutionAlreadyStartedException, match="already completed"):
-        executor.stop_execution("test-arn")
+    result = executor.stop_execution("test-arn")
+
+    assert isinstance(result, StopDurableExecutionResponse)
+    assert result.stop_timestamp == datetime(2023, 1, 1, 0, 1, 0, tzinfo=UTC)
 
 
 def test_stop_execution_with_custom_error(executor, mock_store):
