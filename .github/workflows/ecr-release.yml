@@ -106,20 +106,20 @@ jobs:
       - name: Create ECR manifest with explicit tag
         id: create-ecr-manifest-explicit
         run: |
-          docker manifest create "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:$${{ github.event.release.name }}" \
+          docker manifest create "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ github.event.release.name }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_x86_64 }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_arm64 }}"
       - name: Annotate ECR manifest with explicit arm64 tag
         id: annotate-ecr-manifest-explicit-arm64
         run: |
-          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:$${{ github.event.release.name }}" \
+          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ github.event.release.name }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_arm64 }}" \
             --arch arm64 \
             --os linux
       - name: Annotate ECR manifest with explicit amd64 tag
         id: annotate-ecr-manifest-explicit-amd64
         run: |
-          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:$${{ github.event.release.name }}" \
+          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ github.event.release.name }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_x86_64 }}" \
             --arch amd64 \
             --os linux
