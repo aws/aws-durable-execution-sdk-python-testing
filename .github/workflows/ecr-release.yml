@@ -11,7 +11,7 @@ permissions:
 
 env:
   path_to_dockerfile: "emulator/DockerFile"
-  docker_build_dir: ""
+  docker_build_dir: "emulator/"
   aws_region: "us-east-1"
   ecr_repository_name: "o4w4w0v6/aws-durable-execution-emulator"
 
