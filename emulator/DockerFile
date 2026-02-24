@@ -7,8 +7,10 @@ RUN pip install --no-cache-dir hatch
 # Copy project files
 COPY . .
 
-# allow ssh to github
-RUN mkdir -p ~/.ssh && chmod 0700 ~/.ssh
-RUN ssh-keyscan github.com >> ~/.ssh/known_hosts
-
+# install emulator
 RUN hatch run pip install -e .
+
+# enable hatch executable
+RUN chmod +x /usr/local/bin/hatch
+
+CMD /usr/local/bin/hatch run durable-functions-emulator --host 0.0.0.0 --port 9014
