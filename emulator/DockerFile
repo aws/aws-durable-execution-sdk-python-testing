@@ -5,6 +5,8 @@ WORKDIR /emulator
 RUN pip install --no-cache-dir hatch
 
 # Copy project files
-COPY * .
+COPY . .
+
+RUN ls
 
 RUN hatch run pip install -e .
