@@ -1,9 +1,10 @@
-FROM public.ecr.aws/ubuntu/python:3.13-25.10_stable
+FROM public.ecr.aws/docker/library/python:3.13
 
+WORKDIR /emulator
 # Install Hatch
 RUN pip install --no-cache-dir hatch
 
 # Copy project files
-COPY * ./
+COPY * .
 
 RUN hatch run pip install -e .

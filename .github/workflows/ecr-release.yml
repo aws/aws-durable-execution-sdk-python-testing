@@ -65,8 +65,8 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           ECR_REPOSITORY: ${{ env.ecr_repository_name }}
-          IMAGE_TAG: "${{ env.image_tag }}${{ needs.generate-version.outputs.version }}"
-          PER_ARCH_IMAGE_TAG: "${{ matrix.arch }}${{ needs.generate-version.outputs.version }}"
+          IMAGE_TAG: "${{ env.image_tag }}${{ ngithub.event.release.name }}"
+          PER_ARCH_IMAGE_TAG: "${{ matrix.arch }}${{ github.event.release.name }}"
         run: |
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
             docker build --platform linux/amd64 --provenance false "${{ env.docker_build_dir }}" -f "${{ env.path_to_dockerfile }}" -t "$ECR_REGISTRY/$ECR_REPOSITORY:$PER_ARCH_IMAGE_TAG"
