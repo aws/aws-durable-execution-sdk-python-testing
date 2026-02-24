@@ -1,0 +1,5 @@
+FROM public.ecr.aws/ubuntu/python:3.13-25.10_stable
+
+COPY emulator /emulator
+
+RUN hatch run pip install -e .
