@@ -10,7 +10,7 @@ RUN ls
 
 # Update the package lists and install Git
 # The commands are combined to reduce the final image size
-RUN apt-get update && apt-get install -y --no-install-recommends git && apt-get purge -y --auto-remove && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade && apt-get install -y --no-install-recommends git && apt-get purge -y --auto-remove && rm -rf /var/lib/apt/lists/*
 
 # install emulator
 RUN pip install --no-cache-dir -e .
