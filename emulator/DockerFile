@@ -11,7 +11,7 @@ COPY . .
 RUN hatch run pip install -e .
 
 # where is the hatch executable installed
-RUN where hatch
+RUN whereis hatch
 
 # enable hatch executable
 RUN chmod +x /usr/local/bin/hatch
