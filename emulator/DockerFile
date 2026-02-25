@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /emulator
 # Install Hatch
@@ -8,13 +8,6 @@ RUN pip install --no-cache-dir hatch
 COPY . .
 
 # install emulator
-RUN hatch env create
 RUN hatch run pip install -e .
 
-# where is the hatch executable installed
-RUN whereis hatch
-
-# enable hatch executable
-RUN chmod +x /usr/local/bin/hatch
-
-CMD ["/usr/local/bin/hatch", "run", "durable-functions-emulator", "--host", "0.0.0.0", "--port", "9014"]
+CMD ["hatch", "run", "durable-functions-emulator", "--host", "0.0.0.0", "--port", "9014"]
