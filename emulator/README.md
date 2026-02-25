@@ -21,7 +21,7 @@ The AWS Lambda Durable Execution Emulator provides a local development environme
 ```bash
 git clone https://github.com/aws/aws-lambda-durable-functions-emulator.git
 cd aws-lambda-durable-functions-emulator
-hatch run pip install -e .
+pip install --no-cache-dir -e .
 ```
 
 ## Usage
@@ -30,10 +30,8 @@ hatch run pip install -e .
 
 ```bash
 # Using the installed command
-durable-functions-emulator
 
-# Or using hatch for development
-hatch run dev
+durable-functions-emulator
 
 # With custom host and port
 durable-functions-emulator --host 0.0.0.0 --port 8080
@@ -99,7 +97,7 @@ hatch build
 
 ### Health Check
 
-- **GET** `/ping` - Returns emulator status
+- **GET** `/health` - Returns emulator status
 
 ### Durable Execution APIs
 
