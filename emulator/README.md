@@ -58,7 +58,7 @@ durable-functions-emulator --host 0.0.0.0 --port 8080
 The emulator provides a health check endpoint:
 
 ```bash
-curl http://localhost:5000/ping
+curl http://localhost:5000/health
 ```
 
 ## Development

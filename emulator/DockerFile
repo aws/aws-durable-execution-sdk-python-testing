@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/python:3.13
+FROM python:3.11-slim
 
 WORKDIR /emulator
 # Install Hatch
@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir hatch
 COPY . .
 
 # install emulator
+RUN hatch env create
 RUN hatch run pip install -e .
 
 # where is the hatch executable installed
