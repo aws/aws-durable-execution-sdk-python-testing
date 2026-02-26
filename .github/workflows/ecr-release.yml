@@ -75,8 +75,8 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           ECR_REPOSITORY: ${{ env.ecr_repository_name }}
-          IMAGE_TAG: "${{ env.image_tag }}${{ github.event.release.name }}"
-          PER_ARCH_IMAGE_TAG: "${{ matrix.arch }}${{ github.event.release.name }}"
+          IMAGE_TAG: "${{ env.image_tag }}${{ steps.version.outputs.VERSION }}"
+          PER_ARCH_IMAGE_TAG: "${{ matrix.arch }}${{ steps.version.outputs.VERSION }}"
         run: |
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
             docker build --platform linux/amd64 --provenance false "${{ env.docker_build_dir }}" -f "${{ env.path_to_dockerfile }}" -t "$ECR_REGISTRY/$ECR_REPOSITORY:$PER_ARCH_IMAGE_TAG"
@@ -114,14 +114,12 @@ jobs:
         with:
           registry-type: public
       - name: Create ECR manifest with explicit tag
-        if: github.event.release.name != ''
         id: create-ecr-manifest-explicit
         run: |
           docker manifest create "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_x86_64 }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_arm64 }}"
       - name: Annotate ECR manifest with explicit arm64 tag
-        if: github.event.release.name != ''
         id: annotate-ecr-manifest-explicit-arm64
         run: |
           docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}" \
@@ -129,7 +127,6 @@ jobs:
             --arch arm64 \
             --os linux
       - name: Annotate ECR manifest with explicit amd64 tag
-        if: github.event.release.name != ''
         id: annotate-ecr-manifest-explicit-amd64
         run: |
           docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}" \
@@ -137,7 +134,6 @@ jobs:
             --arch amd64 \
             --os linux
       - name: Push ECR manifest with explicit version
-        if: github.event.release.name != ''
         id: push-ecr-manifest-explicit
         run: |
           docker manifest push "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}"
