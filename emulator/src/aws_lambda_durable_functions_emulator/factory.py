@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 
 import aws_durable_execution_sdk_python
 import botocore.loaders
-from aws_durable_execution_sdk_python_testing.checkpoint.processor import CheckpointProcessor
+from aws_durable_execution_sdk_python_testing.checkpoint.processor import (
+    CheckpointProcessor,
+)
 from aws_durable_execution_sdk_python_testing.executor import Executor
 from aws_durable_execution_sdk_python_testing.invoker import LambdaInvoker
 from aws_durable_execution_sdk_python_testing.scheduler import Scheduler
@@ -85,7 +87,9 @@ class TestingLibraryComponentFactory:
         store = TestingLibraryComponentFactory.create_store(config)
         scheduler = TestingLibraryComponentFactory.create_scheduler()
         invoker = TestingLibraryComponentFactory.create_invoker(config)
-        checkpoint_processor = TestingLibraryComponentFactory.create_checkpoint_processor(store, scheduler)
+        checkpoint_processor = (
+            TestingLibraryComponentFactory.create_checkpoint_processor(store, scheduler)
+        )
 
         executor = Executor(store, scheduler, invoker, checkpoint_processor)
         checkpoint_processor.add_execution_observer(executor)

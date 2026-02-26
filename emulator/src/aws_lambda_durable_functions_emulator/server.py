@@ -22,7 +22,9 @@ if TYPE_CHECKING:
 
 # Configure logging
 log_level = get_log_level()
-logging.basicConfig(level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("durable_functions_emulator")
 logger.setLevel(log_level)
 
@@ -66,7 +68,9 @@ class EmulatorServer:
         try:
             logger.info("Starting emulator server...")
             with self.web_server:
-                logger.info("Server listening on %s:%s", self.config.host, self.config.port)
+                logger.info(
+                    "Server listening on %s:%s", self.config.host, self.config.port
+                )
                 self.web_server.serve_forever()
         except KeyboardInterrupt:
             logger.info("Server shutdown requested by user")
@@ -79,17 +83,31 @@ class EmulatorServer:
 
 def main():
     """Main entry point for the emulator server."""
-    parser = argparse.ArgumentParser(description="AWS Lambda Durable Functions Emulator (powered by testing library)")
-    parser.add_argument("--host", type=str, help="Host to bind to (default: from HOST env var or 0.0.0.0)")
-    parser.add_argument("--port", type=int, help="Port to bind to (default: from PORT env var or 5000)")
+    parser = argparse.ArgumentParser(
+        description="AWS Lambda Durable Functions Emulator (powered by testing library)"
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        help="Host to bind to (default: from HOST env var or 0.0.0.0)",
+    )
+    parser.add_argument(
+        "--port", type=int, help="Port to bind to (default: from PORT env var or 5000)"
+    )
     args = parser.parse_args()
 
     try:
         # Create emulator configuration
-        config = EmulatorConfig(host=args.host or get_host(), port=args.port or get_port())
+        config = EmulatorConfig(
+            host=args.host or get_host(), port=args.port or get_port()
+        )
 
         # Create and start emulator server
-        logger.info("Starting AWS Lambda Durable Functions Emulator on %s:%s", config.host, config.port)
+        logger.info(
+            "Starting AWS Lambda Durable Functions Emulator on %s:%s",
+            config.host,
+            config.port,
+        )
         server = EmulatorServer(config)
         server.start()
 
@@ -105,7 +123,9 @@ def main():
 
     except ImportError:
         logger.exception("Missing dependency")
-        logger.info("Please install the aws-durable-execution-sdk-python-testing package:")
+        logger.info(
+            "Please install the aws-durable-execution-sdk-python-testing package:"
+        )
         logger.info("  pip install aws-durable-execution-sdk-python-testing")
         sys.exit(1)
 

@@ -59,13 +59,17 @@ class EmulatorConfig:
 
     def to_web_service_config(self):
         """Convert to testing library web service config."""
-        return WebServiceConfig(host=self.host, port=self.port, log_level=self.log_level)
+        return WebServiceConfig(
+            host=self.host, port=self.port, log_level=self.log_level
+        )
 
     def _validate_config(self):
         """Validate all configuration parameters."""
 
         # Validate Lambda endpoint URL
-        def _raise_invalid_endpoint(endpoint: str, cause: Exception | None = None) -> None:
+        def _raise_invalid_endpoint(
+            endpoint: str, cause: Exception | None = None
+        ) -> None:
             msg = f"Invalid Lambda endpoint URL: {endpoint}"
             raise ValueError(msg) from cause
 
@@ -79,11 +83,15 @@ class EmulatorConfig:
         # Validate storage directory if specified
         if self.storage_dir:
 
-            def _raise_storage_error(storage_dir: str, cause: Exception | None = None) -> None:
+            def _raise_storage_error(
+                storage_dir: str, cause: Exception | None = None
+            ) -> None:
                 msg = f"Storage directory is not writable: {storage_dir}"
                 raise ValueError(msg) from cause
 
-            def _raise_access_error(storage_dir: str, cause: Exception | None = None) -> None:
+            def _raise_access_error(
+                storage_dir: str, cause: Exception | None = None
+            ) -> None:
                 msg = f"Cannot access storage directory: {storage_dir}"
                 raise ValueError(msg) from cause
 
@@ -107,7 +115,13 @@ class EmulatorConfig:
                 _raise_access_error(self.storage_dir, e)
 
         # Validate log level
-        valid_log_levels = [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]
+        valid_log_levels = [
+            logging.DEBUG,
+            logging.INFO,
+            logging.WARNING,
+            logging.ERROR,
+            logging.CRITICAL,
+        ]
         if self.log_level not in valid_log_levels:
             msg = f"Invalid log level: {self.log_level}. Must be one of {valid_log_levels}"
             raise ValueError(msg)
