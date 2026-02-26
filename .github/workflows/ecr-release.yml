@@ -54,7 +54,11 @@ jobs:
         id: version
         run: |
           VERSION=$(python -c "from aws_durable_execution_sdk_python_testing import __version__; print(__version__)")
+          echo "VERSION=$VERSION"
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+      - name: Print Version
+        id: version-print
+        run: echo ${{ steps.version.outputs.VERSION }}
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
