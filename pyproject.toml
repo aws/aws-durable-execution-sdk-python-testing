@@ -116,9 +116,6 @@ exclude_lines = [
 [tool.ruff]
 line-length = 88
 target-version = "py313"
-exclude = [
-  "emulator"
-]
 
 [tool.ruff.lint]
 preview = false
