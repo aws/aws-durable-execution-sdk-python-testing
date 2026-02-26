@@ -2,14 +2,16 @@ name: ecr-release.yml
 on:
   release:
     types: [published]
+  push:
+    branches: [feat/publish-emulator-image]
 
 permissions:
   contents: read
   id-token: write # This is required for requesting the JWT
 
 env:
-  path_to_dockerfile: "emulator/DockerFile"
-  docker_build_dir: "emulator/"
+  path_to_dockerfile: "/DockerFile"
+  docker_build_dir: "/"
   aws_region: "us-east-1"
   ecr_repository_name: "o4w4w0v6/aws-durable-execution-emulator"
 
@@ -26,12 +28,11 @@ jobs:
           - arch: x86_64
           - arch: arm64
     steps:
-      - name: Grab version from generate-version job
+      - name: Get version from __about__.py
         id: version
-        env:
-          VERSION: $${{ github.event.release.name }}
         run: |
-          echo "$VERSION"
+          VERSION=$(python -c "from src.aws_durable_execution_sdk_python_testing.__about__ import __version__; print(__version__)")
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v6
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -47,6 +48,8 @@ jobs:
         uses: docker/setup-qemu-action@v3
         with:
           platforms: arm64
+      - name: Build distribution
+        run: hatch build
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -105,14 +108,14 @@ jobs:
         if: github.event.release.name != ''
         id: create-ecr-manifest-explicit
         run: |
-          docker manifest create "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ github.event.release.name }}" \
+          docker manifest create "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_x86_64 }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_arm64 }}"
       - name: Annotate ECR manifest with explicit arm64 tag
         if: github.event.release.name != ''
         id: annotate-ecr-manifest-explicit-arm64
         run: |
-          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ github.event.release.name }}" \
+          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_arm64 }}" \
             --arch arm64 \
             --os linux
@@ -120,7 +123,7 @@ jobs:
         if: github.event.release.name != ''
         id: annotate-ecr-manifest-explicit-amd64
         run: |
-          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ github.event.release.name }}" \
+          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_x86_64 }}" \
             --arch amd64 \
             --os linux
@@ -128,7 +131,7 @@ jobs:
         if: github.event.release.name != ''
         id: push-ecr-manifest-explicit
         run: |
-          docker manifest push "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:$${{ github.event.release.name }}"
+          docker manifest push "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}"
       - name: Create ECR manifest with latest tag
         id: create-ecr-manifest-latest
         run: |
