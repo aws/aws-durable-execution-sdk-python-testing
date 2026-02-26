@@ -9,6 +9,8 @@ from aws_durable_execution_sdk_python_testing.runner import (
     WebRunnerConfig,
 )
 
+from aws_durable_execution_sdk_python_testing.__about__ import __version__
+
 
 __all__ = [
     "DurableChildContextTestRunner",
@@ -17,4 +19,5 @@ __all__ = [
     "DurableFunctionTestRunner",
     "WebRunner",
     "WebRunnerConfig",
+    "__version__",
 ]
