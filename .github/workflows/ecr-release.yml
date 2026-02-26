@@ -22,6 +22,7 @@ jobs:
       full_image_arm64: ${{ steps.build-publish.outputs.full_image_arm64 }}
       full_image_x86_64: ${{ steps.build-publish.outputs.full_image_x86_64 }}
       ecr_registry_repository: ${{ steps.build-publish.outputs.ecr_registry_repository }}
+      version: ${{ steps.version.outputs.VERSION }}
     strategy:
       matrix:
         include:
@@ -56,9 +57,6 @@ jobs:
           VERSION=$(python -c "from aws_durable_execution_sdk_python_testing import __version__; print(__version__)")
           echo "VERSION=$VERSION"
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-      - name: Print Version
-        id: version-print
-        run: echo ${{ steps.version.outputs.VERSION }}
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -75,8 +73,8 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           ECR_REPOSITORY: ${{ env.ecr_repository_name }}
-          IMAGE_TAG: "${{ env.image_tag }}${{ steps.version.outputs.VERSION }}"
-          PER_ARCH_IMAGE_TAG: "${{ matrix.arch }}${{ steps.version.outputs.VERSION }}"
+          IMAGE_TAG: "${{ env.image_tag }}v${{ steps.version.outputs.VERSION }}"
+          PER_ARCH_IMAGE_TAG: "${{ matrix.arch }}v${{ steps.version.outputs.VERSION }}"
         run: |
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
             docker build --platform linux/amd64 --provenance false "${{ env.docker_build_dir }}" -f "${{ env.path_to_dockerfile }}" -t "$ECR_REGISTRY/$ECR_REPOSITORY:$PER_ARCH_IMAGE_TAG"
@@ -93,16 +91,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-upload-image-to-ecr]
     steps:
-      - name: Grab image and registry/repository name from previous steps
+      - name: Grab image, registry/repository name, version from previous steps
         id: ecr_names
         env:
           ECR_REGISTRY_REPOSITORY: ${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}
           FULL_IMAGE_ARM64: ${{ needs.build-and-upload-image-to-ecr.outputs.full_image_arm64 }}
           FULL_IMAGE_X86_64: ${{ needs.build-and-upload-image-to-ecr.outputs.full_image_x86_64 }}
+          VERSION: ${{ needs.build-and-upload-image-to-ecr.outputs.version }}
         run: |
           echo "full_image_arm64=$FULL_IMAGE_ARM64"
           echo "ecr_registry_repository=$ECR_REGISTRY_REPOSITORY"
           echo "full_image_x86_64=$FULL_IMAGE_X86_64"
+          echo "version=$VERSION"
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -116,27 +116,27 @@ jobs:
       - name: Create ECR manifest with explicit tag
         id: create-ecr-manifest-explicit
         run: |
-          docker manifest create "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}" \
+          docker manifest create "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ needs.build-and-upload-image-to-ecr.outputs.version }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_x86_64 }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_arm64 }}"
       - name: Annotate ECR manifest with explicit arm64 tag
         id: annotate-ecr-manifest-explicit-arm64
         run: |
-          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}" \
+          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ needs.build-and-upload-image-to-ecr.outputs.version }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_arm64 }}" \
             --arch arm64 \
             --os linux
       - name: Annotate ECR manifest with explicit amd64 tag
         id: annotate-ecr-manifest-explicit-amd64
         run: |
-          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}" \
+          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ needs.build-and-upload-image-to-ecr.outputs.version }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_x86_64 }}" \
             --arch amd64 \
             --os linux
       - name: Push ECR manifest with explicit version
         id: push-ecr-manifest-explicit
         run: |
-          docker manifest push "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ steps.version.outputs.VERSION }}"
+          docker manifest push "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ needs.build-and-upload-image-to-ecr.outputs.version }}"
       - name: Create ECR manifest with latest tag
         id: create-ecr-manifest-latest
         run: |
