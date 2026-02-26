@@ -116,27 +116,27 @@ jobs:
       - name: Create ECR manifest with explicit tag
         id: create-ecr-manifest-explicit
         run: |
-          docker manifest create "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ needs.build-and-upload-image-to-ecr.outputs.version }}" \
+          docker manifest create "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:v${{ needs.build-and-upload-image-to-ecr.outputs.version }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_x86_64 }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_arm64 }}"
       - name: Annotate ECR manifest with explicit arm64 tag
         id: annotate-ecr-manifest-explicit-arm64
         run: |
-          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ needs.build-and-upload-image-to-ecr.outputs.version }}" \
+          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:v${{ needs.build-and-upload-image-to-ecr.outputs.version }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_arm64 }}" \
             --arch arm64 \
             --os linux
       - name: Annotate ECR manifest with explicit amd64 tag
         id: annotate-ecr-manifest-explicit-amd64
         run: |
-          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ needs.build-and-upload-image-to-ecr.outputs.version }}" \
+          docker manifest annotate "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:v${{ needs.build-and-upload-image-to-ecr.outputs.version }}" \
             "${{ needs.build-and-upload-image-to-ecr.outputs.full_image_x86_64 }}" \
             --arch amd64 \
             --os linux
       - name: Push ECR manifest with explicit version
         id: push-ecr-manifest-explicit
         run: |
-          docker manifest push "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:${{ needs.build-and-upload-image-to-ecr.outputs.version }}"
+          docker manifest push "${{ needs.build-and-upload-image-to-ecr.outputs.ecr_registry_repository }}:v${{ needs.build-and-upload-image-to-ecr.outputs.version }}"
       - name: Create ECR manifest with latest tag
         id: create-ecr-manifest-latest
         run: |
