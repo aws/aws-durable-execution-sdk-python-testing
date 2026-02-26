@@ -9,11 +9,6 @@ ENV AWS_ACCESS_KEY_ID=foo \
     AWS_SECRET_ACCESS_KEY=bar \
     AWS_DEFAULT_REGION=us-east-1
 
-EXPOSE 9014
-
-HEALTHCHECK --interval=10s --timeout=3s --start-period=5s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:9014/health').read()" || exit 1
-
 CMD ["dex-local-runner", "start-server", \
      "--host", "0.0.0.0", \
      "--port", "9014", \
