@@ -2381,9 +2381,9 @@ def test_handler_naming_matches_smithy_operations():
     for handler_name in handler_names:
         assert hasattr(handlers, handler_name), f"Handler {handler_name} not found"
         handler_class = getattr(handlers, handler_name)
-        assert issubclass(
-            handler_class, EndpointHandler
-        ), f"{handler_name} should inherit from EndpointHandler"
+        assert issubclass(handler_class, EndpointHandler), (
+            f"{handler_name} should inherit from EndpointHandler"
+        )
 
 
 def test_all_handlers_have_executor():
@@ -2408,9 +2408,9 @@ def test_all_handlers_have_executor():
 
     for handler_class in handlers_to_test:
         handler = handler_class(executor)
-        assert (
-            handler.executor == executor
-        ), f"{handler_class.__name__} should store executor reference"
+        assert handler.executor == executor, (
+            f"{handler_class.__name__} should store executor reference"
+        )
 
 
 class MockExceptionHandler(EndpointHandler):
