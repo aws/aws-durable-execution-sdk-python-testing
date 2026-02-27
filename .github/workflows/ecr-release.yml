@@ -10,7 +10,7 @@ permissions:
   id-token: write # This is required for requesting the JWT
 
 env:
-  path_to_dockerfile: "DockerFile"
+  path_to_dockerfile: "Dockerfile"
   docker_build_dir: "."
   aws_region: "us-east-1"
   ecr_repository_name: "o4w4w0v6/aws-durable-execution-emulator"
