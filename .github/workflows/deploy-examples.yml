@@ -62,9 +62,6 @@ jobs:
 
     - name: Install Hatch
       run: pip install hatch
-    - name: Install specific version of Virtual Env due to bug with hatch
-      run: |
-        python -m pip install virtualenv==20.39.0
     - name: Build examples
       run: hatch run examples:build
 
