@@ -9,6 +9,8 @@ ENV AWS_ACCESS_KEY_ID=foo \
     AWS_SECRET_ACCESS_KEY=bar \
     AWS_DEFAULT_REGION=us-east-1
 
+EXPOSE 9014
+
 CMD ["dex-local-runner", "start-server", \
      "--host", "0.0.0.0", \
      "--port", "9014", \
