@@ -2,6 +2,8 @@ name: ecr-release.yml
 on:
   release:
     types: [published]
+  push:
+    branches: [feat/publish-emulator-image]
 
 permissions:
   contents: read
@@ -46,13 +48,10 @@ jobs:
           python -m pip install virtualenv==20.39.0
       - name: Build distribution
         run: hatch build
-      - name: pip install
-        run: |
-          pip install -e .
       - name: Get version from __about__.py
         id: version
         run: |
-          VERSION=$(python -c "from aws_durable_execution_sdk_python_testing import __version__; print(__version__)")
+          VERSION=$(grep "^__version__" src/aws_durable_execution_sdk_python_testing/__about__.py | cut -d'"' -f2)
           echo "VERSION=$VERSION"
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
       - name: Configure AWS Credentials
@@ -71,8 +70,8 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           ECR_REPOSITORY: ${{ env.ecr_repository_name }}
-          IMAGE_TAG: "${{ env.image_tag }}v${{ steps.version.outputs.VERSION }}"
-          PER_ARCH_IMAGE_TAG: "${{ matrix.arch }}v${{ steps.version.outputs.VERSION }}"
+          IMAGE_TAG: "v${{ steps.version.outputs.VERSION }}-${{ env.image_tag }}"
+          PER_ARCH_IMAGE_TAG: "v${{ steps.version.outputs.VERSION }}-${{ matrix.arch }}"
         run: |
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
             docker build --platform linux/amd64 --provenance false "${{ env.docker_build_dir }}" -f "${{ env.path_to_dockerfile }}" -t "$ECR_REGISTRY/$ECR_REPOSITORY:$PER_ARCH_IMAGE_TAG"
