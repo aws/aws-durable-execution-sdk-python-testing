@@ -43,9 +43,6 @@ jobs:
         uses: docker/setup-qemu-action@v3
         with:
           platforms: arm64
-      - name: Install specific version of Virtual Env due to bug with hatch
-        run: |
-          python -m pip install virtualenv==20.39.0
       - name: Build distribution
         run: hatch build
       - name: Get version from __about__.py
