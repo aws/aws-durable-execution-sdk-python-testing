@@ -2,8 +2,6 @@ name: ecr-release.yml
 on:
   release:
     types: [published]
-  push:
-    branches: [feat/publish-emulator-image]
 
 permissions:
   contents: read
