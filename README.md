@@ -197,3 +197,4 @@ tldr; use `hatch` and it will manage virtual envs and dependencies for you, so y
 ## License
 
 This project is licensed under the [Apache-2.0 License](LICENSE).
+
