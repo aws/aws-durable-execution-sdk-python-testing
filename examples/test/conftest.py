@@ -104,9 +104,10 @@ class TestRunnerAdapter:
         self,
         input: str | None = None,  # noqa: A002
         timeout: int = 60,
+        skip_time: bool = False,
     ) -> DurableFunctionTestResult:
         """Execute the durable function and return results."""
-        return self._runner.run(input=input, timeout=timeout)
+        return self._runner.run(input=input, timeout=timeout, skip_time=skip_time)
 
     def run_async(
         self,

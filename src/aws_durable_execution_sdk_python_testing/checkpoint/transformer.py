@@ -43,19 +43,21 @@ from typing import ClassVar
 class OperationTransformer:
     """Transforms OperationUpdates to Operations while maintaining order and triggering scheduler actions."""
 
-    _DEFAULT_PROCESSORS: ClassVar[dict[OperationType, OperationProcessor]] = {
-        OperationType.STEP: StepProcessor(),
-        OperationType.WAIT: WaitProcessor(),
-        OperationType.CONTEXT: ContextProcessor(),
-        OperationType.CALLBACK: CallbackProcessor(),
-        OperationType.EXECUTION: ExecutionProcessor(),
-    }
-
     def __init__(
         self,
         processors: MutableMapping[OperationType, OperationProcessor] | None = None,
+        time_scale: float = 1.0,
     ):
-        self.processors = processors if processors else self._DEFAULT_PROCESSORS
+        if processors:
+            self.processors = processors
+        else:
+            self.processors = {
+                OperationType.STEP: StepProcessor(),
+                OperationType.WAIT: WaitProcessor(time_scale=time_scale),
+                OperationType.CONTEXT: ContextProcessor(),
+                OperationType.CALLBACK: CallbackProcessor(),
+                OperationType.EXECUTION: ExecutionProcessor(),
+            }
 
     def process_updates(
         self,

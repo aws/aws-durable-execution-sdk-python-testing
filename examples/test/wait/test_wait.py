@@ -15,7 +15,7 @@ from test.conftest import deserialize_operation_payload
 def test_wait(durable_runner):
     """Test wait example."""
     with durable_runner:
-        result = durable_runner.run(input="test", timeout=10)
+        result = durable_runner.run(input="test", timeout=10, skip_time=True)
 
     assert result.status is InvocationStatus.SUCCEEDED
     assert deserialize_operation_payload(result.result) == "Wait completed"

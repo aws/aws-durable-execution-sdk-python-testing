@@ -111,6 +111,26 @@ def test_my_durable_functions():
     three_result: StepOperation = result.get_step("three")
     assert three_result.result == '"5 6"'
 ```
+
+### Skipping Time in Tests
+
+By default, wait operations use real time delays. For faster test execution, use the `skip_time` parameter:
+
+```python
+def test_with_skip_time():
+    with DurableFunctionTestRunner(handler=function_under_test) as runner:
+        # Wait operations complete immediately
+        result = runner.run(input="input str", timeout=10, skip_time=True)
+    
+    assert result.status is InvocationStatus.SUCCEEDED
+```
+
+You can also use the `DURABLE_EXECUTION_TIME_SCALE` environment variable to control wait durations:
+- `DURABLE_EXECUTION_TIME_SCALE=0` - Skip all waits (same as `skip_time=True`)
+- `DURABLE_EXECUTION_TIME_SCALE=0.5` - Half speed
+- `DURABLE_EXECUTION_TIME_SCALE=2.0` - Double speed
+
+
 ## Architecture
 ![Durable Functions Python Test Framework Architecture](/assets/dar-python-test-framework-architecture.svg)
 
