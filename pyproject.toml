@@ -86,6 +86,7 @@ history = "python examples/cli.py history {args}"
 policy = "python examples/cli.py policy {args}"
 list = "python examples/cli.py list"
 clean = "rm -rf examples/build examples/.aws-sam examples/*.zip"
+generate-events = "python examples/scripts/cli_event_generator.py {args}"
 
 [tool.hatch.envs.types]
 extra-dependencies = ["mypy>=1.0.0", "pytest"]

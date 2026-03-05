@@ -464,6 +464,7 @@ def _get_callback_id_from_events(
 class DurableFunctionTestResult:
     status: InvocationStatus
     operations: list[Operation]
+    events: list[Event] = field(default_factory=list)
     result: OperationPayload | None = None
     error: ErrorObject | None = None
 
@@ -485,6 +486,7 @@ class DurableFunctionTestResult:
         return cls(
             status=execution.result.status,
             operations=operations,
+            events=[],
             result=execution.result.result,
             error=execution.result.error,
         )
@@ -527,6 +529,7 @@ class DurableFunctionTestResult:
         return cls(
             status=status,
             operations=operations,
+            events=history_response.events,
             result=execution_response.result,
             error=execution_response.error,
         )
@@ -668,11 +671,16 @@ class DurableFunctionTestRunner:
 
         if not completed:
             msg_timeout: str = "Execution did not complete within timeout"
-
             raise TimeoutError(msg_timeout)
 
-        execution: Execution = self._store.load(execution_arn)
-        return DurableFunctionTestResult.create(execution=execution)
+        history_response = self._executor.get_execution_history(
+            execution_arn, include_execution_data=True
+        )
+        execution_response = self._executor.get_execution_details(execution_arn)
+
+        return DurableFunctionTestResult.from_execution_history(
+            execution_response, history_response
+        )
 
     def wait_for_callback(
         self, execution_arn: str, name: str | None = None, timeout: int = 60
