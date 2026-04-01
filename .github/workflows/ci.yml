@@ -29,13 +29,15 @@ jobs:
     - name: Install Hatch 
       run: |
         python -m pip install hatch==1.16.5
-    - uses: webfactory/ssh-agent@v0.9.1
+    - uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd # v0.9.1
       with:
         ssh-private-key: ${{ secrets.SDK_KEY }}
     - name: Check for Python Language SDK branch override in PR
       if: github.event_name == 'pull_request'
+      env:
+        PR_BODY: ${{ github.event.pull_request.body }}
       run: |
-        OVERRIDE=$(echo "${{ github.event.pull_request.body }}" | grep -o 'PYTHON_LANGUAGE_SDK_BRANCH: [^[:space:]]*' | cut -d' ' -f2 || true)
+        OVERRIDE=$(echo "$PR_BODY" | grep -o 'PYTHON_LANGUAGE_SDK_BRANCH: [^[:space:]]*' | cut -d' ' -f2 || true)
         if [ ! -z "$OVERRIDE" ]; then
           echo "AWS_DURABLE_SDK_URL=git+ssh://git@github.com/aws/aws-durable-execution-sdk-python.git@$OVERRIDE" >> $GITHUB_ENV
           echo "Using Python Language SDK branch override: $OVERRIDE"
