@@ -62,7 +62,6 @@ jobs:
 
     - name: Install Hatch
       run: pip install hatch
-
     - name: Build examples
       run: hatch run examples:build
 
