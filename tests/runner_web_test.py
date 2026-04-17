@@ -12,6 +12,7 @@ from aws_durable_execution_sdk_python_testing.cli import CliApp
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsLocalRunnerError,
 )
+from aws_durable_execution_sdk_python_testing.invoker import _LAMBDA_CLIENT_CONFIG
 from aws_durable_execution_sdk_python_testing.runner import (
     WebRunner,
     WebRunnerConfig,
@@ -420,6 +421,7 @@ def test_should_handle_boto3_client_creation_with_custom_config():
             "lambda",
             endpoint_url="http://custom-endpoint:8080",
             region_name="eu-west-1",
+            config=_LAMBDA_CLIENT_CONFIG,
         )
 
         # Verify public behavior works
@@ -445,6 +447,7 @@ def test_should_handle_boto3_client_creation_with_defaults():
             "lambda",
             endpoint_url="http://127.0.0.1:3001",  # Default lambda_endpoint value
             region_name="us-west-2",  # Default value
+            config=_LAMBDA_CLIENT_CONFIG,
         )
 
         # Verify public behavior works
@@ -768,6 +771,7 @@ def test_should_pass_correct_boto3_client_to_lambda_invoker():
             "lambda",
             endpoint_url="http://test-endpoint:7777",
             region_name="ap-southeast-2",
+            config=_LAMBDA_CLIENT_CONFIG,
         )
 
         # Verify LambdaInvoker was created with the client

@@ -25,6 +25,8 @@ from aws_durable_execution_sdk_python_testing.execution import Execution
 from aws_durable_execution_sdk_python_testing.invoker import (
     InProcessInvoker,
     LambdaInvoker,
+    _LAMBDA_CLIENT_CONFIG,
+    create_lambda_client,
     create_test_lambda_context,
 )
 from aws_durable_execution_sdk_python_testing.model import (
@@ -133,6 +135,7 @@ def test_lambda_invoker_create():
             "lambda",
             endpoint_url="http://localhost:3001",
             region_name="us-west-2",
+            config=_LAMBDA_CLIENT_CONFIG,
         )
 
 

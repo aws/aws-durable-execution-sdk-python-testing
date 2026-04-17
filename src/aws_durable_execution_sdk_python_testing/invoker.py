@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 from uuid import uuid4
 
 import boto3  # type: ignore
+from botocore.config import Config  # type: ignore
+
 from aws_durable_execution_sdk_python.execution import (
     DurableExecutionInvocationInput,
     DurableExecutionInvocationInputWithClient,
@@ -27,6 +29,26 @@ if TYPE_CHECKING:
 
     from aws_durable_execution_sdk_python_testing.client import InMemoryServiceClient
     from aws_durable_execution_sdk_python_testing.execution import Execution
+
+
+# Max Lambda function timeout is 15 minutes (900s); we give headroom for
+# network round-trip and RIE startup.
+_LAMBDA_READ_TIMEOUT_SECONDS = 960
+_LAMBDA_CLIENT_CONFIG = Config(
+    read_timeout=_LAMBDA_READ_TIMEOUT_SECONDS,
+    retries={"max_attempts": 0},
+)
+
+
+def create_lambda_client(endpoint_url: str | None, region_name: str) -> Any:
+    """Create a boto3 Lambda client configured for durable function invocations."""
+
+    return boto3.client(
+        "lambda",
+        endpoint_url=endpoint_url,
+        region_name=region_name,
+        config=_LAMBDA_CLIENT_CONFIG,
+    )
 
 
 @dataclass(frozen=True)
@@ -136,9 +158,7 @@ class LambdaInvoker(Invoker):
     @staticmethod
     def create(endpoint_url: str, region_name: str) -> LambdaInvoker:
         """Create with the boto lambda client."""
-        invoker = LambdaInvoker(
-            boto3.client("lambda", endpoint_url=endpoint_url, region_name=region_name)
-        )
+        invoker = LambdaInvoker(create_lambda_client(endpoint_url, region_name))
         invoker._current_endpoint = endpoint_url
         invoker._endpoint_clients[endpoint_url] = invoker.lambda_client
         return invoker
@@ -148,8 +168,8 @@ class LambdaInvoker(Invoker):
         # Cache client by endpoint to reuse across executions
         with self._lock:
             if endpoint_url not in self._endpoint_clients:
-                self._endpoint_clients[endpoint_url] = boto3.client(
-                    "lambda", endpoint_url=endpoint_url, region_name=region_name
+                self._endpoint_clients[endpoint_url] = create_lambda_client(
+                    endpoint_url, region_name
                 )
             self.lambda_client = self._endpoint_clients[endpoint_url]
         self._current_endpoint = endpoint_url
@@ -164,10 +184,8 @@ class LambdaInvoker(Invoker):
         # Use provided endpoint or fall back to cached endpoint for this execution
         if lambda_endpoint:
             if lambda_endpoint not in self._endpoint_clients:
-                self._endpoint_clients[lambda_endpoint] = boto3.client(
-                    "lambda",
-                    endpoint_url=lambda_endpoint,
-                    region_name=region_name or "us-east-1",
+                self._endpoint_clients[lambda_endpoint] = create_lambda_client(
+                    lambda_endpoint, region_name or "us-east-1"
                 )
             return self._endpoint_clients[lambda_endpoint]
 

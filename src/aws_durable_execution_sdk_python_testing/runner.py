@@ -46,6 +46,7 @@ from aws_durable_execution_sdk_python_testing.executor import Executor
 from aws_durable_execution_sdk_python_testing.invoker import (
     InProcessInvoker,
     LambdaInvoker,
+    create_lambda_client,
 )
 from aws_durable_execution_sdk_python_testing.model import (
     GetDurableExecutionHistoryResponse,
@@ -858,9 +859,7 @@ class WebRunner:
             Exception: If client creation fails - exceptions propagate naturally
                       for CLI to handle as general Exception
         """
-        # Create client with Lambda endpoint configuration
-        return boto3.client(
-            "lambda",
+        return create_lambda_client(
             endpoint_url=self._config.lambda_endpoint,
             region_name=self._config.local_runner_region,
         )
