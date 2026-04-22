@@ -360,7 +360,7 @@ class CliApp:
             )
 
             try:
-                with urlopen(req, timeout=30) as response:  # noqa: S310
+                with urlopen(req, timeout=10) as response:  # noqa: S310
                     result = json.loads(response.read().decode("utf-8"))
                     print(json.dumps(result, indent=2))  # noqa: T201
                     return 0
@@ -380,9 +380,6 @@ class CliApp:
             logger.exception(
                 "Error: Could not connect to the local runner server. Is it running?"
             )
-            return 1
-        except TimeoutError:
-            logger.exception("Request timeout")
             return 1
         except Exception:
             logger.exception("Unexpected error in invoke command")

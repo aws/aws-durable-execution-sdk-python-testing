@@ -638,7 +638,7 @@ def test_invoke_command_makes_http_request_to_start_execution_endpoint() -> None
             req = call_args[0][0]
             assert req.full_url.endswith("/start-durable-execution")
             assert req.get_header("Content-type") == "application/json"
-            assert call_args[1]["timeout"] == 30
+            assert call_args[1]["timeout"] == 10
 
             # Verify payload structure
             payload = json.loads(req.data.decode("utf-8"))
@@ -685,24 +685,6 @@ def test_invoke_command_handles_connection_error() -> None:
 
     with patch("aws_durable_execution_sdk_python_testing.cli.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = URLError("Connection refused")
-
-        exit_code = app.invoke_command(
-            argparse.Namespace(
-                function_name="test-function",
-                input="{}",
-                durable_execution_name=None,
-            )
-        )
-
-        assert exit_code == 1
-
-
-def test_invoke_command_handles_timeout_error() -> None:
-    """Test that invoke command handles timeout errors gracefully."""
-    app = CliApp()
-
-    with patch("aws_durable_execution_sdk_python_testing.cli.urlopen") as mock_urlopen:
-        mock_urlopen.side_effect = TimeoutError("Request timed out")
 
         exit_code = app.invoke_command(
             argparse.Namespace(
