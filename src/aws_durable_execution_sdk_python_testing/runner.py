@@ -35,6 +35,9 @@ from aws_durable_execution_sdk_python.lambda_service import Operation as SvcOper
 from aws_durable_execution_sdk_python_testing.checkpoint.processor import (
     CheckpointProcessor,
 )
+from aws_durable_execution_sdk_python_testing.checkpoint.processors.wait import (
+    WaitProcessor,
+)
 from aws_durable_execution_sdk_python_testing.client import InMemoryServiceClient
 from aws_durable_execution_sdk_python_testing.exceptions import (
     DurableFunctionsLocalRunnerError,
@@ -607,7 +610,28 @@ class DurableFunctionTestRunner:
         function_name: str = "test-function",
         execution_name: str = "execution-name",
         account_id: str = "123456789012",
+        skip_time: bool = False,
     ) -> DurableFunctionTestResult:
+        """Run the durable function and wait for completion.
+
+        Args:
+            input: Input payload for the function
+            timeout: Maximum execution time in seconds
+            function_name: Name of the function
+            execution_name: Name of the execution
+            account_id: AWS account ID
+            skip_time: If True, wait operations complete immediately. If False (default),
+                      wait operations use real time delays.
+
+        Returns:
+            Test result containing execution status and operations
+        """
+        # Update time_scale in checkpoint processor for this run
+        time_scale = 0.0 if skip_time else 1.0
+        self._checkpoint_processor._transformer.processors[OperationType.WAIT] = (
+            WaitProcessor(time_scale=time_scale)
+        )
+
         execution_arn = self.run_async(
             input=input,
             timeout=timeout,
@@ -906,8 +930,13 @@ class DurableFunctionCloudTestRunner:
         self,
         input: str | None = None,  # noqa: A002
         timeout: int = 60,
+        skip_time: bool = False,  # noqa: ARG002
     ) -> DurableFunctionTestResult:
-        """Execute function on AWS Lambda and wait for completion."""
+        """Execute function on AWS Lambda and wait for completion.
+
+        Note: skip_time parameter is ignored for cloud runner as timing is
+        controlled by the Lambda service.
+        """
         logger.info(
             "Invoking Lambda function: %s (timeout: %ds)", self.function_name, timeout
         )

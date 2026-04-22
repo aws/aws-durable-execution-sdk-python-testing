@@ -30,6 +30,16 @@ if TYPE_CHECKING:
 class WaitProcessor(OperationProcessor):
     """Processes WAIT operation updates with timer scheduling."""
 
+    def __init__(self, time_scale: float = 1.0):
+        """Initialize WaitProcessor with time scale.
+
+        Args:
+            time_scale: Multiplier for wait durations. Use 0.0 to skip waits entirely.
+                       Defaults to 1.0 (real time). Can also be overridden by
+                       DURABLE_EXECUTION_TIME_SCALE environment variable.
+        """
+        self._time_scale = time_scale
+
     def process(
         self,
         update: OperationUpdate,
@@ -43,8 +53,11 @@ class WaitProcessor(OperationProcessor):
                 wait_seconds = (
                     update.wait_options.wait_seconds if update.wait_options else 0
                 )
-                time_scale = float(os.getenv("DURABLE_EXECUTION_TIME_SCALE", "1.0"))
-                logging.info("Using DURABLE_EXECUTION_TIME_SCALE: %f", time_scale)
+                # Environment variable takes precedence
+                time_scale = float(
+                    os.getenv("DURABLE_EXECUTION_TIME_SCALE", str(self._time_scale))
+                )
+                logging.info("Using time_scale: %f", time_scale)
                 scaled_wait_seconds = wait_seconds * time_scale
 
                 scheduled_end_timestamp = datetime.now(UTC) + timedelta(

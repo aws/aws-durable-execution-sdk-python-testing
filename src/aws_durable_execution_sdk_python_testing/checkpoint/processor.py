@@ -33,11 +33,13 @@ if TYPE_CHECKING:
 class CheckpointProcessor:
     """Handle OperationUpdate transformations and execution state updates."""
 
-    def __init__(self, store: ExecutionStore, scheduler: Scheduler):
+    def __init__(
+        self, store: ExecutionStore, scheduler: Scheduler, time_scale: float = 1.0
+    ):
         self._store = store
         self._scheduler = scheduler
         self._notifier = ExecutionNotifier()
-        self._transformer = OperationTransformer()
+        self._transformer = OperationTransformer(time_scale=time_scale)
 
     def add_execution_observer(self, observer) -> None:
         """Add observer for execution events."""
