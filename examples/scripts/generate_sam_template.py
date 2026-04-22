@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-import yaml
+import json
 
 
 def load_catalog():
@@ -97,7 +97,7 @@ def generate_sam_template():
 
     template_path = Path(__file__).parent.parent / "template.yaml"
     with open(template_path, "w") as f:
-        yaml.dump(template, f, default_flow_style=False, sort_keys=False)
+        json.dump(template, f, sort_keys=False, indent=2)
 
     print(f"Generated SAM template at {template_path}")
 

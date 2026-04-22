@@ -71,7 +71,6 @@ cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aw
 [tool.hatch.envs.examples]
 dependencies = [
   "boto3",
-  "PyYAML",
   "aws_durable_execution_sdk_python>=1.0.0",
 ]
 [tool.hatch.envs.examples.scripts]
