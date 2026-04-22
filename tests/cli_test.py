@@ -7,11 +7,13 @@ import json
 import logging
 import os
 import sys
-from io import StringIO
+from http.client import HTTPMessage
+from io import StringIO, BytesIO
 from unittest.mock import Mock, patch
 
 import pytest
-import requests
+from urllib.error import HTTPError, URLError
+
 from botocore.exceptions import ConnectionError  # type: ignore
 
 from aws_durable_execution_sdk_python_testing.cli import CliApp, CliConfig, main
@@ -604,14 +606,21 @@ def test_invoke_command_makes_http_request_to_start_execution_endpoint() -> None
     """Test that invoke command makes HTTP request to start-durable-execution endpoint."""
     app = CliApp()
 
-    with patch("requests.post") as mock_post:
-        # Mock successful response
-        mock_response = mock_post.return_value
-        mock_response.status_code = 201
-        mock_response.json.return_value = {
+    response_body = json.dumps(
+        {
             "ExecutionArn": "arn:aws:lambda:us-west-2:123456789012:function:test-function:execution:test-execution"
         }
+    ).encode("utf-8")
 
+    mock_response = Mock()
+    mock_response.read.return_value = response_body
+    mock_response.__enter__ = Mock(return_value=mock_response)
+    mock_response.__exit__ = Mock(return_value=False)
+
+    with patch(
+        "aws_durable_execution_sdk_python_testing.cli.urlopen",
+        return_value=mock_response,
+    ) as mock_urlopen:
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             exit_code = app.invoke_command(
                 argparse.Namespace(
@@ -622,16 +631,17 @@ def test_invoke_command_makes_http_request_to_start_execution_endpoint() -> None
             )
 
             assert exit_code == 0
-            mock_post.assert_called_once()
+            mock_urlopen.assert_called_once()
 
             # Verify the request details
-            call_args = mock_post.call_args
-            assert call_args[0][0].endswith("/start-durable-execution")
-            assert call_args[1]["headers"]["Content-Type"] == "application/json"
+            call_args = mock_urlopen.call_args
+            req = call_args[0][0]
+            assert req.full_url.endswith("/start-durable-execution")
+            assert req.get_header("Content-type") == "application/json"
             assert call_args[1]["timeout"] == 30
 
             # Verify payload structure
-            payload = call_args[1]["json"]
+            payload = json.loads(req.data.decode("utf-8"))
             assert payload["FunctionName"] == "test-function"
             assert payload["Input"] == '{"key": "value"}'
             assert payload["ExecutionName"] == "test-execution"
@@ -645,11 +655,16 @@ def test_invoke_command_uses_default_execution_name_when_not_provided() -> None:
     """Test that invoke command generates default execution name when not provided."""
     app = CliApp()
 
-    with patch("requests.post") as mock_post:
-        mock_response = mock_post.return_value
-        mock_response.status_code = 201
-        mock_response.json.return_value = {"ExecutionArn": "test-arn"}
+    response_body = json.dumps({"ExecutionArn": "test-arn"}).encode("utf-8")
+    mock_response = Mock()
+    mock_response.read.return_value = response_body
+    mock_response.__enter__ = Mock(return_value=mock_response)
+    mock_response.__exit__ = Mock(return_value=False)
 
+    with patch(
+        "aws_durable_execution_sdk_python_testing.cli.urlopen",
+        return_value=mock_response,
+    ) as mock_urlopen:
         app.invoke_command(
             argparse.Namespace(
                 function_name="my-function",
@@ -659,7 +674,8 @@ def test_invoke_command_uses_default_execution_name_when_not_provided() -> None:
         )
 
         # Verify default execution name is generated
-        payload = mock_post.call_args[1]["json"]
+        req = mock_urlopen.call_args[0][0]
+        payload = json.loads(req.data.decode("utf-8"))
         assert payload["ExecutionName"] == "my-function-execution"
 
 
@@ -667,10 +683,8 @@ def test_invoke_command_handles_connection_error() -> None:
     """Test that invoke command handles connection errors gracefully."""
     app = CliApp()
 
-    with patch("requests.post") as mock_post:
-        mock_post.side_effect = requests.exceptions.ConnectionError(
-            "Connection refused"
-        )
+    with patch("aws_durable_execution_sdk_python_testing.cli.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = URLError("Connection refused")
 
         exit_code = app.invoke_command(
             argparse.Namespace(
@@ -687,8 +701,8 @@ def test_invoke_command_handles_timeout_error() -> None:
     """Test that invoke command handles timeout errors gracefully."""
     app = CliApp()
 
-    with patch("requests.post") as mock_post:
-        mock_post.side_effect = requests.exceptions.Timeout("Request timed out")
+    with patch("aws_durable_execution_sdk_python_testing.cli.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = TimeoutError("Request timed out")
 
         exit_code = app.invoke_command(
             argparse.Namespace(
@@ -705,13 +719,21 @@ def test_invoke_command_handles_http_error_response() -> None:
     """Test that invoke command handles HTTP error responses."""
     app = CliApp()
 
-    with patch("requests.post") as mock_post:
-        mock_response = mock_post.return_value
-        mock_response.status_code = 400
-        mock_response.json.return_value = {
+    error_body = json.dumps(
+        {
             "ErrorMessage": "Invalid parameter value",
             "ErrorType": "InvalidParameterValueException",
         }
+    ).encode("utf-8")
+
+    with patch("aws_durable_execution_sdk_python_testing.cli.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = HTTPError(
+            url="http://0.0.0.0:5000/start-durable-execution",
+            code=400,
+            msg="Bad Request",
+            hdrs=HTTPMessage(),
+            fp=BytesIO(error_body),
+        )
 
         with patch("sys.stderr", new_callable=StringIO) as mock_stderr:
             exit_code = app.invoke_command(
@@ -730,11 +752,14 @@ def test_invoke_command_handles_non_json_error_response() -> None:
     """Test that invoke command handles non-JSON error responses."""
     app = CliApp()
 
-    with patch("requests.post") as mock_post:
-        mock_response = mock_post.return_value
-        mock_response.status_code = 500
-        mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
-        mock_response.text = "Internal Server Error"
+    with patch("aws_durable_execution_sdk_python_testing.cli.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = HTTPError(
+            url="http://0.0.0.0:5000/start-durable-execution",
+            code=500,
+            msg="Internal Server Error",
+            hdrs=HTTPMessage(),
+            fp=BytesIO(b"Internal Server Error"),
+        )
 
         exit_code = app.invoke_command(
             argparse.Namespace(
@@ -1050,8 +1075,8 @@ def test_invoke_command_handles_general_exception() -> None:
     """Test that invoke command handles general exceptions."""
     app = CliApp()
 
-    with patch("requests.post") as mock_post:
-        mock_post.side_effect = ValueError("Some unexpected error")
+    with patch("aws_durable_execution_sdk_python_testing.cli.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = ValueError("Some unexpected error")
 
         exit_code = app.invoke_command(
             argparse.Namespace(

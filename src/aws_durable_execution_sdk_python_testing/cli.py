@@ -21,7 +21,9 @@ from urllib.parse import urljoin
 
 import aws_durable_execution_sdk_python
 import boto3  # type: ignore
-import requests
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
 from botocore.exceptions import ConnectionError  # type: ignore
 
 from aws_durable_execution_sdk_python_testing.exceptions import (
@@ -348,35 +350,38 @@ class CliApp:
             endpoint_url = self.config.local_runner_endpoint
             url = urljoin(endpoint_url, "/start-durable-execution")
 
-            headers = {"Content-Type": "application/json"}
             payload = start_input.to_dict()
+            data = json.dumps(payload).encode("utf-8")
+            req = Request(
+                url,
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
 
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
-
-            if response.status_code == 201:  # noqa: PLR2004
-                # Success - print the response
-                result = response.json()
-                print(json.dumps(result, indent=2))  # noqa: T201
-                return 0
-
-            # Error - print error details
             try:
-                error_data = response.json()
-                logger.exception("HTTP error response")
-                print(  # noqa: T201
-                    f"Error: {error_data.get('ErrorMessage', 'Unknown error')}",
-                    file=sys.stderr,
-                )
-            except json.JSONDecodeError:
-                logger.exception("Non-JSON error response")
-            return 1  # noqa: TRY300
+                with urlopen(req, timeout=30) as response:  # noqa: S310
+                    result = json.loads(response.read().decode("utf-8"))
+                    print(json.dumps(result, indent=2))  # noqa: T201
+                    return 0
+            except HTTPError as e:
+                try:
+                    error_data = json.loads(e.read().decode("utf-8"))
+                    logger.exception("HTTP error response")
+                    print(  # noqa: T201
+                        f"Error: {error_data.get('ErrorMessage', 'Unknown error')}",
+                        file=sys.stderr,
+                    )
+                except json.JSONDecodeError:
+                    logger.exception("Non-JSON error response")
+                return 1
 
-        except requests.exceptions.ConnectionError:
+        except URLError:
             logger.exception(
                 "Error: Could not connect to the local runner server. Is it running?"
             )
             return 1
-        except requests.exceptions.Timeout:
+        except TimeoutError:
             logger.exception("Request timeout")
             return 1
         except Exception:
