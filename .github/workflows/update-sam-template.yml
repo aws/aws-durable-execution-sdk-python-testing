@@ -26,9 +26,6 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install PyYAML
-        run: pip install PyYAML
-
       - name: Generate SAM template
         run: python examples/scripts/generate_sam_template.py
 
