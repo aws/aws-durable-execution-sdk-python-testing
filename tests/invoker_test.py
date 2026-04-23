@@ -71,6 +71,7 @@ def test_in_process_invoker_create_invocation_input():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     execution = Execution.new(input_data)
 
@@ -151,6 +152,7 @@ def test_lambda_invoker_create_invocation_input():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation",
     )
     execution = Execution.new(input_data)
 

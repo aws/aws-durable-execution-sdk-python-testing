@@ -33,6 +33,7 @@ def test_execution_init():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operations = []
 
@@ -61,11 +62,14 @@ def test_execution_new(mock_uuid4):
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id-1234",
     )
 
     execution = Execution.new(start_input)
 
-    assert execution.durable_execution_arn == str(mock_uuid)
+    assert (
+        execution.durable_execution_arn == str(mock_uuid) + "/test-invocation-id-1234"
+    )
     assert execution.start_input == start_input
     assert execution.operations == []
 
@@ -130,6 +134,7 @@ def test_get_operation_execution_started_not_started():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     execution = Execution("test-arn", start_input, [])
 
@@ -146,6 +151,7 @@ def test_get_new_checkpoint_token():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="invocation-id",
     )
     execution = Execution("test-arn", start_input, [])
 
@@ -167,6 +173,7 @@ def test_get_navigable_operations():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operations = [
         Operation(
@@ -194,6 +201,7 @@ def test_get_assertable_operations():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     execution_op = Operation(
         operation_id="exec-op",
@@ -229,6 +237,7 @@ def test_has_pending_operations_with_pending_step():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operations = [
         Operation(
@@ -256,6 +265,7 @@ def test_has_pending_operations_with_started_wait():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operations = [
         Operation(
@@ -283,6 +293,7 @@ def test_has_pending_operations_with_started_callback():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operations = [
         Operation(
@@ -310,6 +321,7 @@ def test_has_pending_operations_with_started_invoke():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operations = [
         Operation(
@@ -337,6 +349,7 @@ def test_has_pending_operations_no_pending():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operations = [
         Operation(
@@ -364,6 +377,7 @@ def test_complete_success_with_string_result():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     execution = Execution("test-arn", start_input, [Mock()])
 
@@ -383,6 +397,7 @@ def test_complete_success_with_none_result():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     execution = Execution("test-arn", start_input, [Mock()])
 
@@ -402,6 +417,7 @@ def test_complete_fail():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     execution = Execution("test-arn", start_input, [Mock()])
     error = ErrorObject.from_message("Test error message")
@@ -422,6 +438,7 @@ def test_find_operation_exists():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operation = Operation(
         operation_id="test-op-id",
@@ -448,6 +465,7 @@ def test_find_operation_not_exists():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     execution = Execution("test-arn", start_input, [])
 
@@ -470,6 +488,7 @@ def test_complete_wait_success(mock_datetime):
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operation = Operation(
         operation_id="wait-op-id",
@@ -498,6 +517,7 @@ def test_complete_wait_wrong_status():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operation = Operation(
         operation_id="wait-op-id",
@@ -524,6 +544,7 @@ def test_complete_wait_wrong_type():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operation = Operation(
         operation_id="step-op-id",
@@ -548,6 +569,7 @@ def test_complete_retry_success():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     step_details = StepDetails(
         next_attempt_timestamp=str(datetime.now(timezone.utc)),
@@ -581,6 +603,7 @@ def test_complete_retry_no_step_details():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operation = Operation(
         operation_id="step-op-id",
@@ -608,6 +631,7 @@ def test_complete_retry_wrong_status():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operation = Operation(
         operation_id="step-op-id",
@@ -634,6 +658,7 @@ def test_complete_retry_wrong_type():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     operation = Operation(
         operation_id="wait-op-id",
@@ -658,6 +683,7 @@ def test_status_running():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     execution = Execution("test-arn", start_input, [])
 
@@ -673,6 +699,7 @@ def test_status_succeeded():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     execution = Execution("test-arn", start_input, [Mock()])
     execution.complete_success("success result")
@@ -689,6 +716,7 @@ def test_status_failed():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="test-invocation-id",
     )
     execution = Execution("test-arn", start_input, [Mock()])
     error = ErrorObject.from_message("Test error")
@@ -706,6 +734,7 @@ def test_status_timed_out():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="invocation-id",
     )
     execution = Execution("test-arn", start_input, [Mock()])
     error = ErrorObject(
@@ -725,6 +754,7 @@ def test_status_stopped():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="invocation-id",
     )
     execution = Execution("test-arn", start_input, [Mock()])
     error = ErrorObject(
@@ -744,6 +774,7 @@ def test_status_no_result():
         execution_name="test-execution",
         execution_timeout_seconds=300,
         execution_retention_period_days=7,
+        invocation_id="invocation-id",
     )
     execution = Execution("test-arn", start_input, [])
     execution.is_complete = True
