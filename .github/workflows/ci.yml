@@ -43,7 +43,9 @@ jobs:
           echo "Using Python Language SDK branch override: $OVERRIDE"
         else
           echo "Using default Python Language SDK (main branch)"
+          OVERRIDE=main
         fi
+        hatch run -- test:python -m pip install -e "aws-durable-execution-sdk-python@git+https://github.com/aws/aws-durable-execution-sdk-python.git@$OVERRIDE"
     - name: static analysis
       run: hatch fmt --check
     - name: type checking
