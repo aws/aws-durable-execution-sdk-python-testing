@@ -63,27 +63,7 @@ dependencies = [
 
 [tool.hatch.envs.test.scripts]
 test = "pytest tests/ -v"
-examples = "pytest --runner-mode=local -m example examples/test/ -v"
-examples-integration = "pytest --runner-mode=cloud -m example examples/test/ -v {args}"
-cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aws_durable_execution_sdk_python_testing --cov-fail-under=96"
-
-[tool.hatch.envs.examples]
-dependencies = [
-  "boto3",
-  "aws_durable_execution_sdk_python>=1.0.0",
-]
-[tool.hatch.envs.examples.scripts]
-cli = "python examples/cli.py {args}"
-bootstrap = "python examples/cli.py bootstrap"
-generate-sam-template = "python examples/scripts/generate_sam_template.py"
-build = "python examples/cli.py build"
-deploy = "python examples/cli.py deploy {args}"
-invoke = "python examples/cli.py invoke {args}"
-get = "python examples/cli.py get {args}"
-history = "python examples/cli.py history {args}"
-policy = "python examples/cli.py policy {args}"
-list = "python examples/cli.py list"
-clean = "rm -rf examples/build examples/.aws-sam examples/*.zip"
+cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/aws_durable_execution_sdk_python_testing --cov-fail-under=95"
 
 [tool.hatch.envs.types]
 extra-dependencies = ["mypy>=1.0.0", "pytest"]
@@ -134,15 +114,6 @@ lines-after-imports = 2
   "SIM117",
   "TRY301",
 ]
-"examples/test/**" = [
-  "ARG001",
-  "ARG002",
-  "ARG005",
-  "S101",
-  "PLR2004",
-  "SIM117",
-  "TRY301",
-]
 "src/aws_durable_execution_sdk_python_testing/invoker.py" = [
   "A002", # Argument `input` is shadowing a Python builtin
 ]
@@ -156,6 +127,6 @@ markers = [
   "durable_execution: marks tests that use the durable_runner fixture (not used for test selection)",
 ]
 # Default test discovery paths
-testpaths = ["tests", "examples/test"]
+testpaths = ["tests"]
 # Default options for all test runs
 addopts = "-v --strict-markers"
