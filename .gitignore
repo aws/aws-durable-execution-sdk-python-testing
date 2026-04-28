@@ -33,8 +33,5 @@ dist/
 
 .durable_executions
 
-examples/build/*
-examples/*.zip
-
 durable-executions.db*
 .coverage
