@@ -91,7 +91,11 @@ class Execution:
         # Pattern: arn:(aws[a-zA-Z-]*)?:lambda:[a-z]{2}(-gov)?-[a-z]+-\d{1}:\d{12}:durable-execution:[a-zA-Z0-9-_\.]+:[a-zA-Z0-9-_\.]+:[a-zA-Z0-9-_\.]+
         # Example: arn:aws:lambda:us-east-1:123456789012:durable-execution:myDurableFunction:myDurableExecutionName:ce67da72-3701-4f83-9174-f4189d27b0a5
         return Execution(
-            durable_execution_arn=str(uuid4()), start_input=input, operations=[]
+            durable_execution_arn=str(uuid4())
+            + "/"
+            + (input.invocation_id or str(uuid4())),
+            start_input=input,
+            operations=[],
         )
 
     def to_json_dict(self) -> dict[str, Any]:
